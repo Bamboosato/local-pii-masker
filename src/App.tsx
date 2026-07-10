@@ -28,12 +28,13 @@ import {
 import {
   selectActiveEntries,
   selectMaskedText,
-  selectReplacementCount,
   selectRestoredResponse,
   selectSessionCounts,
   selectTokenInspection,
   selectVisibleEntries,
 } from "./app/selectors";
+import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
+import { runRegexDetection } from "./domain/detection/regex/runRegexDetection";
 import { countOccurrences } from "./domain/mask/findOccurrences";
 import { buildMaskSegments } from "./domain/mask/maskText";
 import { createMaskToken } from "./domain/mask/tokenFactory";
@@ -41,7 +42,6 @@ import { normalizeText } from "./domain/normalization/normalizeText";
 import {
   CATEGORY_LABELS,
   MASK_CATEGORIES,
-  REVIEW_STATUS_LABELS,
   SOURCE_LABELS,
   type MaskCategory,
   type MaskEntry,
@@ -56,6 +56,7 @@ export default function App() {
   const [manualCategory, setManualCategory] = useState<MaskCategory>("PERSON");
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSelectionControlRef = useRef<HTMLButtonElement>(null);
   const maskedText = selectMaskedText(state);
@@ -64,7 +65,6 @@ export default function App() {
   const activeEntries = selectActiveEntries(state.entries);
   const restoration = selectRestoredResponse(state);
   const tokenInspection = selectTokenInspection(state);
-  const replacementCount = selectReplacementCount(state);
   const manualPreviewToken = useMemo(() => {
     const normalizedSelection = normalizeText(selectedText);
     const existing = state.entries.find(
@@ -151,6 +151,50 @@ export default function App() {
     }
   }
 
+  async function runAutoDetection() {
+    if (state.originalText.trim().length === 0 || isDetecting) {
+      return;
+    }
+
+    setIsDetecting(true);
+    dispatch({ type: "setNotice", value: "形式検出で検出中です。" });
+
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 0);
+    });
+
+    try {
+      const candidates = runRegexDetection(state.originalText);
+      const summary = summarizeDetectionMerge(state.entries, candidates);
+
+      dispatch({
+        type: "mergeDetectedCandidates",
+        candidates,
+        createId: createEntryId,
+      });
+
+      if (summary.newCount > 0) {
+        dispatch({ type: "setEntryFilter", value: "unreviewed" });
+      }
+
+      dispatch({
+        type: "setNotice",
+        value:
+          candidates.length === 0
+            ? "形式検出では候補が見つかりませんでした。必要な対象は手動で追加してください。"
+            : `形式検出が完了しました。新規候補${summary.newCount}件、既存項目との統合${summary.mergedCount}件。`,
+      });
+    } catch {
+      dispatch({
+        type: "setNotice",
+        value:
+          "形式検出でエラーが発生しました。原文と既存のマスク設定は保持されています。",
+      });
+    } finally {
+      setIsDetecting(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -177,7 +221,7 @@ export default function App() {
       </header>
 
       <div className="privacy-strip">
-        入力内容は保存されません。ページを再読み込みまたは閉じると、原文、マスク設定、回答、復元結果は失われます。
+        入力内容は保存されません。ページを再読み込みまたは閉じると、原文、マスク設定、マスクを含む文章、マスクを復元した文章は失われます。
       </div>
 
       <main className="main-grid">
@@ -203,15 +247,30 @@ export default function App() {
             </button>
             <div className="tab-actions">
               {state.activeTextView === "original" ? (
-                <button
-                  className="button button-secondary"
-                  disabled={selectedText.trim().length === 0}
-                  onClick={openManualDialog}
-                  ref={lastSelectionControlRef}
-                  type="button"
-                >
-                  選択範囲を追加
-                </button>
+                <>
+                  <button
+                    className="button button-primary"
+                    disabled={state.originalText.trim().length === 0 || isDetecting}
+                    onClick={() => void runAutoDetection()}
+                    type="button"
+                  >
+                    <Search size={16} />
+                    {isDetecting
+                      ? "形式検出中"
+                      : state.entries.some((entry) => entry.sources.includes("regex"))
+                        ? "再検出"
+                        : "自動検出"}
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    disabled={selectedText.trim().length === 0}
+                    onClick={openManualDialog}
+                    ref={lastSelectionControlRef}
+                    type="button"
+                  >
+                    選択範囲を追加
+                  </button>
+                </>
               ) : (
                 <button
                   className="button button-primary"
@@ -272,7 +331,13 @@ export default function App() {
             )}
           </div>
 
-          <div className="workspace-footer">
+          <div
+            className={
+              state.activeTextView === "original"
+                ? "workspace-footer is-compact"
+                : "workspace-footer"
+            }
+          >
             {state.activeTextView === "original" ? (
               <span className="mono">
                 文字数: {state.originalText.length.toLocaleString("ja-JP")} /{" "}
@@ -280,14 +345,10 @@ export default function App() {
               </span>
             ) : (
               <div className="result-summary">
-                <strong>有効な対象文字列数: {counts.activeEntries}件</strong>
-                <span>置換箇所数: {replacementCount}か所</span>
-                <span>未確認候補数: {counts.unreviewed}件</span>
-                <span>0件対象: {counts.zeroOccurrence}件</span>
-                <small>
-                  <Info size={14} />
+                <p>
+                  <Info size={16} />
                   自動検出はすべての個人情報を検出できるとは限りません。コピー前に原文とマスク結果を確認してください。
-                </small>
+                </p>
               </div>
             )}
           </div>
@@ -295,7 +356,7 @@ export default function App() {
 
         <aside className="management-panel" aria-label="マスク対象管理">
           <div className="panel-header">
-            <span>Manage identified PII tokens</span>
+            <strong>マスク対象</strong>
           </div>
           <div className="filter-row" role="group" aria-label="候補フィルター">
             <FilterButton filter="all" current={state.entryFilter} onClick={setFilter}>
@@ -306,9 +367,6 @@ export default function App() {
             </FilterButton>
             <FilterButton filter="approved" current={state.entryFilter} onClick={setFilter}>
               有効 ({counts.activeEntries})
-            </FilterButton>
-            <FilterButton filter="zero" current={state.entryFilter} onClick={setFilter}>
-              0件
             </FilterButton>
           </div>
           <label className="search-box">
@@ -344,14 +402,6 @@ export default function App() {
                     })
                   }
                   onDelete={() => dispatch({ type: "deleteEntry", id: entry.id })}
-                  onExclude={() =>
-                    dispatch({
-                      type: "setEntryReviewStatus",
-                      id: entry.id,
-                      reviewStatus: "excluded",
-                      enabled: false,
-                    })
-                  }
                   onSelect={() => dispatch({ type: "selectEntry", id: entry.id })}
                   onToggle={() =>
                     dispatch({ type: "toggleEntryEnabled", id: entry.id })
@@ -363,7 +413,7 @@ export default function App() {
         </aside>
       </main>
 
-      <section className="restore-dock" aria-label="外部回答の復元">
+      <section className="restore-dock" aria-label="マスクの復元">
         <button
           aria-expanded={state.restoreExpanded}
           className="restore-toggle"
@@ -376,7 +426,7 @@ export default function App() {
           type="button"
         >
           <ChevronDown className={state.restoreExpanded ? "is-open" : ""} size={20} />
-          外部AI回答のトークンを復元
+          マスクを復元
         </button>
         <div className="restore-summary">
           既知: {tokenInspection.knownPresent.length} / 未出現:{" "}
@@ -385,9 +435,9 @@ export default function App() {
         {state.restoreExpanded ? (
           <div className="restore-content">
             <label>
-              <span>外部回答</span>
+              <span>マスクを含む文章</span>
               <textarea
-                aria-label="外部回答"
+                aria-label="マスクを含む文章"
                 onChange={(event) =>
                   dispatch({
                     type: "setExternalResponse",
@@ -398,8 +448,8 @@ export default function App() {
               />
             </label>
             <label>
-              <span>復元結果</span>
-              <textarea aria-label="復元結果" readOnly value={restoration} />
+              <span>マスクを復元した文章</span>
+              <textarea aria-label="マスクを復元した文章" readOnly value={restoration} />
             </label>
           </div>
         ) : null}
@@ -446,7 +496,7 @@ export default function App() {
           }}
           title="セッションデータを消去します"
         >
-          原文、候補、マスク対象、外部回答、復元結果を初期化します。モデルなどの公開資材キャッシュは対象外です。
+          原文、候補、マスク対象、マスクを含む文章、マスクを復元した文章を初期化します。モデルなどの公開資材キャッシュは対象外です。
         </ConfirmDialog>
       ) : null}
 
@@ -466,16 +516,18 @@ function EntryCard(props: {
   isSelected: boolean;
   onApprove: () => void;
   onDelete: () => void;
-  onExclude: () => void;
   onSelect: () => void;
   onToggle: () => void;
 }) {
+  const isUnreviewed = props.entry.reviewStatus === "unreviewed";
+  const isActive = props.entry.enabled && props.entry.reviewStatus === "approved";
+  const statusLabel = isUnreviewed ? "未確認" : isActive ? "有効" : "無効";
   const statusClass =
-    props.entry.reviewStatus === "unreviewed"
+    isUnreviewed
       ? "is-pending"
-      : props.entry.enabled && props.entry.reviewStatus === "approved"
+      : isActive
         ? "is-approved"
-        : "is-excluded";
+        : "is-disabled";
 
   return (
     <article
@@ -486,12 +538,12 @@ function EntryCard(props: {
     >
       <div className="entry-card-topline">
         <span className="entry-status">
-          {props.entry.enabled ? (
+          {isActive ? (
             <CheckCircle2 size={15} />
           ) : (
             <Info size={15} />
           )}
-          {REVIEW_STATUS_LABELS[props.entry.reviewStatus]}
+          {statusLabel}
         </span>
         {props.entry.confidence !== undefined ? (
           <span>信頼度 {Math.round(props.entry.confidence * 100)}%</span>
@@ -500,7 +552,18 @@ function EntryCard(props: {
       <div className="entry-text">{props.entry.originalText}</div>
       <div className="chip-row">
         <span className="chip mono">{props.entry.token}</span>
-        <span className="chip">{props.entry.occurrenceCount}か所</span>
+        <span className="chip">{CATEGORY_LABELS[props.entry.category]}</span>
+        <span
+          aria-label={
+            props.entry.occurrenceCount === 0
+              ? "現在の原文に存在しない: 0か所"
+              : undefined
+          }
+          className={`chip ${props.entry.occurrenceCount === 0 ? "chip-warning" : ""}`}
+          title={props.entry.occurrenceCount === 0 ? "現在の原文に存在しません" : undefined}
+        >
+          {props.entry.occurrenceCount}か所
+        </span>
         {props.entry.sources.map((source) => (
           <span className="chip" key={source}>
             {SOURCE_LABELS[source]}
@@ -508,7 +571,7 @@ function EntryCard(props: {
         ))}
       </div>
       <div className="entry-card-actions">
-        {props.entry.reviewStatus === "unreviewed" ? (
+        {isUnreviewed ? (
           <button className="button button-primary" onClick={props.onApprove} type="button">
             マスクする
           </button>
@@ -517,9 +580,6 @@ function EntryCard(props: {
             {props.entry.enabled ? "無効化" : "有効化"}
           </button>
         )}
-        <button className="button button-ghost" onClick={props.onExclude} type="button">
-          除外
-        </button>
         <button
           aria-label={`${props.entry.originalText}を削除`}
           className="icon-button"
@@ -684,4 +744,28 @@ function createEntryId(): string {
 
 function countSelectedOccurrences(originalText: string, selectedText: string): number {
   return countOccurrences(originalText, selectedText);
+}
+
+function summarizeDetectionMerge(
+  entries: MaskEntry[],
+  candidates: DetectionCandidate[],
+): { mergedCount: number; newCount: number } {
+  const existingTexts = new Set(entries.map((entry) => entry.normalizedText));
+  const candidateTexts = new Set(
+    candidates
+      .map((candidate) => normalizeText(candidate.originalText))
+      .filter((value) => value.trim().length > 0),
+  );
+  let newCount = 0;
+  let mergedCount = 0;
+
+  for (const candidateText of candidateTexts) {
+    if (existingTexts.has(candidateText)) {
+      mergedCount += 1;
+    } else {
+      newCount += 1;
+    }
+  }
+
+  return { newCount, mergedCount };
 }

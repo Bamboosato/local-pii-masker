@@ -17,6 +17,7 @@ function entry(
     enabled: options.enabled ?? true,
     occurrenceCount: 0,
     reviewStatus: options.reviewStatus ?? "approved",
+    displayOrder: 0,
   };
 }
 

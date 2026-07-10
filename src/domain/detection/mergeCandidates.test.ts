@@ -35,11 +35,13 @@ describe("mergeCandidates", () => {
       occurrenceCount: 2,
       reviewStatus: "unreviewed",
       enabled: false,
+      displayOrder: 0,
     });
     expect(entries[1]).toMatchObject({
       originalText: "yamada@example.com",
       sources: ["regex"],
       occurrenceCount: 1,
+      displayOrder: 1,
     });
   });
 });
