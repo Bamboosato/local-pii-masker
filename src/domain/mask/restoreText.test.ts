@@ -1,0 +1,24 @@
+import { describe, expect, it } from "vitest";
+import { inspectTokens } from "./inspectTokens";
+import { restoreText } from "./restoreText";
+
+const entries = [
+  { token: "[人名_1]", originalText: "山田太郎" },
+  { token: "[電話番号_1]", originalText: "090-1234-5678" },
+];
+
+describe("restoreText", () => {
+  it("既知トークンが複数回出現する場合はすべて復元する", () => {
+    expect(restoreText("[人名_1]です。[人名_1]宛です。", entries)).toBe(
+      "山田太郎です。山田太郎宛です。",
+    );
+  });
+
+  it("既知、不明、未出現トークンを分類する", () => {
+    const inspection = inspectTokens("[人名_1] と [住所_9]", entries);
+
+    expect(inspection.knownPresent).toEqual(["[人名_1]"]);
+    expect(inspection.absent).toEqual(["[電話番号_1]"]);
+    expect(inspection.unknown).toEqual(["[住所_9]"]);
+  });
+});
