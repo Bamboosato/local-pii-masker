@@ -23,6 +23,8 @@ export type MaskEntry = {
   enabled: boolean;
   occurrenceCount: number;
   reviewStatus: ReviewStatus;
+  displayOrder: number;
+  manuallyPromotedAt?: number;
 };
 
 export type MaskSession = {
@@ -54,7 +56,7 @@ export const CATEGORY_LABELS: Record<MaskCategory, string> = {
 };
 
 export const SOURCE_LABELS: Record<DetectionSource, string> = {
-  regex: "Regex",
+  regex: "形式",
   ner: "AI検出",
   manual: "手動",
 };
@@ -62,5 +64,5 @@ export const SOURCE_LABELS: Record<DetectionSource, string> = {
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   unreviewed: "未確認",
   approved: "有効",
-  excluded: "除外",
+  excluded: "無効",
 };

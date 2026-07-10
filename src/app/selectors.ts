@@ -25,20 +25,24 @@ export function selectTokenInspection(state: AppState) {
 export function selectVisibleEntries(state: AppState): MaskEntry[] {
   const query = state.entrySearch.trim().toLocaleLowerCase("ja");
 
-  return state.entries.filter((entry) => {
-    if (!matchesFilter(entry, state.entryFilter)) {
-      return false;
-    }
+  return state.entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => {
+      if (!matchesFilter(entry, state.entryFilter)) {
+        return false;
+      }
 
-    if (query.length === 0) {
-      return true;
-    }
+      if (query.length === 0) {
+        return true;
+      }
 
-    return (
-      entry.originalText.toLocaleLowerCase("ja").includes(query) ||
-      entry.token.toLocaleLowerCase("ja").includes(query)
-    );
-  });
+      return (
+        entry.originalText.toLocaleLowerCase("ja").includes(query) ||
+        entry.token.toLocaleLowerCase("ja").includes(query)
+      );
+    })
+    .sort((a, b) => compareEntriesForReview(a, b, state.originalText))
+    .map(({ entry }) => entry);
 }
 
 export function selectReplacementCount(state: AppState): number {
@@ -76,9 +80,61 @@ function matchesFilter(entry: MaskEntry, filter: EntryFilter): boolean {
       return entry.reviewStatus === "unreviewed";
     case "approved":
       return entry.reviewStatus === "approved" && entry.enabled;
-    case "zero":
-      return entry.occurrenceCount === 0;
     default:
       return true;
   }
+}
+
+function compareEntriesForReview(
+  a: { entry: MaskEntry; index: number },
+  b: { entry: MaskEntry; index: number },
+  originalText: string,
+): number {
+  const isManualA = a.entry.sources.includes("manual");
+  const isManualB = b.entry.sources.includes("manual");
+
+  if (isManualA !== isManualB) {
+    return isManualA ? -1 : 1;
+  }
+
+  const manualOrderA = a.entry.manuallyPromotedAt ?? 0;
+  const manualOrderB = b.entry.manuallyPromotedAt ?? 0;
+
+  if (manualOrderA !== manualOrderB) {
+    return manualOrderB - manualOrderA;
+  }
+
+  if (isManualA && isManualB) {
+    return getStableDisplayOrder(a) - getStableDisplayOrder(b);
+  }
+
+  const positionA = getFirstOccurrencePosition(originalText, a.entry.originalText);
+  const positionB = getFirstOccurrencePosition(originalText, b.entry.originalText);
+
+  if (positionA !== positionB) {
+    return positionA - positionB;
+  }
+
+  if (a.entry.originalText.length !== b.entry.originalText.length) {
+    return b.entry.originalText.length - a.entry.originalText.length;
+  }
+
+  return getStableDisplayOrder(a) - getStableDisplayOrder(b);
+}
+
+function getFirstOccurrencePosition(
+  originalText: string,
+  entryText: string,
+): number {
+  const index = originalText.indexOf(entryText);
+  return index === -1 ? Number.POSITIVE_INFINITY : index;
+}
+
+function getStableDisplayOrder(value: {
+  entry: MaskEntry;
+  index: number;
+}): number {
+  return Number.isFinite(value.entry.displayOrder)
+    ? value.entry.displayOrder
+    : value.index;
 }

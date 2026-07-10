@@ -4,12 +4,14 @@ import type {
   MaskSession,
   ReviewStatus,
 } from "../domain/types";
+import type { DetectionCandidate } from "../domain/detection/mergeCandidates";
+import { mergeCandidates } from "../domain/detection/mergeCandidates";
 import { normalizeText } from "../domain/normalization/normalizeText";
 import { countOccurrences } from "../domain/mask/findOccurrences";
 import { createMaskToken } from "../domain/mask/tokenFactory";
 
 export type TextView = "original" | "masked";
-export type EntryFilter = "all" | "unreviewed" | "approved" | "zero";
+export type EntryFilter = "all" | "unreviewed" | "approved";
 
 export type AppState = MaskSession & {
   activeTextView: TextView;
@@ -30,6 +32,8 @@ export const initialAppState: AppState = {
   restoreExpanded: false,
 };
 
+const MANUAL_PROMOTION_STEP = 1;
+
 export type AppAction =
   | { type: "setOriginalText"; value: string }
   | { type: "setActiveTextView"; value: TextView }
@@ -43,6 +47,11 @@ export type AppAction =
         selectedText: string;
         category: MaskCategory;
       };
+    }
+  | {
+      type: "mergeDetectedCandidates";
+      candidates: DetectionCandidate[];
+      createId: () => string;
     }
   | {
       type: "setEntryReviewStatus";
@@ -84,6 +93,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "addManualEntry":
       return addManualEntry(state, action.value);
 
+    case "mergeDetectedCandidates":
+      return {
+        ...state,
+        entries: mergeCandidates({
+          originalText: state.originalText,
+          entries: state.entries,
+          candidates: action.candidates,
+          createId: action.createId,
+        }),
+      };
+
     case "setEntryReviewStatus":
       return {
         ...state,
@@ -107,7 +127,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             ? {
                 ...entry,
                 enabled: !entry.enabled,
-                reviewStatus: entry.reviewStatus === "unreviewed" ? "approved" : entry.reviewStatus,
+                reviewStatus: !entry.enabled || entry.reviewStatus === "unreviewed"
+                  ? "approved"
+                  : entry.reviewStatus,
               }
             : entry,
         ),
@@ -154,6 +176,8 @@ function addManualEntry(
   );
 
   if (existing) {
+    const nextManualOrder = getNextManualPromotionOrder(state.entries);
+
     return {
       ...state,
       entries: state.entries.map((entry) =>
@@ -167,10 +191,12 @@ function addManualEntry(
                 ? entry.sources
                 : [...entry.sources, "manual"],
               occurrenceCount: countOccurrences(state.originalText, entry.originalText),
+              manuallyPromotedAt: nextManualOrder,
             }
           : entry,
       ),
       selectedEntryId: existing.id,
+      entryFilter: "all",
       notice: "同じ文字列は既存の項目を更新しました。",
     };
   }
@@ -188,12 +214,15 @@ function addManualEntry(
     enabled: true,
     occurrenceCount: countOccurrences(state.originalText, normalizedText),
     reviewStatus: "approved",
+    displayOrder: state.entries.length,
+    manuallyPromotedAt: getNextManualPromotionOrder(state.entries),
   };
 
   return {
     ...state,
-    entries: [...state.entries, entry],
+    entries: [entry, ...state.entries],
     selectedEntryId: entry.id,
+    entryFilter: "all",
     notice: "マスク対象に追加しました。",
   };
 }
@@ -206,4 +235,14 @@ function recalculateOccurrences(
     ...entry,
     occurrenceCount: countOccurrences(originalText, entry.originalText),
   }));
+}
+
+function getNextManualPromotionOrder(entries: MaskEntry[]): number {
+  return (
+    entries.reduce(
+      (maxOrder, entry) =>
+        Math.max(maxOrder, entry.manuallyPromotedAt ?? 0),
+      0,
+    ) + MANUAL_PROMOTION_STEP
+  );
 }

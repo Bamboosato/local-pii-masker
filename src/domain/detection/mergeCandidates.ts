@@ -11,6 +11,8 @@ export type DetectionCandidate = {
   originalText: string;
   category: MaskCategory;
   source: DetectionSource;
+  start?: number;
+  end?: number;
   confidence?: number;
 };
 
@@ -20,7 +22,10 @@ export function mergeCandidates(params: {
   candidates: DetectionCandidate[];
   createId: () => string;
 }): MaskEntry[] {
-  const nextEntries = [...params.entries];
+  const nextEntries = params.entries.map((entry) => ({
+    ...entry,
+    sources: [...entry.sources],
+  }));
 
   for (const candidate of params.candidates) {
     const normalizedText = normalizeText(candidate.originalText);
@@ -57,6 +62,7 @@ export function mergeCandidates(params: {
       enabled: false,
       occurrenceCount: countOccurrences(params.originalText, normalizedText),
       reviewStatus: "unreviewed",
+      displayOrder: nextEntries.length,
     });
   }
 

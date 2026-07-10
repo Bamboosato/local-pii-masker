@@ -15,7 +15,7 @@ MVPでは、ユーザーデータをブラウザメモリ内だけに保持し�
    正規表現・NERの出力は候補であり、確定済みマスク対象とは別に扱う。
 
 3. **ユーザーデータを永続化しない**  
-   原文、検出結果、対応表、外部回答をLocalStorage、SessionStorage、IndexedDB、Cookie、サーバーへ保存しない。
+   原文、検出結果、対応表、マスクを含む文章をLocalStorage、SessionStorage、IndexedDB、Cookie、サーバーへ保存しない。
 
 4. **AIが利用できなくても基本操作を維持する**  
    NERモデルの取得・初期化に失敗しても、原文入力、手動追加、正規表現検出、マスク生成は利用可能とする。
@@ -24,7 +24,7 @@ MVPでは、ユーザーデータをブラウザメモリ内だけに保持し�
    NERのロードと推論はWeb Workerで実行する構成を基本とする。
 
 6. **復元可能性を過大評価しない**  
-   復元できるのは、外部回答中に完全な形で残っている既知トークンだけとする。
+   復元できるのは、マスクを含む文章中に完全な形で残っている既知トークンだけとする。
 
 ## 3. 論理構成
 
@@ -62,8 +62,8 @@ flowchart LR
 - 手動追加
 - 原文／マスク結果の表示切り替え
 - マスク済みテキストのコピー
-- 外部回答の入力
-- 復元結果とトークン検査結果の表示
+- マスクを含む文章の入力
+- マスクを復元した文章とトークン検査結果の表示
 - セッション消去
 
 ### 3.2 セッション状態層
@@ -71,7 +71,7 @@ flowchart LR
 - 原文
 - 検出候補・マスク対象
 - トークン対応表
-- 外部回答
+- マスクを含む文章
 - モデル状態
 - UI状態
 
@@ -86,7 +86,7 @@ flowchart LR
 ### 3.4 変換層
 
 - Mask Engine：原文と有効な対象からマスク結果を生成
-- Restore Engine：外部回答内の既知トークンを元文字列へ置換
+- Restore Engine：マスクを含む文章内の既知トークンを元文字列へ置換
 - Token Inspector：既知、不明、未出現トークンを分類
 
 ## 4. データフロー
@@ -108,7 +108,7 @@ sequenceDiagram
     Regex-->>UI: 正規表現候補
     Worker-->>UI: NER候補
     UI->>State: 候補を文字列単位で統合
-    User->>UI: 候補を承認・除外・手動追加
+    User->>UI: 候補を承認・無効化・削除・手動追加
     UI->>State: entriesを更新
     State->>MaskEngine: originalText + enabled entries
     MaskEngine-->>UI: maskedText
@@ -167,7 +167,7 @@ export type MaskSessionState = {
 - `maskedText`
 - `restoredResponse`
 - 総置換箇所数
-- 0件のマスク対象
+- 出現数0のマスク対象
 - 既知・不明・未出現トークンの検査結果
 
 ## 6. 文字列の同一性
@@ -313,6 +313,51 @@ type RegexDetector = (text: string) => Detection[];
 
 検出後に形式検査を追加し、単純な正規表現一致だけに依存しない。
 
+Phase 2では以下の責務分割で実装する。
+
+```text
+domain/detection/regex/
+├─ detectEmails.ts
+├─ detectPhoneNumbers.ts
+├─ detectPostalCodes.ts
+└─ runRegexDetection.ts
+```
+
+| 検出器 | カテゴリ | 主な検査 |
+| --- | --- | --- |
+| `detectEmails` | `EMAIL` | `@`の前後に有効な文字列があり、ドメイン部に区切りとTLD相当の文字列がある |
+| `detectPhoneNumbers` | `PHONE` | 数字数、区切り位置、国内電話番号として過度に短すぎない・長すぎないことを検査する |
+| `detectPostalCodes` | `POSTAL_CODE` | `〒`の有無にかかわらず、3桁-4桁相当の郵便番号形式を検査する |
+
+実装上の共通ルールは以下とする。
+
+- 検出器はブラウザAPIやReact stateに依存しない純粋関数とする
+- 入力テキストは既存のNFC正規化方針に従う。検出位置を扱う場合は、候補文字列と`start`、`end`が原文上の範囲と対応していることを保証できる範囲だけを候補にする
+- 検出結果には`start`、`end`を含め、後続のハイライトや該当箇所移動に利用できるようにする
+- 末尾の句読点、閉じ括弧、引用符などを候補本体に含めないため、検出後に範囲をtrimする
+- 同じ検出器内で重複した範囲が出た場合は、同一`text + category + start + end`を1件へまとめる
+- 複数検出器の結果は`mergeCandidates`へ渡し、同じ文字列の既存候補または手動追加項目へ統合する
+- 既存項目と同じ文字列を検出した場合は、既存のカテゴリ、有効状態、トークンを上書きせず、`sources`に`regex`を追加する
+- Regex検出はユーザーデータを外部へ送信せず、検出文字列をログへ出力しない
+
+Phase 2の自動検出フローは以下とする。
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant Regex
+    participant State
+
+    User->>UI: 自動検出を実行
+    UI->>Regex: originalTextを渡す
+    Regex-->>UI: EMAIL / PHONE / POSTAL_CODE候補
+    UI->>State: mergeCandidatesで未確認候補へ統合
+    State-->>UI: 管理パネルとサマリーを更新
+```
+
+Regex候補は`reviewStatus: "unreviewed"`、`enabled: false`で登録する。承認操作により`reviewStatus: "approved"`、`enabled: true`へ変更され、既存のマスクエンジンでマスク結果へ反映する。
+
 ### 9.2 NER検出
 
 Transformers.jsの`token-classification`パイプラインを使用する。モデル固有のサブワード出力を、連続したエンティティ単位へ再構成する処理が必要となる。
@@ -377,7 +422,7 @@ type WorkerResponse =
 | 原文 | 可 | 不可 | 不可 |
 | 検出候補 | 可 | 不可 | 不可 |
 | マスク対象・対応表 | 可 | 不可 | 不可 |
-| 外部回答・復元結果 | 可 | 不可 | 不可 |
+| マスクを含む文章・マスクを復元した文章 | 可 | 不可 | 不可 |
 | JavaScript/CSS | 可 | 可 | 取得時のみ |
 | ONNXモデル | 可 | 可 | 取得時のみ |
 | トークナイザー資材 | 可 | 可 | 取得時のみ |
@@ -396,7 +441,7 @@ MVPで許容するネットワーク通信：
 - 原文の送信
 - 検出結果の送信
 - マスク対象・対応表の送信
-- 外部回答・復元結果の送信
+- マスクを含む文章・マスクを復元した文章の送信
 - 入力値を含むアクセス解析・エラー通知
 
 将来的にはモデルを同一オリジンで配信する案を評価する。MVP初期はHugging Face Hubからの取得も候補とするが、通信先をUIとドキュメントで明示する。
@@ -410,11 +455,11 @@ stateDiagram-v2
     Editing --> Detecting: 自動検出
     Detecting --> Reviewing: 検出完了
     Detecting --> Reviewing: NER失敗・Regex結果のみ
-    Reviewing --> Reviewing: 承認/除外/手動追加
+    Reviewing --> Reviewing: 承認/無効化/削除/手動追加
     Reviewing --> MaskReady: 有効対象あり
     MaskReady --> Reviewing: 対象変更
     MaskReady --> ResponseInput: マスク結果をコピー
-    ResponseInput --> Restored: 外部回答を復元
+    ResponseInput --> Restored: マスクを含む文章を復元
     Restored --> ResponseInput: 回答を編集
     Empty --> [*]
     Editing --> Empty: すべて消去
@@ -439,7 +484,7 @@ stateDiagram-v2
 | `CLIPBOARD_DENIED` | コピー権限拒否 | 手動選択・コピーを案内 |
 | `INVALID_SELECTION` | 手動選択が空 | 選択し直しを案内 |
 
-ログへ原文、候補文字列、復元結果を出力しない。
+ログへ原文、候補文字列、マスクを復元した文章を出力しない。
 
 ## 16. ディレクトリ構成案
 
@@ -492,6 +537,22 @@ src/
 - 電話番号
 - 郵便番号
 - 候補統合と確認UI
+- Regex候補の未確認・無効初期状態
+- 手動追加済み項目との重複統合
+- 再検出時の冪等性
+- 形式検出のみの進行表示と完了メッセージ
+- Regex候補の単体・結合テスト
+
+テスト観点：
+
+- 機能観点：メールアドレス、電話番号、郵便番号を検出し、未確認候補として追加できること
+- 非機能観点：検出時にユーザーテキストをネットワーク、ストレージ、コンソールへ出さないこと
+- データ観点：半角・全角、句読点付き、複数出現、既存手動項目との重複、0件化後の再検出を確認すること
+- UI観点：自動検出ボタン、進行表示、完了トースト、候補カード、承認・無効化・削除操作、キーボード操作を確認すること
+- 正常系：3カテゴリすべてが検出され、承認後に全出現箇所がマスクされること
+- 異常系：候補0件、検出器例外、原文変更後の再検出でも既存設定を失わないこと
+- 境界値：メール末尾の句読点、電話番号の桁数不足・過剰、郵便番号のハイフン有無、全角数字を確認すること
+- 状態遷移：未確認から有効、有効から無効、無効から有効、削除、再検出による検出元追加を確認すること
 
 ### Phase 3：ローカルNER
 
@@ -501,12 +562,12 @@ src/
 - 長文チャンク分割
 - 信頼度表示
 
-### Phase 4：外部回答の復元
+### Phase 4：マスク復元
 
-- 回答入力
+- マスクを含む文章の入力
 - 既知トークン復元
 - 既知、不明、未出現トークン検査
-- 復元結果コピー
+- マスクを復元した文章のコピー
 
 ### Phase 5：ハードニング
 
