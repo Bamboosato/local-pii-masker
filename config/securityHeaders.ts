@@ -11,6 +11,7 @@ const DEVELOPMENT_SOCKET_ORIGINS = [
 ] as const;
 
 type ContentSecurityPolicyOptions = {
+  allowDevelopmentScripts?: boolean;
   allowDevelopmentSockets?: boolean;
   includeFrameAncestors?: boolean;
 };
@@ -23,6 +24,11 @@ export function buildContentSecurityPolicy(
     ...MODEL_ASSET_ORIGINS,
     ...(options.allowDevelopmentSockets ? DEVELOPMENT_SOCKET_ORIGINS : []),
   ];
+  const scriptSources = [
+    "'self'",
+    "'wasm-unsafe-eval'",
+    ...(options.allowDevelopmentScripts ? ["'unsafe-inline'"] : []),
+  ];
   const directives = [
     ["default-src", "'self'"],
     ["base-uri", "'none'"],
@@ -32,7 +38,7 @@ export function buildContentSecurityPolicy(
     ["img-src", "'self'", "data:"],
     ["manifest-src", "'self'"],
     ["object-src", "'none'"],
-    ["script-src", "'self'", "'wasm-unsafe-eval'"],
+    ["script-src", ...scriptSources],
     ["style-src", "'self'", "'unsafe-inline'"],
     ["worker-src", "'self'", "blob:"],
   ];
@@ -45,10 +51,12 @@ export function buildContentSecurityPolicy(
 }
 
 export function buildSecurityHeaders(options: {
+  allowDevelopmentScripts?: boolean;
   allowDevelopmentSockets?: boolean;
 } = {}): Record<string, string> {
   return {
     "Content-Security-Policy": buildContentSecurityPolicy({
+      allowDevelopmentScripts: options.allowDevelopmentScripts,
       allowDevelopmentSockets: options.allowDevelopmentSockets,
       includeFrameAncestors: true,
     }),

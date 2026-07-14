@@ -250,6 +250,30 @@ describe("App", () => {
     expect(screen.getByLabelText("マスク結果")).not.toHaveTextContent(email);
   });
 
+  it("OCR改行を含むメールを原文表記のまま1つの対象としてマスクする", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const email = "taro.yamada@\nexample.co.jp";
+
+    setEditorText(screen.getByLabelText("原文"), `連絡先は${email}です。`);
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    const managementPanel = screen.getByLabelText("マスク対象管理");
+    await waitFor(() =>
+      expect(managementPanel.querySelector(".entry-text")?.textContent).toBe(email),
+    );
+
+    await user.click(screen.getByRole("tab", { name: "マスク結果" }));
+
+    expect(screen.getByRole("button", { name: "[メール_1]" })).toBeInTheDocument();
+    expect(screen.getByLabelText("マスク結果")).not.toHaveTextContent(
+      "taro.yamada",
+    );
+    expect(screen.getByLabelText("マスク結果")).not.toHaveTextContent(
+      "example.co.jp",
+    );
+  });
+
   it("無効化した自動検出対象は再検出しても無効状態を維持する", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -264,7 +288,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "無効 (1)" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "再検出" }));
-    await screen.findByText(/既存項目1件へ検出情報を統合しました/);
+    await screen.findByText("自動検出完了：追加0件、更新1件。");
 
     expect(screen.getByText("無効")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "有効化" })).toBeInTheDocument();
@@ -342,7 +366,11 @@ describe("App", () => {
       await within(managementPanel).findByText("yamada@example.com"),
     ).toBeInTheDocument();
     expect(within(managementPanel).getByText("形式")).toBeInTheDocument();
-    expect(screen.getByText(/AI検出は実行できなかった/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "AI検出に失敗しました。形式検出のみ完了：追加1件、更新0件。",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("AI検出を中止しても形式候補を反映し、再検出できる", async () => {
@@ -374,7 +402,11 @@ describe("App", () => {
         "yamada@example.com",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/AI検出は中止しました/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "AI検出を中止しました。形式検出のみ完了：追加1件、更新0件。",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "再検出" })).toBeInTheDocument();
   });
 
@@ -397,7 +429,7 @@ describe("App", () => {
       "山田太郎の連絡先は yamada@example.com です。",
     );
     await user.click(screen.getByRole("button", { name: "自動検出" }));
-    await screen.findByText(/AI検出は実行できなかった/);
+    await screen.findByText(/AI検出に失敗しました/);
     await user.click(screen.getByRole("button", { name: "再検出" }));
 
     const managementPanel = screen.getByLabelText("マスク対象管理");

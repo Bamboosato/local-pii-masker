@@ -6,13 +6,18 @@ import { detectEmailsWithNormalization } from "./detectEmailsWithNormalization";
 import { detectIpAddresses } from "./detectIpAddresses";
 import { detectJapaneseAddresses } from "./detectJapaneseAddresses";
 import { detectPersonNames } from "./detectPersonNames";
+import { detectPersonNamesWithNormalization } from "./detectPersonNamesWithNormalization";
 import { detectPhoneNumbers } from "./detectPhoneNumbers";
 import { detectPostalCodes } from "./detectPostalCodes";
 import { detectUrls } from "./detectUrls";
+import { detectUrlsWithNormalization } from "./detectUrlsWithNormalization";
 import { uniqueCandidates } from "./common";
 
 export function runRegexDetection(sourceText: string): DetectionCandidate[] {
-  const urlCandidates = detectUrls(sourceText);
+  const urlCandidates = uniqueCandidates([
+    ...detectUrls(sourceText),
+    ...detectUrlsWithNormalization(sourceText),
+  ]);
   const ipAddressCandidates = detectIpAddresses(sourceText).filter(
     (candidate) => !isContainedInAny(candidate, urlCandidates),
   );
@@ -28,6 +33,7 @@ export function runRegexDetection(sourceText: string): DetectionCandidate[] {
     ...ipAddressCandidates,
     ...detectJapaneseAddresses(sourceText),
     ...detectPersonNames(sourceText),
+    ...detectPersonNamesWithNormalization(sourceText),
   ]);
 }
 

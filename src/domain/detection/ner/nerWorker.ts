@@ -5,15 +5,15 @@ import {
   type NerDetectionResponse,
 } from "./types";
 import {
-  runChunkedNerDetection,
   type TokenClassifier,
 } from "./runChunkedNerDetection";
 import { configureLocalOnnxRuntime } from "./configureOnnxRuntime";
 import { createRetryableLoader } from "./retryableLoader";
+import { runNormalizedNerDetection } from "./runNormalizedNerDetection";
 
 env.allowRemoteModels = true;
 env.allowLocalModels = false;
-configureLocalOnnxRuntime(env.backends.onnx);
+configureLocalOnnxRuntime(env);
 
 const detectorLoader = createRetryableLoader(
   () =>
@@ -42,7 +42,7 @@ async function detect(request: NerDetectionRequest) {
     postProgress(request.id, "loading");
     const detector = await getDetector();
     postProgress(request.id, "running");
-    const candidates = await runChunkedNerDetection(request.text, detector);
+    const candidates = await runNormalizedNerDetection(request.text, detector);
     postMessage({
       id: request.id,
       candidates,

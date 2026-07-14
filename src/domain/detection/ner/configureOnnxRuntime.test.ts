@@ -6,19 +6,34 @@ import {
 
 describe("ONNX Runtimeのローカル資材設定", () => {
   it("WASMとMJSを外部CDNではなくアプリ配信URLへ固定する", () => {
-    const backend: {
-      wasm: { wasmPaths?: string | { mjs: string; wasm: string } };
-    } = { wasm: {} };
+    const environment: {
+      backends: {
+        onnx: {
+          wasm: {
+            numThreads?: number;
+            wasmPaths?: string | { mjs: string; wasm: string };
+          };
+        };
+      };
+      useWasmCache: boolean;
+    } = {
+      backends: { onnx: { wasm: {} } },
+      useWasmCache: true,
+    };
 
-    configureLocalOnnxRuntime(backend);
+    configureLocalOnnxRuntime(environment);
 
-    expect(backend.wasm.wasmPaths).toEqual(LOCAL_ONNX_RUNTIME_WASM_PATHS);
+    expect(environment.useWasmCache).toBe(false);
+    expect(environment.backends.onnx.wasm.numThreads).toBe(1);
+    expect(environment.backends.onnx.wasm.wasmPaths).toEqual(
+      LOCAL_ONNX_RUNTIME_WASM_PATHS,
+    );
     expect(LOCAL_ONNX_RUNTIME_WASM_PATHS.mjs).not.toMatch(/^https?:/u);
     expect(LOCAL_ONNX_RUNTIME_WASM_PATHS.wasm).not.toMatch(/^https?:/u);
   });
 
   it("WASMバックエンドがない環境を明示的に拒否する", () => {
-    expect(() => configureLocalOnnxRuntime({})).toThrow(
+    expect(() => configureLocalOnnxRuntime({ backends: {} })).toThrow(
       "ONNX Runtime WASM backend is unavailable.",
     );
   });

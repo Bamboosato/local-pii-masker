@@ -115,4 +115,29 @@ describe("runChunkedNerDetection", () => {
       }),
     ]);
   });
+
+  it("同じ文字列でも出現位置が異なる候補はそれぞれ保持する", async () => {
+    const sourceText = "山田太郎と山田太郎";
+    const classifier = vi.fn(async () => [
+      {
+        entity_group: "PER",
+        word: "山田太郎",
+        start: 0,
+        end: 4,
+        score: 0.93,
+      },
+      {
+        entity_group: "PER",
+        word: "山田太郎",
+        start: 5,
+        end: 9,
+        score: 0.91,
+      },
+    ]);
+
+    await expect(runChunkedNerDetection(sourceText, classifier)).resolves.toEqual([
+      expect.objectContaining({ start: 0, end: 4 }),
+      expect.objectContaining({ start: 5, end: 9 }),
+    ]);
+  });
 });
