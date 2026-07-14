@@ -4,12 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "audit:dependencies": "npm audit --audit-level=high",
+    "benchmark:core": "tsx scripts/performance/runCoreBenchmark.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "evaluate:ner": "tsx scripts/ner-evaluation/run.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "npm run build && playwright test --project=chromium",
+    "test:e2e:edge": "npm run build && playwright test --project=msedge",
+    "test:phase5": "npm test && npm run test:e2e && npm run benchmark:core",
     "typecheck": "tsc -b"
   },
   "dependencies": {
@@ -23,7 +28,9 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

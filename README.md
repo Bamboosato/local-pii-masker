@@ -65,6 +65,7 @@
 - [画面設計仕様](docs/ui-design.md)
 - [アーキテクチャ方針](docs/architecture.md)
 - [NERモデル評価計画](docs/model-evaluation.md)
+- [Phase 5 セキュリティ・品質ハードニング](docs/security-hardening.md)
 
 ## 開発ステータス
 
@@ -77,6 +78,8 @@ Phase 3として、MVP採用モデル`jiting/xlm-roberta-ner-japanese_onnx`に�
 選定用100文書と、正解文字列が重複しない最終確認用100文書を用意し、現行`jiting`と`sabaridsnfuji` Q8を比較しました。未見データではアプリ統合後のPrecision 75.0%、Recall 72.0%、F1 73.5%が両モデルで一致し、合計200文書でもF1差は0.5ポイントでした。独自ONNX配布を増やす改善幅ではないため、`jiting`をMVP採用モデルとします。Windows 11のChrome Workerでは、ウォーム状態の10,000文字を約59.6秒で処理し、推論中もUI応答を維持しました。ONNX RuntimeのWASM/MJSはアプリ資産として同一オリジン配信し、実行時CDN依存を除去しています。
 
 NERモデル選定は完了しました。8GB級PC、macOS Chrome、低速回線・初回取得失敗時の確認は後続フェーズへ延期します。
+
+Phase 5の初期ハードニングとして、CSPとセキュリティヘッダー、入力内容のネットワーク・Storage・Console漏えい検査、Chromium・Microsoft Edgeのブラウザ試験、axeによるWCAG 2 A / AA検査、1,000文字・10,000文字のコア性能計測を追加しました。Windows 11上のChromium 149とEdge 150で各3件のブラウザ試験が成功しています。本番配布時は、CSPメタタグに加えて配信ホストで同等のHTTPヘッダー設定が必要です。
 
 ## ライセンス
 
