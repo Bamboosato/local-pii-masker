@@ -262,6 +262,13 @@ button:disabled {
   padding: 0 24px;
 }
 
+.tab-list {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  height: 100%;
+}
+
 .tab {
   height: var(--section-header-height);
   border: 0;
@@ -295,6 +302,12 @@ button:disabled {
   flex: 1 1 auto;
   min-height: 0;
   padding: 24px;
+}
+
+.text-view-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
 }
 
 .text-editor,
@@ -355,7 +368,7 @@ button:disabled {
 }
 
 .original-text-editor .cm-placeholder {
-  color: #a0a7b4;
+  color: #5f6b7a;
   font-size: var(--empty-guidance-font-size);
   font-weight: 600;
 }
@@ -391,7 +404,7 @@ button:disabled {
 }
 
 .text-editor::placeholder {
-  color: #a0a7b4;
+  color: #5f6b7a;
   font-weight: 600;
 }
 

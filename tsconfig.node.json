@@ -10,5 +10,10 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["vite.config.ts", "vitest.setup.ts"]
+  "include": [
+    "config/**/*.ts",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.setup.ts"
+  ]
 }

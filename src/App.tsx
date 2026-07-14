@@ -414,25 +414,31 @@ export default function App() {
 
       <main className="main-grid">
         <section className="workspace" aria-label="テキストワークスペース">
-          <div className="tabs" role="tablist" aria-label="表示切り替え">
-            <button
-              className={state.activeTextView === "original" ? "tab is-active" : "tab"}
-              role="tab"
-              aria-selected={state.activeTextView === "original"}
-              type="button"
-              onClick={() => dispatch({ type: "setActiveTextView", value: "original" })}
-            >
-              原文
-            </button>
-            <button
-              className={state.activeTextView === "masked" ? "tab is-active" : "tab"}
-              role="tab"
-              aria-selected={state.activeTextView === "masked"}
-              type="button"
-              onClick={() => dispatch({ type: "setActiveTextView", value: "masked" })}
-            >
-              マスク結果
-            </button>
+          <div className="tabs">
+            <div className="tab-list" role="tablist" aria-label="表示切り替え">
+              <button
+                aria-controls="original-panel"
+                className={state.activeTextView === "original" ? "tab is-active" : "tab"}
+                id="original-tab"
+                role="tab"
+                aria-selected={state.activeTextView === "original"}
+                type="button"
+                onClick={() => dispatch({ type: "setActiveTextView", value: "original" })}
+              >
+                原文
+              </button>
+              <button
+                aria-controls="masked-panel"
+                className={state.activeTextView === "masked" ? "tab is-active" : "tab"}
+                id="masked-tab"
+                role="tab"
+                aria-selected={state.activeTextView === "masked"}
+                type="button"
+                onClick={() => dispatch({ type: "setActiveTextView", value: "masked" })}
+              >
+                マスク結果
+              </button>
+            </div>
             <div className="tab-actions">
               {state.activeTextView === "original" ? (
                 <>
@@ -479,19 +485,27 @@ export default function App() {
 
           <div className="editor-frame">
             {state.activeTextView === "original" ? (
-              <OriginalTextEditor
-                highlights={originalHighlightSegments}
-                maxLength={MAX_CHAR_COUNT}
-                onChange={handleOriginalTextChange}
-                onSelectionChange={setSelectedText}
-                placeholder="個人情報をマスキングしたい日本語テキストを入力または貼り付けてください。"
-                selectedEntryId={state.selectedEntryId}
-                value={state.originalText}
-              />
+              <div
+                aria-label="原文パネル"
+                className="text-view-panel"
+                id="original-panel"
+                role="tabpanel"
+              >
+                <OriginalTextEditor
+                  highlights={originalHighlightSegments}
+                  maxLength={MAX_CHAR_COUNT}
+                  onChange={handleOriginalTextChange}
+                  onSelectionChange={setSelectedText}
+                  placeholder="個人情報をマスキングしたい日本語テキストを入力または貼り付けてください。"
+                  selectedEntryId={state.selectedEntryId}
+                  value={state.originalText}
+                />
+              </div>
             ) : (
               <div
                 aria-label="マスク結果"
                 className="masked-preview"
+                id="masked-panel"
                 role="tabpanel"
               >
                 {state.originalText.length === 0 ? (
