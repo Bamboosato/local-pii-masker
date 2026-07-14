@@ -4,6 +4,7 @@ import type {
   MaskEntry,
 } from "../types";
 import { normalizeText } from "../normalization/normalizeText";
+import type { DetectionNormalizationRule } from "../normalization/detection/types";
 import { countOccurrences } from "../mask/findOccurrences";
 import { createMaskToken } from "../mask/tokenFactory";
 
@@ -14,6 +15,7 @@ export type DetectionCandidate = {
   start?: number;
   end?: number;
   confidence?: number;
+  normalizationRules?: DetectionNormalizationRule[];
 };
 
 export function mergeCandidates(params: {
@@ -34,6 +36,12 @@ export function mergeCandidates(params: {
       continue;
     }
 
+    const occurrenceCount = countOccurrences(params.originalText, normalizedText);
+
+    if (occurrenceCount === 0) {
+      continue;
+    }
+
     const existing = nextEntries.find(
       (entry) => entry.normalizedText === normalizedText,
     );
@@ -41,10 +49,20 @@ export function mergeCandidates(params: {
     if (existing) {
       existing.sources = mergeSources(existing.sources, candidate.source);
       existing.confidence = maxConfidence(existing.confidence, candidate.confidence);
-      existing.occurrenceCount = countOccurrences(
-        params.originalText,
-        existing.originalText,
-      );
+      existing.occurrenceCount = occurrenceCount;
+
+      if (candidate.normalizationRules?.length) {
+        existing.normalizationRules = mergeNormalizationRules(
+          existing.normalizationRules,
+          candidate.normalizationRules,
+        );
+      }
+
+      if (existing.reviewStatus === "unreviewed") {
+        existing.reviewStatus = "approved";
+        existing.enabled = true;
+      }
+
       continue;
     }
 
@@ -59,10 +77,13 @@ export function mergeCandidates(params: {
       category: candidate.category,
       sources: [candidate.source],
       confidence: candidate.confidence,
-      enabled: false,
-      occurrenceCount: countOccurrences(params.originalText, normalizedText),
-      reviewStatus: "unreviewed",
+      enabled: true,
+      occurrenceCount,
+      reviewStatus: "approved",
       displayOrder: nextEntries.length,
+      ...(candidate.normalizationRules?.length
+        ? { normalizationRules: [...candidate.normalizationRules] }
+        : {}),
     });
   }
 
@@ -89,4 +110,11 @@ function maxConfidence(
   }
 
   return Math.max(current, next);
+}
+
+function mergeNormalizationRules(
+  current: DetectionNormalizationRule[] | undefined,
+  next: DetectionNormalizationRule[],
+): DetectionNormalizationRule[] {
+  return [...new Set([...(current ?? []), ...next])];
 }

@@ -127,7 +127,7 @@ describe("appReducer", () => {
         type: "setOriginalText",
         value: "佐藤さんと山田さん",
       }),
-      { type: "setEntryFilter", value: "unreviewed" },
+      { type: "setEntryFilter", value: "disabled" },
     );
     const first = appReducer(withText, {
       type: "addManualEntry",
@@ -153,7 +153,7 @@ describe("appReducer", () => {
     expect(second.entryFilter).toBe("all");
   });
 
-  it("形式検出候補を未確認・無効の候補として統合する", () => {
+  it("形式検出した対象を有効なマスク対象として統合する", () => {
     const state = appReducer(initialAppState, {
       type: "setOriginalText",
       value: "連絡先は yamada@example.com です。",
@@ -174,11 +174,11 @@ describe("appReducer", () => {
     expect(detected.entries[0]).toMatchObject({
       category: "EMAIL",
       sources: ["regex"],
-      enabled: false,
-      reviewStatus: "unreviewed",
+      enabled: true,
+      reviewStatus: "approved",
       occurrenceCount: 1,
     });
-    expect(selectMaskedText(detected)).toBe("連絡先は yamada@example.com です。");
+    expect(selectMaskedText(detected)).toBe("連絡先は [メール_1] です。");
   });
 
   it("形式検出の再実行では重複作成せず、手動項目の設定を維持して検出元だけ追加する", () => {

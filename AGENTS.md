@@ -129,7 +129,8 @@ Centralize normalization and matching logic. Do not duplicate it in UI component
 ### 5.5 Detection and confirmation are separate
 
 - Regex and NER output are candidates.
-- Automatically detected candidates are initially unconfirmed and must not affect the masked result until approved.
+- Automatically detected candidates become enabled immediately and affect the masked result until the user disables or deletes them.
+- Re-detection must preserve an existing entry's enabled or disabled state and must not undo an explicit user decision.
 - Manual addition is an explicit user action and becomes enabled after the manual-add confirmation dialog succeeds.
 - Preserve all detection sources when the same string is found by more than one method.
 
@@ -177,6 +178,7 @@ type MaskSession = {
 ```
 
 The exact implementation may evolve, but preserve the domain invariants above.
+The current UI has only enabled and disabled states. Keep `reviewStatus` only for internal compatibility; new automatic and manual entries use `approved`, and the current flow must not create `unreviewed` entries.
 
 Prefer pure functions for:
 
@@ -264,7 +266,7 @@ Initial structured PII candidates are:
 - telephone number
 - Japanese postal code
 
-Treat matches as candidates, not automatically approved entries.
+Treat matches as candidates rather than guaranteed PII. New matches are enabled immediately, but the UI must preserve their detection source and let the user disable them.
 
 Keep each detector isolated and testable. A regex match alone must not be presented as guaranteed PII.
 
@@ -324,7 +326,7 @@ At minimum cover:
 Cover the acceptance criteria in `docs/requirements.md` and `docs/ui-design.md`, especially:
 
 - original/masked tab behavior
-- automatic candidate approval flow
+- automatic candidates being enabled immediately and the disable/re-enable flow
 - manual-add flow
 - copy confirmation when no mask is active
 - session clear confirmation and reset

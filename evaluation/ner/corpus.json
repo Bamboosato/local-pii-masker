@@ -1,0 +1,406 @@
+{
+  "version": 2,
+  "description": "Local PII Masker Japanese NER synthetic PoC corpus. All people, organizations, and addresses are fictional test data.",
+  "documents": [
+    {
+      "id": "meeting-minutes-01",
+      "annotatedText": "[[ORGANIZATION|青葉デジタル株式会社]]の会議には[[PERSON|山田太郎]]、[[PERSON|山田花子]]、[[PERSON|佐藤健一]]が参加した。会場は[[ADDRESS|愛知県名古屋市中区栄三丁目12番8号]]である。"
+    },
+    {
+      "id": "support-note-01",
+      "annotatedText": "顧客の[[PERSON|田中美咲]]から[[ORGANIZATION|みらい技研株式会社]]へ問い合わせがあった。登録住所は[[ADDRESS|東京都新宿区西新宿二丁目8番1号]]。"
+    },
+    {
+      "id": "incident-report-01",
+      "annotatedText": "障害対応責任者の[[PERSON|高橋健太]]は、[[ORGANIZATION|合同会社オリオンシステムズ]]名古屋支社へ連絡した。"
+    },
+    {
+      "id": "spaced-names-01",
+      "annotatedText": "参加者は[[PERSON|田中 美咲]]と[[PERSON|鈴木　一郎]]です。"
+    },
+    {
+      "id": "surname-reference-01",
+      "annotatedText": "[[PERSON|山田太郎]]が説明し、[[PERSON|山田]]は承認した。山田製作所と山田線は固有名詞の否定例である。"
+    },
+    {
+      "id": "english-label-01",
+      "annotatedText": "氏名[[PERSON|Taro Yamada]]、口座名義[[PERSON|JANE DOE]]として登録した。"
+    },
+    {
+      "id": "english-standalone-01",
+      "annotatedText": "[[PERSON|Hanako Yamada]] attended the meeting at [[ORGANIZATION|Aoba Digital]]."
+    },
+    {
+      "id": "markdown-table-01",
+      "annotatedText": "| 部署 | 氏名 |\n| --- | --- |\n| 開発部 | [[PERSON|高橋由美]] |\n| 品質保証部 | [[PERSON|佐藤健一]] |"
+    },
+    {
+      "id": "json-fields-01",
+      "annotatedText": "```json\n{\"manager\":\"[[PERSON|山田太郎]]\",\"organization\":\"[[ORGANIZATION|青葉デジタル株式会社]]\"}\n```"
+    },
+    {
+      "id": "csv-fields-01",
+      "annotatedText": "```csv\n\"部署\",\"氏名\"\n\"営業部\",\"[[PERSON|田中美咲]]\"\n\"開発部\",\"[[PERSON|鈴木一郎]]\"\n```"
+    },
+    {
+      "id": "address-variants-01",
+      "annotatedText": "配送先は[[ADDRESS|愛知県豊田市若宮町二丁目15番地]]、請求先は[[ADDRESS|名古屋市千種区星が丘元町5番20号]]です。"
+    },
+    {
+      "id": "facility-01",
+      "annotatedText": "[[PERSON|佐藤健一]]は[[ADDRESS|青葉市民病院]]を訪問し、その後[[ADDRESS|名古屋中央会議場]]へ移動した。"
+    },
+    {
+      "id": "political-org-01",
+      "annotatedText": "[[ORGANIZATION|青葉未来党]]の代表である[[PERSON|木村直子]]が記者会見を行った。"
+    },
+    {
+      "id": "school-org-01",
+      "annotatedText": "[[ORGANIZATION|学校法人みどり学園]]は[[PERSON|伊藤誠]]を新しい校長に任命した。"
+    },
+    {
+      "id": "medical-org-01",
+      "annotatedText": "[[ORGANIZATION|医療法人青葉会]]の担当医[[PERSON|小林恵]]から連絡を受けた。"
+    },
+    {
+      "id": "repeated-person-01",
+      "annotatedText": "[[PERSON|山田太郎]]が資料を作成し、確認後に[[PERSON|山田太郎]]が再提出した。"
+    },
+    {
+      "id": "katakana-name-01",
+      "annotatedText": "担当者の[[PERSON|サトウケン]]は[[ORGANIZATION|アオバ研究所]]に所属している。"
+    },
+    {
+      "id": "hiragana-name-01",
+      "annotatedText": "申請者の[[PERSON|あおばみどり]]が[[ADDRESS|さくら市中央一丁目]]から来訪した。"
+    },
+    {
+      "id": "mixed-org-01",
+      "annotatedText": "[[ORGANIZATION|Aoba Cloud Japan株式会社]]の[[PERSON|中村亮]]がProject Orionについて説明した。"
+    },
+    {
+      "id": "honorifics-01",
+      "annotatedText": "[[PERSON|渡辺翔太]]部長、[[PERSON|加藤明美]]様、[[PERSON|吉田拓也]]氏が同席した。"
+    },
+    {
+      "id": "negative-compounds-01",
+      "annotatedText": "山田製作所、高橋駅、鈴木模型店、田中公園、品質保証部は人名ではない。"
+    },
+    {
+      "id": "negative-identifiers-01",
+      "annotatedText": "メールはtest.yamada@example.com、電話は090-1234-5678、URLはhttps://aoba.example.jpです。"
+    },
+    {
+      "id": "location-person-ambiguity-01",
+      "annotatedText": "[[PERSON|長野健]]は[[ADDRESS|長野県松本市中央二丁目]]へ出張した。"
+    },
+    {
+      "id": "organization-possessive-01",
+      "annotatedText": "[[ORGANIZATION|株式会社みらいソリューションズ]]の[[PERSON|鈴木一郎]]が契約を確認した。"
+    },
+    {
+      "id": "chunk-boundary-01",
+      "annotatedText": "これは長文チャンク境界を確認するための合成文章です。関係者は事前に資料を確認し、会議の目的、対象範囲、対応手順、連絡方法を共有しました。個人情報を含む資料は外部へ送信せず、ローカル環境だけで処理します。確認事項を順番に読み合わせ、未確定の項目には注記を追加します。担当部署は検証用の記録を残し、完了後に結果を共有します。この段落はモデルの入力境界付近まで文字数を増やすための文章であり、実在する情報を含みません。さらに説明文を追加して、改行や句点の近くで安全に分割されることを確認します。最終確認者の[[PERSON|山田花子]]は[[ORGANIZATION|青葉デジタル株式会社]]へ報告し、[[ADDRESS|愛知県名古屋市中区栄三丁目12番8号]]で会議を終了した。"
+    },
+    {
+      "id": "customer-email-02",
+      "annotatedText": "[[PERSON|森田彩香]]様から[[ORGANIZATION|さくら情報サービス株式会社]]へ連絡があり、登録先は[[ADDRESS|東京都青葉区中央一丁目4番7号]]とのことです。"
+    },
+    {
+      "id": "inquiry-form-02",
+      "annotatedText": "問い合わせ担当者は[[PERSON|石井大輔]]、所属は[[ORGANIZATION|合同会社みらい工房]]、所在地は[[ADDRESS|大阪府なにわ市北町二丁目6番3号]]です。"
+    },
+    {
+      "id": "sales-note-02",
+      "annotatedText": "[[ORGANIZATION|青空ソリューション株式会社]]の[[PERSON|岡田由紀]]と商談した。訪問先は[[ADDRESS|神奈川県みどり市海岸通三丁目9番12号]]である。"
+    },
+    {
+      "id": "delivery-note-02",
+      "annotatedText": "配送担当の[[PERSON|藤井直樹]]は[[ORGANIZATION|ひかり物流株式会社]]から[[ADDRESS|千葉県さくら市若葉台四丁目2番5号]]へ向かった。"
+    },
+    {
+      "id": "meeting-followup-02",
+      "annotatedText": "会議後、[[PERSON|前田久美]]が[[ORGANIZATION|株式会社北斗企画]]へ議事録を送り、[[ADDRESS|北海道あおば市大通西五丁目10番地]]での次回開催を確認した。"
+    },
+    {
+      "id": "incident-mail-02",
+      "annotatedText": "障害連絡は[[ORGANIZATION|東海テストネット株式会社]]の[[PERSON|長谷川修]]が担当し、[[ADDRESS|愛知県あさひ市新町一丁目18番6号]]から報告した。"
+    },
+    {
+      "id": "contract-review-02",
+      "annotatedText": "契約確認者の[[PERSON|村上真理]]は[[ORGANIZATION|みなと法務合同会社]]に所属し、送付先を[[ADDRESS|兵庫県しおさい市港町二丁目11番4号]]と指定した。"
+    },
+    {
+      "id": "reception-log-02",
+      "annotatedText": "受付記録：[[PERSON|清水拓海]]、[[ORGANIZATION|株式会社若葉製作所]]、訪問元[[ADDRESS|埼玉県こだま市本町三丁目7番2号]]。"
+    },
+    {
+      "id": "travel-request-02",
+      "annotatedText": "[[ORGANIZATION|南星観光株式会社]]の[[PERSON|阿部千春]]が、出張先[[ADDRESS|福岡県はかた市駅前一丁目3番9号]]への申請を提出した。"
+    },
+    {
+      "id": "maintenance-note-02",
+      "annotatedText": "保守責任者[[PERSON|池田和也]]は[[ORGANIZATION|青葉設備管理株式会社]]から[[ADDRESS|宮城県あおば市泉中央二丁目14番1号]]へ派遣された。"
+    },
+    {
+      "id": "application-note-02",
+      "annotatedText": "申請者[[PERSON|橋本理恵]]の勤務先は[[ORGANIZATION|株式会社つばさ開発]]、連絡先住所は[[ADDRESS|京都府みやこ市花見通一丁目5番8号]]である。"
+    },
+    {
+      "id": "audit-note-02",
+      "annotatedText": "監査担当の[[PERSON|山口翔]]が[[ORGANIZATION|中央監査パートナーズ]]を代表し、[[ADDRESS|広島県あかつき市平和町二丁目16番3号]]を訪れた。"
+    },
+    {
+      "id": "training-note-02",
+      "annotatedText": "研修講師は[[PERSON|松本麻衣]]、主催は[[ORGANIZATION|一般社団法人青葉人材機構]]、会場は[[ADDRESS|長野県みすず市学園町一丁目8番10号]]です。"
+    },
+    {
+      "id": "procurement-note-02",
+      "annotatedText": "調達窓口の[[PERSON|井上達也]]は[[ORGANIZATION|株式会社オリーブ商事]]へ連絡し、納品先を[[ADDRESS|香川県みどり市中央三丁目12番6号]]とした。"
+    },
+    {
+      "id": "interview-note-02",
+      "annotatedText": "面談対象者[[PERSON|木下智子]]は[[ORGANIZATION|未来教育研究所]]に所属し、[[ADDRESS|静岡県あおい市駿河町二丁目4番11号]]から参加した。"
+    },
+    {
+      "id": "markdown-list-02",
+      "annotatedText": "- 担当: [[PERSON|斎藤健太]]\n- 副担当: [[PERSON|原田美穂]]\n- 組織: [[ORGANIZATION|青葉クラウド株式会社]]\n- 所在地: [[ADDRESS|東京都みらい区青空二丁目3番6号]]"
+    },
+    {
+      "id": "markdown-table-02",
+      "annotatedText": "| 氏名 | 組織 | 所在地 |\n| --- | --- | --- |\n| [[PERSON|小川直人]] | [[ORGANIZATION|株式会社しらかば企画]] | [[ADDRESS|山梨県富士見市湖畔一丁目7番9号]] |\n| [[PERSON|福田恵子]] | 同上 | 同上 |"
+    },
+    {
+      "id": "csv-fields-02",
+      "annotatedText": "\"氏名\",\"所属\",\"住所\"\n\"[[PERSON|西村亮介]]\",\"[[ORGANIZATION|北海データ株式会社]]\",\"[[ADDRESS|北海道しらかば市北一条西二丁目5番地]]\""
+    },
+    {
+      "id": "json-fields-02",
+      "annotatedText": "```json\n{\"name\":\"[[PERSON|太田奈緒]]\",\"company\":\"[[ORGANIZATION|株式会社青葉テクノ]]\",\"address\":\"[[ADDRESS|新潟県こしひかり市南町三丁目2番8号]]\"}\n```"
+    },
+    {
+      "id": "yaml-fields-02",
+      "annotatedText": "name: [[PERSON|三浦俊介]]\norganization: [[ORGANIZATION|みらい設計合同会社]]\naddress: [[ADDRESS|石川県かがやき市兼六町一丁目6番4号]]"
+    },
+    {
+      "id": "key-value-02",
+      "annotatedText": "氏名=[[PERSON|坂本裕子]]\n勤務先=[[ORGANIZATION|株式会社東雲システム]]\n住所=[[ADDRESS|岡山県きび市桃太郎通二丁目9番1号]]"
+    },
+    {
+      "id": "bullet-list-02",
+      "annotatedText": "・責任者 [[PERSON|遠藤航]]\n・確認者 [[PERSON|青木優子]]\n・法人 [[ORGANIZATION|一般財団法人みどり技術会]]\n・会場 [[ADDRESS|群馬県あかぎ市高原町三丁目1番7号]]"
+    },
+    {
+      "id": "quoted-mail-02",
+      "annotatedText": "> [[ORGANIZATION|株式会社朝凪通信]]の[[PERSON|藤田浩二]]です。\n> 返送先は[[ADDRESS|沖縄県うみかぜ市珊瑚町一丁目4番2号]]です。"
+    },
+    {
+      "id": "parenthetical-02",
+      "annotatedText": "担当（[[PERSON|竹内香織]]／[[ORGANIZATION|星空メディア株式会社]]）は、会場（[[ADDRESS|奈良県やまと市若草町二丁目8番5号]]）を確認した。"
+    },
+    {
+      "id": "slash-separated-02",
+      "annotatedText": "[[PERSON|金子修平]] / [[ORGANIZATION|株式会社白波建設]] / [[ADDRESS|鹿児島県さつま市桜島通三丁目10番6号]]"
+    },
+    {
+      "id": "address-prefecture-02",
+      "annotatedText": "[[PERSON|中島明日香]]は[[ORGANIZATION|株式会社青葉ライフ]]へ、現住所[[ADDRESS|栃木県うつのみや市緑町一丁目2番14号]]を届け出た。"
+    },
+    {
+      "id": "address-no-prefecture-02",
+      "annotatedText": "[[ORGANIZATION|みらい保険サービス]]の[[PERSON|小野健司]]は、配送先を[[ADDRESS|名古屋市あおば区新栄二丁目7番3号]]へ変更した。"
+    },
+    {
+      "id": "address-kanji-number-02",
+      "annotatedText": "[[PERSON|田村美紀]]が[[ORGANIZATION|青空出版株式会社]]へ提出した住所は[[ADDRESS|東京都ひかり区一番町二丁目十五番八号]]である。"
+    },
+    {
+      "id": "address-hyphen-02",
+      "annotatedText": "[[ORGANIZATION|株式会社こだま販売]]の[[PERSON|武田洋介]]は[[ADDRESS|大阪府なにわ市南町3-12-7]]に居住している。"
+    },
+    {
+      "id": "address-building-02",
+      "annotatedText": "[[PERSON|上野由美子]]の勤務先[[ORGANIZATION|株式会社パレットリンク]]は[[ADDRESS|東京都あおば区西町四丁目9番2号 青葉ビル6階]]にある。"
+    },
+    {
+      "id": "address-lot-02",
+      "annotatedText": "[[ORGANIZATION|北斗農業合同会社]]の[[PERSON|野口一真]]は[[ADDRESS|岩手県みちのく市田園町字青葉25番地の4]]から申請した。"
+    },
+    {
+      "id": "address-rural-02",
+      "annotatedText": "[[PERSON|河野亜紀]]は[[ORGANIZATION|四季食品株式会社]]の工場がある[[ADDRESS|熊本県あそ郡みどり村大字中央120番地]]を訪問した。"
+    },
+    {
+      "id": "address-katakana-02",
+      "annotatedText": "[[ORGANIZATION|株式会社アオバリンク]]の[[PERSON|平野勇気]]は[[ADDRESS|神奈川県みなと市サクラ通二丁目5番9号]]へ移転した。"
+    },
+    {
+      "id": "address-labeled-02",
+      "annotatedText": "登録住所は[[ADDRESS|福井県えちぜん市青葉町一丁目11番3号]]。登録者は[[PERSON|久保田恵]]、所属は[[ORGANIZATION|越前テスト工業株式会社]]。"
+    },
+    {
+      "id": "address-unlabeled-02",
+      "annotatedText": "[[PERSON|菅原直樹]]は[[ORGANIZATION|株式会社杜の都企画]]から[[ADDRESS|宮城県せんだい市広瀬通三丁目6番8号]]へ書類を持参した。"
+    },
+    {
+      "id": "corporate-kabushiki-02",
+      "annotatedText": "[[ORGANIZATION|株式会社青葉精機]]の代表[[PERSON|今井隆]]は、本社[[ADDRESS|愛知県とよた市若宮通一丁目3番5号]]で説明した。"
+    },
+    {
+      "id": "corporate-godo-02",
+      "annotatedText": "[[ORGANIZATION|合同会社白樺デザイン]]の[[PERSON|大西沙織]]が[[ADDRESS|長野県しなの市高原町二丁目7番1号]]から参加した。"
+    },
+    {
+      "id": "corporate-school-02",
+      "annotatedText": "[[ORGANIZATION|学校法人青空学園]]は[[PERSON|宮本孝之]]を[[ADDRESS|東京都こだま区学園通四丁目2番6号]]の校舎へ招いた。"
+    },
+    {
+      "id": "corporate-medical-02",
+      "annotatedText": "[[ORGANIZATION|医療法人みらい会]]の[[PERSON|片山玲子]]は[[ADDRESS|大阪府さくら市健康町一丁目8番4号]]で診療にあたる。"
+    },
+    {
+      "id": "corporate-social-02",
+      "annotatedText": "[[ORGANIZATION|社会福祉法人若葉の家]]の[[PERSON|本田剛]]が[[ADDRESS|埼玉県こもれび市福祉町三丁目5番2号]]を案内した。"
+    },
+    {
+      "id": "corporate-foundation-02",
+      "annotatedText": "[[ORGANIZATION|公益財団法人青葉文化基金]]の[[PERSON|岩田真由]]は[[ADDRESS|京都府みやこ市芸術通二丁目4番9号]]で式典を開いた。"
+    },
+    {
+      "id": "corporate-government-02",
+      "annotatedText": "[[ORGANIZATION|みどり市役所]]の[[PERSON|高木宏美]]が[[ADDRESS|みどり市中央一丁目1番1号]]の窓口で対応した。"
+    },
+    {
+      "id": "corporate-english-02",
+      "annotatedText": "[[ORGANIZATION|Aoba Research Japan]]の[[PERSON|中川裕介]]は[[ADDRESS|東京都みらい区国際通一丁目9番3号]]に勤務している。"
+    },
+    {
+      "id": "corporate-lab-02",
+      "annotatedText": "[[ORGANIZATION|北星先端技術研究所]]の[[PERSON|吉川亜美]]が[[ADDRESS|茨城県つくば野市研究学園二丁目10番5号]]で実験した。"
+    },
+    {
+      "id": "corporate-department-02",
+      "annotatedText": "[[ORGANIZATION|青葉デジタル株式会社品質保証部]]の[[PERSON|川口雄太]]は[[ADDRESS|愛知県なごや市栄町三丁目6番1号]]から報告した。"
+    },
+    {
+      "id": "person-spaced-02",
+      "annotatedText": "[[PERSON|佐々木 美咲]]は[[ORGANIZATION|株式会社青葉アプリ]]に所属し、[[ADDRESS|東京都ひかり区中央二丁目5番7号]]に住んでいる。"
+    },
+    {
+      "id": "person-fullwidth-space-02",
+      "annotatedText": "[[PERSON|山崎　浩二]]が[[ORGANIZATION|白波システム合同会社]]から[[ADDRESS|千葉県しおさい市海浜町一丁目3番8号]]へ移動した。"
+    },
+    {
+      "id": "person-honorific-02",
+      "annotatedText": "[[ORGANIZATION|株式会社みらい会計]]の[[PERSON|永井知恵]]様へ、[[ADDRESS|神奈川県あおば市若葉町二丁目4番6号]]の資料を送付した。"
+    },
+    {
+      "id": "person-surname-02",
+      "annotatedText": "担当の[[PERSON|森]]は[[ORGANIZATION|青空交通株式会社]]に勤務し、[[ADDRESS|東京都こだま区駅前一丁目7番2号]]を巡回した。"
+    },
+    {
+      "id": "person-katakana-02",
+      "annotatedText": "[[PERSON|タナカミサキ]]は[[ORGANIZATION|アオバクリエイト株式会社]]の担当で、[[ADDRESS|大阪府みらい市カエデ通三丁目8番5号]]にいる。"
+    },
+    {
+      "id": "person-hiragana-02",
+      "annotatedText": "[[PERSON|さとうあかり]]が[[ORGANIZATION|ひなた企画合同会社]]から[[ADDRESS|沖縄県うみかぜ市ひかり町二丁目6番3号]]へ連絡した。"
+    },
+    {
+      "id": "person-english-labeled-02",
+      "annotatedText": "氏名: [[PERSON|Mika Tanaka]]、所属: [[ORGANIZATION|Aoba Test Labs]]、住所: [[ADDRESS|東京都みらい区国際町四丁目2番9号]]"
+    },
+    {
+      "id": "person-compound-02",
+      "annotatedText": "[[PERSON|小笠原健太郎]]は[[ORGANIZATION|株式会社東雲ネットワーク]]に所属し、[[ADDRESS|北海道しらかば市大通東三丁目11番地]]を訪れた。"
+    },
+    {
+      "id": "person-repeated-02",
+      "annotatedText": "[[PERSON|和田直美]]が[[ORGANIZATION|みどり食品株式会社]]から[[ADDRESS|群馬県あかぎ市中央一丁目5番4号]]へ向かい、到着後に[[PERSON|和田直美]]が報告した。"
+    },
+    {
+      "id": "person-list-02",
+      "annotatedText": "参加者は[[PERSON|柴田健]]、[[PERSON|酒井真紀]]、[[PERSON|横山聡]]。主催は[[ORGANIZATION|株式会社青葉イベント]]、会場は[[ADDRESS|東京都さくら区文化町二丁目9番1号]]。"
+    },
+    {
+      "id": "ambiguity-surname-org-02",
+      "annotatedText": "[[PERSON|青葉実]]は[[ORGANIZATION|青葉製作所]]に勤務し、[[ADDRESS|青葉県みらい市中央一丁目4番2号]]から通勤している。"
+    },
+    {
+      "id": "ambiguity-location-person-02",
+      "annotatedText": "[[PERSON|宮崎直人]]は[[ORGANIZATION|日向テスト株式会社]]の業務で[[ADDRESS|宮崎県日向市中央二丁目7番5号]]へ出張した。"
+    },
+    {
+      "id": "ambiguity-facility-address-02",
+      "annotatedText": "[[PERSON|神谷愛]]は[[ORGANIZATION|医療法人青空会]]の依頼で[[ADDRESS|みらい中央病院]]を訪れた。"
+    },
+    {
+      "id": "ambiguity-product-02",
+      "annotatedText": "[[ORGANIZATION|株式会社北斗機器]]の[[PERSON|星野誠]]が[[ADDRESS|東京都あおば区北斗町一丁目6番3号]]で製品「北斗」を説明した。"
+    },
+    {
+      "id": "negative-common-nouns-02",
+      "annotatedText": "青葉色、若葉マーク、未来予測、中央処理、高原野菜は個人名・組織名・住所ではない。"
+    },
+    {
+      "id": "negative-code-02",
+      "annotatedText": "変数名はpersonName、organizationId、addressLineであり、値はsample_valueだけである。"
+    },
+    {
+      "id": "negative-markdown-02",
+      "annotatedText": "# 山田方式\n## 高橋パターン\n- 鈴木モデル\nこれらは章題と方式名であり人物を指さない。"
+    },
+    {
+      "id": "negative-english-02",
+      "annotatedText": "Blue Ocean, Green Field, Future Link are placeholder phrases, not annotated entities."
+    },
+    {
+      "id": "negative-address-fragments-02",
+      "annotatedText": "中央一丁目、駅前二丁目、北町三番地という断片だけが例示され、実際の所在地は記載されていない。"
+    },
+    {
+      "id": "negative-departments-02",
+      "annotatedText": "開発部、営業部、品質保証部、総務課、企画室という一般的な部署名を列挙した。"
+    },
+    {
+      "id": "chunk-boundary-02",
+      "annotatedText": "この文章は長文分割の境界を再現する合成データである。担当者は作業手順を確認し、入力内容、処理条件、確認方法、完了基準を順番に共有した。データは端末内だけで扱い、外部送信しない。検証では同じ操作を繰り返し、結果の再現性を確認する。段落を十分に長くするため、目的に関係する説明を追加する。候補の位置が境界前後へ移動しても、同じ文字列として統合されなければならない。さらに、句読点や改行を含む場合の分割位置も確認する。最終担当の[[PERSON|北村結衣]]は[[ORGANIZATION|株式会社青葉検証センター]]へ結果を提出し、[[ADDRESS|東京都みらい区試験町二丁目10番4号]]で作業を完了した。"
+    },
+    {
+      "id": "multiline-mail-02",
+      "annotatedText": "差出人: [[PERSON|松井大樹]]\n所属: [[ORGANIZATION|白樺ネットサービス株式会社]]\n\n本文:\n明日の訪問先は\n[[ADDRESS|長野県みすず市中央三丁目5番8号]]\nです。"
+    },
+    {
+      "id": "long-meeting-02",
+      "annotatedText": "会議では前回課題、進捗、変更点、リスク、次回予定を確認した。各担当は事前に資料を読み、疑問点を整理した。[[PERSON|近藤麻里]]は[[ORGANIZATION|合同会社みらいプロジェクト]]の代表として説明し、次回会場を[[ADDRESS|大阪府なにわ市会議町一丁目12番7号]]と提案した。"
+    },
+    {
+      "id": "punctuation-boundary-02",
+      "annotatedText": "責任者は「[[PERSON|成田翔太]]」。所属は『[[ORGANIZATION|株式会社朝日テスト企画]]』。所在地は（[[ADDRESS|千葉県こだま市日の出町二丁目3番9号]]）。"
+    },
+    {
+      "id": "newline-boundary-02",
+      "annotatedText": "担当者\n[[PERSON|小松由佳]]\n勤務先\n[[ORGANIZATION|青空品質研究所]]\n所在地\n[[ADDRESS|埼玉県こもれび市研究町一丁目8番6号]]"
+    },
+    {
+      "id": "markdown-code-02",
+      "annotatedText": "```text\n氏名: [[PERSON|安藤隆志]]\n法人: [[ORGANIZATION|株式会社みどりテスト工房]]\n住所: [[ADDRESS|東京都さくら区検証通三丁目4番1号]]\n```"
+    },
+    {
+      "id": "tab-separated-02",
+      "annotatedText": "[[PERSON|増田奈々]]\t[[ORGANIZATION|北星データ合同会社]]\t[[ADDRESS|北海道ほくと市星見町二丁目7番10号]]"
+    },
+    {
+      "id": "duplicate-target-02",
+      "annotatedText": "[[PERSON|吉岡美咲]]は[[ORGANIZATION|株式会社青葉サポート]]から[[ADDRESS|東京都あおば区支援町一丁目2番5号]]へ向かった。到着後、[[PERSON|吉岡美咲]]が[[ORGANIZATION|株式会社青葉サポート]]へ完了を報告した。"
+    },
+    {
+      "id": "mixed-script-02",
+      "annotatedText": "担当者[[PERSON|Rina 佐藤]]は[[ORGANIZATION|Aobaみらい株式会社]]に所属し、[[ADDRESS|東京都ひかり区Global通二丁目6番4号]]で受付した。"
+    },
+    {
+      "id": "final-summary-02",
+      "annotatedText": "最終確認では[[PERSON|新井健一]]が[[ORGANIZATION|公益社団法人青葉テスト協会]]の記録を確認し、保管場所を[[ADDRESS|東京都みらい区安全町一丁目1番8号]]と記載した。"
+    }
+  ]
+}

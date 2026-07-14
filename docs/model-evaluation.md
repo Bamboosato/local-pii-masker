@@ -13,13 +13,15 @@ Local PII MaskerのMVPで使用する日本語固有表現抽出（NER）モデ�
 | NER実行基盤 | Transformers.js |
 | タスク | `token-classification` / NER |
 | モデル形式 | ONNX |
-| 初期評価モデル | `jiting/xlm-roberta-ner-japanese_onnx` |
-| 採用状態 | PoC候補。MVPへの正式採用は未決定 |
+| MVP採用モデル | `jiting/xlm-roberta-ner-japanese_onnx` |
+| 採用状態 | 選定用100文書と未見100文書、Chrome Worker実測を完了し、MVP採用を決定 |
 | 構造化PII | NERへ依存せず、正規表現・検査ロジックを使用 |
+| 現在の実装バージョン | `@huggingface/transformers` 4.2.0 |
+| Phase 3初期設定 | `device: "wasm"` / `dtype: "q8"` |
 
-Transformers.jsは`token-classification`パイプラインを提供している。初期候補モデルはTransformers.js用のONNX重みを持ち、モデルカードにブラウザ側の読み込み例が掲載されている。
+Transformers.jsは`token-classification`パイプラインを提供している。採用モデルはTransformers.js用のONNX重みを持ち、モデルカードにブラウザ側の読み込み例が掲載されている。
 
-## 3. 初期候補モデル
+## 3. 採用モデルと候補比較
 
 ### 3.1 モデルID
 
@@ -44,12 +46,14 @@ jiting/xlm-roberta-ner-japanese_onnx
 | `ORG` | 一般組織 | `ORGANIZATION` |
 | `ORG-P` | 政治組織 | `ORGANIZATION` |
 | `ORG-O` | その他組織 | `ORGANIZATION` |
-| `LOC` | 地名 | `ADDRESS`または`LOCATION` |
-| `INS` | 施設 | `ORGANIZATION`または`OTHER` |
+| `LOC` | 地名 | Phase 3初期実装では`ADDRESS` |
+| `INS` | 施設 | Phase 3初期実装では`ADDRESS` |
 | `PRD` | 製品 | `SECRET`または対象外 |
 | `EVT` | イベント | `OTHER`または対象外 |
 
-`LOC`は住所専用ラベルではない。都道府県、市区町村、建物名、番地を含む住所全体の検出精度は別途評価する。
+`LOC`と`INS`は住所専用ラベルではない。都道府県、市区町村、施設名、建物名、番地を含む住所全体の検出精度は別途評価する。Phase 3初期実装では、住所文脈での見落としを避けるため暫定的に`ADDRESS`へ写像する。
+
+過検出抑制として、Phase 3初期実装では1文字候補、3文字以下の英数字だけの候補、メールアドレス・URL・形式検出済み住所・構造から検出済みフルネーム内に含まれる部分文字列候補、長い日本語複合語内にしか存在しない2文字漢字候補、原文に完全一致しない候補を除外する。`LOC`・`INS`として返された一般姓は、明示的な住所ラベル直後にある場合を除いて住所候補にしない。
 
 ### 3.3 モデルファイル
 
@@ -65,9 +69,169 @@ jiting/xlm-roberta-ner-japanese_onnx
 
 PCと安定したブロードバンド環境をMVPの前提とするため、279MBの量子化版はPoC候補として許容する。ただし、ブラウザのメモリ使用量と初期化時間は必ず実測する。
 
+### 3.4 代替モデル比較（2026年7月13日調査）
+
+モデルカードに記載された精度値は、評価データ、集計単位、分割方法が同一であることを確認できないため、モデル間の順位付けには直接使用しない。公開値はPoC対象を絞る参考値とし、採用判断は本書の同一評価データで再測定する。
+
+| 優先 | モデル | 公開情報 | ブラウザ実装上の確認結果 | 現時点の扱い |
+| ---: | --- | --- | --- | --- |
+| 基準 | `jiting/xlm-roberta-ner-japanese_onnx` | `tsmatz/xlm-roberta-ner-japanese`のONNX変換版。XLM-R Base、9ラベル | Transformers.js利用例、Tokenizer、q8 ONNXが揃い、現行アプリで動作済み | MVP採用 |
+| 1 | `sabaridsnfuji/xlm-roberta-name-entity-recognition-japanese` | XLM-R Base、現行と同じ9ラベル。モデルカードではPERのRecall 97.53%、Precision 98.80% | XLM-R BaseのTokenizer資材を補完してONNXへ変換し、Transformers.js 4.2.0のNode.js実行を確認した。Q8は約278MB | 200文書比較で実質的な優位がなく不採用 |
+| 2 | `Mizuiro-sakura/deberta-v2-base-japanese-finetuned-ner` | 約0.1B、モデルカードの人名F1 0.85 | FP32 ONNXへ変換し、Transformers.js 4.2.0で実行できた。ただし助詞・読点を候補先頭へ含む境界誤りが多く、アプリ統合後の精度も大幅に低かった | MVP候補から除外 |
+| 3 | `knosing/japanese_ner_model` | 約0.1B、モデルカードの人名F1 0.8410 | BERT本体は対応可能だが、モデル側にTokenizer資材とONNXがない。ベースの`tohoku-nlp/bert-base-japanese-v3`はMeCab・UniDicを使う`BertJapaneseTokenizer`で、Transformers.js 4.2.0に同Tokenizer実装がない | Tokenizer再現方法が成立した場合だけ比較へ進める |
+| 参考 | `Mizuiro-sakura/luke-japanese-base-finetuned-ner` | 約0.3B、モデルカードの人名F1 0.90 | `LukeForTokenClassification`と`MLukeTokenizer`を使い、Entity Vocabularyも必要。Transformers.js 4.2.0に対応モデル・Tokenizerクラスがなく、ONNXも未掲載 | オフライン精度の上限参考。MVP採用候補からは除外 |
+
+`tsmatz/xlm-roberta-ner-japanese`は現行`jiting`の変換元であり、別モデルとして比較しない。
+
+比較は次の順序で行う。
+
+1. 現行アプリのNER生出力と、正規表現・後処理統合後の出力を固定評価データで記録する
+2. `sabaridsnfuji`とDeBERTaをONNXへ変換し、Node.js上のTransformers.jsでTokenizer、ラベル、原文位置、1文推論を確認する
+3. スモークテストを通過したモデルだけをブラウザWorkerへ接続し、同一文書で精度、初回取得量、初期化時間、推論時間、ピークメモリを比較する
+4. `knosing`はブラウザ内でMeCab・UniDic相当のトークン化を再現できる見通しが立った場合だけ追加する
+5. LUKEはPython上の参考精度測定に留め、Transformers.js側に正式対応が追加されるまでブラウザ変換へ進めない
+
+モデル差し替えの効果はNER単体だけでなく、現在の短候補除外、構造検出優先、カテゴリ写像を適用したアプリ最終候補でも評価する。人名Recallが改善しても住所・組織の過検出、境界誤り、初回待ち時間が悪化する場合は採用しない。
+
+### 3.5 同一コーパスによるスモーク比較（2026年7月14日）
+
+正式PoCへ進めるモデルを絞る目的で、次の観点を先に固定して比較した。
+
+- 機能観点：モデル生出力とアプリ後処理統合後の両方でPrecision、Recall、F1を測定する
+- データ観点：人名、組織名、住所、否定例、英語表記、Markdown、重複、長文チャンク境界を含める
+- 異常・境界観点：出力に原文位置がない場合、原文へ一致しない場合、候補境界が助詞・句読点へ広がる場合を記録する
+- 非機能観点：モデル形式、ファイルサイズ、ロード時間、1文書あたりの推論時間を記録する
+- UI観点：この段階ではWorkerや画面へ接続せず、正式PoCへ進むモデルだけをブラウザで確認する
+
+測定条件：
+
+- 合成25文書、正解53出現、正解52対象文字列
+- コーパスSHA-256：`a13a6e96b86769b045794bf2a23b0155cbb00aa00ce45c615ae497dd57db9c36`
+- Node.js 24.13.0、`@huggingface/transformers` 4.2.0、`device: "cpu"`
+- スコアはカテゴリと対象文字列の完全一致で集計する。同じ文字列の複数出現は対象文字列単位では1件として扱う
+- モデル生出力に原文位置がないケースがあるため、出現位置単位の比較は本スモーク結果へ含めない
+
+アプリ後処理統合後の結果：
+
+| モデル | dtype | ONNXサイズ | Precision | Recall | F1 | 人名F1 | 組織F1 | 住所F1 | 平均推論時間 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `jiting` | Q8 | 約279MB | 75.6% | 65.4% | 70.1% | 81.5% | 58.3% | 52.6% | 23.6ms/文書 |
+| `sabaridsnfuji` | FP32 | 約1.11GB | 75.0% | 69.2% | 72.0% | 81.5% | 64.3% | 55.6% | 35.2ms/文書 |
+| `sabaridsnfuji` | Q8 | 約278MB | 73.5% | 69.2% | 71.3% | 81.5% | 62.1% | 55.6% | 18.3ms/文書 |
+| DeBERTa v2 | FP32 | 約448MB | 29.4% | 38.5% | 33.3% | 39.4% | 27.3% | 22.2% | 64.0ms/文書 |
+
+モデル生出力の対象文字列単位F1は、`jiting` Q8が57.8%、`sabaridsnfuji` FP32が60.0%、同Q8が61.2%、DeBERTa v2 FP32が12.6%だった。後処理は全モデルの結果を改善したが、DeBERTa v2の境界誤りを補える水準ではなかった。
+
+判断：
+
+- `sabaridsnfuji` Q8は現行比でRecallが3.8ポイント、総合F1が1.2ポイント高い。ただし人名F1は現行と同じであり、組織名はRecall向上と同時に偽陽性も5件から8件へ増えた
+- `sabaridsnfuji`のFP32 ONNX変換では、PyTorchとの最大logits差`7.72e-5`が変換時許容値`1e-5`を超える警告が出た。ONNX checkerとTransformers.js推論は成功したが、正式PoCでは量子化前後の全候補差分を継続確認する
+- DeBERTa v2は助詞・読点を候補へ含む境界誤りが多く、MVP候補から除外する
+- 25文書は変換可否を判断するスモーク用であり、モデル選定の規模を満たさない。現行`jiting`を維持し、`sabaridsnfuji`は100文書以上の正式PoCとChrome Worker実測へ進める比較候補とする
+
+初回ロード時間は、`jiting`だけがコールドダウンロードを含み、代替モデルはローカルファイルからロードしたため比較しない。平均推論時間もNode.js CPU上の参考値であり、ChromeのWASM Worker性能を示すものではない。
+
+評価ハーネスは`evaluation/ner/corpus.json`と`scripts/ner-evaluation/`に置き、次の形式で結果JSONをリポジトリ外へ出力する。
+
+```bash
+npm run evaluate:ner -- --model jiting/xlm-roberta-ner-japanese_onnx --device cpu --dtype q8 --output <result.json>
+```
+
+### 3.6 100文書PoCとChrome Worker実測（2026年7月14日）
+
+スモーク比較後、コーパスを100文書へ拡張した。すべて合成データであり、実在する個人情報は含めない。
+
+| カテゴリ | 正解出現数 | 一意な正解対象数 |
+| --- | ---: | ---: |
+| 人名 | 108 | 97 |
+| 組織名 | 82 | 79 |
+| 住所・施設 | 78 | 77 |
+
+- コーパスバージョン：2
+- コーパスSHA-256：`c809da4ec875080c577432561b6900e213e6ef0f5fe60b77c94426d68776636c`
+- 正解総数：268出現、264対象文字列
+- 評価環境：Node.js 24.13.0、`@huggingface/transformers` 4.2.0、CPU、Q8
+- 品質条件：100文書以上、各カテゴリ50出現以上、各カテゴリ50対象文字列以上、文書ID重複なしを自動テストする
+
+比較結果：
+
+| モデル | 生NER P/R/F1 | アプリ統合後 P/R/F1 | 人名F1 | 組織F1 | 住所F1 | 平均推論時間 |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| `jiting` Q8 | 84.7% / 75.4% / 79.8% | 70.9% / 61.0% / 65.6% | 78.0% | 72.3% | 45.3% | 23.2ms/文書 |
+| `sabaridsnfuji` Q8 | 82.1% / 76.5% / 79.2% | 70.8% / 62.5% / 66.4% | 78.7% | 72.8% | 45.9% | 23.8ms/文書 |
+
+`sabaridsnfuji`はアプリ統合後のF1が0.8ポイント高いが、人名の追加正解は1件である。組織名は正解が3件増える一方、偽陽性も4件増えた。モデル生出力では現行`jiting`のF1が0.6ポイント高く、速度差も小さい。約0.8ポイントの差は変換済みモデルを独自配布・保守するコストを正当化しないため、現行`jiting`を維持する。
+
+Chrome Worker実測：
+
+| 項目 | 結果 |
+| --- | ---: |
+| 環境 | Windows 11 / Chrome 150 / 14論理CPU / 32GB RAM |
+| バックエンド | Web Worker / WASM / Q8 |
+| 本番プレビュー初回1,000文字 | 34.8秒（モデル取得・初期化込み） |
+| ウォーム10,000文字 | 59.6秒 |
+| ウォーム10,000文字のWorker推論 | 57.9秒 |
+| 推論中UIタイマー遅延 | p95 7.0ms / 最大21.9ms |
+| Chromeプロセス群の処理後メモリ | Working Set 約1.46GB / Private約1.25GB |
+| ページ離脱後との差 | 約0.92GB / 約0.93GB |
+
+10,000文字を複数回処理してもタブクラッシュはなく、2回目以降に継続的なメモリ増加は確認されなかった。プロセス値は測定時点の定常値であり、瞬間的なピーク値ではない。8GB級PCやmacOSでのメモリ余裕は別途確認する。
+
+ネットワーク・保存検証：
+
+- 本番プレビューの24リクエストはすべてGETで、入力文字列はURLへ含まれなかった
+- 外部通信先はHugging Faceとモデル配信に使われるXetだけで、原文・候補・対応表の送信はなかった
+- ONNX RuntimeのWASM/MJSはViteビルドへ取り込み、同一オリジンから取得する。`cdn.jsdelivr.net`への実行時依存は除去した
+- LocalStorage、SessionStorage、IndexedDB、Cookieは空で、Cache Storageにはモデル、Tokenizer、ONNX Runtime資材だけが保存された
+
+100文書PoCとChrome Worker実測の範囲では現行モデルを維持する。次は200～300文書の最終確認用データによる評価を優先する。8GB級PC、macOS Chrome、初回取得失敗・低速回線の確認は後続フェーズへ延期する。
+
+### 3.7 未見100文書による最終確認（2026年7月14日）
+
+モデル選定時の調整が評価結果へ混入しないよう、`corpus-holdout.json`を選定用コーパスから分離した。最終確認用データは100文書で、うち50文書は正解注釈を持つ肯定例、50文書は評価対象を含まない否定例である。
+
+| カテゴリ | 正解出現数 | 一意な正解対象数 |
+| --- | ---: | ---: |
+| 人名 | 51 | 50 |
+| 組織名 | 50 | 50 |
+| 住所・施設 | 50 | 50 |
+
+- コーパスSHA-256：`8edcf16c52de8d8791f784e99ca60500040f125bea622cc29d1d34b7ae963137`
+- 選定用コーパスとの文書ID重複：0件
+- 選定用コーパスとのカテゴリ・正解文字列重複：0件
+- 空文書：0件
+
+未見100文書の結果：
+
+| モデル | 生NER P/R/F1 | アプリ統合後 P/R/F1 | 人名F1 | 組織F1 | 住所F1 | 平均推論時間 |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| `jiting` Q8 | 84.3% / 86.0% / 85.1% | 75.0% / 72.0% / 73.5% | 87.0% | 76.3% | 59.0% | 20.5ms/文書 |
+| `sabaridsnfuji` Q8 | 85.8% / 84.7% / 85.2% | 75.0% / 72.0% / 73.5% | 86.0% | 75.5% | 60.2% | 20.2ms/文書 |
+
+アプリ統合後は、両モデルともTP 108、FP 36、FN 42で総合指標が一致した。カテゴリ別では`jiting`が人名と組織名、`sabaridsnfuji`が住所のPrecisionでわずかに上回るが、採用判断を変える差ではない。
+
+選定用・最終確認用の合計200文書、419出現、414対象文字列を統合した結果：
+
+| モデル | 生NER P/R/F1 | アプリ統合後 P/R/F1 | 人名F1 | 組織F1 | 住所F1 |
+| --- | --- | --- | ---: | ---: | ---: |
+| `jiting` Q8 | 84.5% / 79.2% / 81.8% | 72.5% / 65.0% / 68.5% | 81.0% | 73.8% | 50.8% |
+| `sabaridsnfuji` Q8 | 83.5% / 79.5% / 81.4% | 72.4% / 65.9% / 69.0% | 81.2% | 73.8% | 51.5% |
+
+比較候補のアプリ統合後F1は0.5ポイント高いが、生NER F1は現行が0.4ポイント高い。人名F1差は0.2ポイント、組織名F1は同率であり、独自変換したONNXとTokenizerを配布・更新する保守コストを正当化する改善ではない。
+
+以上から、`jiting/xlm-roberta-ner-japanese_onnx`をMVP採用モデルとする。モデルアクセスは引き続きアダプターとWorkerに閉じ、将来のモデル更新を妨げない。F1値は完全検出を意味せず、原文ハイライトと候補一覧による人手確認を必須とする。
+
+再評価コマンド：
+
+```bash
+npm run evaluate:ner -- --corpus evaluation/ner/corpus-holdout.json --model jiting/xlm-roberta-ner-japanese_onnx --device cpu --dtype q8 --output <result.json>
+```
+
 ## 4. Transformers.js側の確認事項
 
-Transformers.js v3系では、量子化形式の指定は従来の`quantized: true`ではなく、原則として`dtype`を使用する。
+Phase 3初期実装では、`@huggingface/transformers` 4.2.0を使用し、Web Worker内で`pipeline("token-classification", modelId, { device: "wasm", dtype: "q8" })`を初期化する。モデル出力は`aggregation_strategy: "simple"`を指定して候補変換へ渡す。
+
+量子化形式や実行バックエンドを固定する場合は、Transformers.jsの対象バージョンに合わせて`device`、`dtype`、取得されるONNXファイルを確認する。
 
 例：
 
@@ -85,12 +249,12 @@ const detector = await pipeline(
 );
 ```
 
-ただし、初期候補モデルは旧形式の`model_quantized.onnx`を含むため、最新Transformers.jsでの`dtype`解決、デフォルト選択、WebGPU・WASM双方の互換性を実機確認する。
+ただし、初期候補モデルは旧形式の`model_quantized.onnx`を含むため、Transformers.js 4.2.0での`dtype`解決、デフォルト選択、WebGPU・WASM双方の互換性を実機確認する。
 
 評価時は以下を記録する。
 
 - 使用した`@huggingface/transformers`の正確なバージョン
-- 指定した`device`と`dtype`
+- 指定した`device`と`dtype`（Phase 3初期実装は`wasm` / `q8`）
 - 実際に取得されたモデルファイル
 - キャッシュ利用の有無
 - フォールバック発生の有無
@@ -137,10 +301,12 @@ const detector = await pipeline(
 - メールアドレス
 - 電話番号
 - 郵便番号
+- 文脈付きの基本的な姓名
+- `http://`・`https://`で始まるURL
+- 市区町村と番地表現を含む日本語住所
 
 以下は後続候補：
 
-- URL
 - IPアドレス
 - 生年月日・日付
 - 顧客番号、社員番号、チケット番号
@@ -188,10 +354,14 @@ MVP採用判断：
 - 姓だけ：`山田`
 - 姓名：`山田太郎`
 - 包含関係：`山田`と`山田太郎`
+- 姓単独候補の一括置換：`山田`、`山田製作所`、`山田線`
+- Markdownの単一値コードブロックにある包含関係：`高橋`、`高橋健太`、`高橋由美`
 - 同姓同名の複数出現
 - 会社名と一般名詞の曖昧性
 - 都道府県名、市区町村、町名、番地、建物名
 - ひらがな、カタカナ、漢字、英字の人名
+- 明示ラベル・構造化人名フィールド内のTitle Case・全大文字英語氏名
+- 文脈のない英語氏名を形式検出せず、同じ文字列を`PER`出力時だけ維持する境界
 - 日本語文中の英語組織名
 - 改行をまたぐ表現
 - 句読点に隣接する表現
@@ -296,8 +466,9 @@ NERが`山田`だけを返し、正解が`山田太郎`である場合、Overlap
 
 ### Step 1：ロード確認
 
-- 最新安定版のTransformers.jsを導入
-- 初期候補モデルをWorker内でロード
+- `@huggingface/transformers` 4.2.0を導入
+- 初期候補モデルをWorker内でロードする実装を追加
+- 量子化ONNXを優先するため、初期設定は`device: "wasm"`、`dtype: "q8"`とする
 - 実際に利用されたモデルファイルを記録
 - WebGPUとWASMで起動確認
 
@@ -392,3 +563,8 @@ NERが`山田`だけを返し、正解が`山田太郎`である場合、Overlap
 - [`jiting/xlm-roberta-ner-japanese_onnx`](https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx)
 - [`jiting/xlm-roberta-ner-japanese_onnx` ONNX files](https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx/tree/main/onnx)
 - [`tsmatz/xlm-roberta-ner-japanese`](https://huggingface.co/tsmatz/xlm-roberta-ner-japanese)
+- [`sabaridsnfuji/xlm-roberta-name-entity-recognition-japanese`](https://huggingface.co/sabaridsnfuji/xlm-roberta-name-entity-recognition-japanese)
+- [`Mizuiro-sakura/deberta-v2-base-japanese-finetuned-ner`](https://huggingface.co/Mizuiro-sakura/deberta-v2-base-japanese-finetuned-ner)
+- [`knosing/japanese_ner_model`](https://huggingface.co/knosing/japanese_ner_model)
+- [`tohoku-nlp/bert-base-japanese-v3`](https://huggingface.co/tohoku-nlp/bert-base-japanese-v3)
+- [`Mizuiro-sakura/luke-japanese-base-finetuned-ner`](https://huggingface.co/Mizuiro-sakura/luke-japanese-base-finetuned-ner)

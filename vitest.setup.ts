@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
@@ -19,4 +21,12 @@ if (!globalThis.crypto.randomUUID) {
     configurable: true,
     value: vi.fn(() => "00000000-0000-4000-8000-000000000000"),
   });
+}
+
+if (!Range.prototype.getClientRects) {
+  Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
+}
+
+if (!Range.prototype.getBoundingClientRect) {
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
 }
