@@ -11,7 +11,7 @@ import { countOccurrences } from "../domain/mask/findOccurrences";
 import { createMaskToken } from "../domain/mask/tokenFactory";
 
 export type TextView = "original" | "masked";
-export type EntryFilter = "all" | "unreviewed" | "approved";
+export type EntryFilter = "all" | "disabled";
 
 export type AppState = MaskSession & {
   activeTextView: TextView;

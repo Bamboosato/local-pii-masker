@@ -1,3 +1,5 @@
+import type { DetectionNormalizationRule } from "./normalization/detection/types";
+
 export type MaskCategory =
   | "PERSON"
   | "ADDRESS"
@@ -20,6 +22,7 @@ export type MaskEntry = {
   category: MaskCategory;
   sources: DetectionSource[];
   confidence?: number;
+  normalizationRules?: DetectionNormalizationRule[];
   enabled: boolean;
   occurrenceCount: number;
   reviewStatus: ReviewStatus;

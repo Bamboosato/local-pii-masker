@@ -4,8 +4,8 @@ import {
   Copy,
   Eraser,
   Eye,
+  EllipsisVertical,
   Info,
-  RotateCw,
   Search,
   ShieldCheck,
   Trash2,
@@ -33,9 +33,17 @@ import {
   selectTokenInspection,
   selectVisibleEntries,
 } from "./app/selectors";
+import { OriginalTextEditor } from "./components/OriginalTextEditor";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
+import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
+import {
+  NerDetectionCancelledError,
+  runNerDetection,
+} from "./domain/detection/ner/runNerDetection";
+import type { NerDetectionProgress } from "./domain/detection/ner/types";
 import { runRegexDetection } from "./domain/detection/regex/runRegexDetection";
 import { countOccurrences } from "./domain/mask/findOccurrences";
+import { buildHighlightSegments } from "./domain/mask/highlightText";
 import { buildMaskSegments } from "./domain/mask/maskText";
 import { createMaskToken } from "./domain/mask/tokenFactory";
 import { normalizeText } from "./domain/normalization/normalizeText";
@@ -48,6 +56,13 @@ import {
 } from "./domain/types";
 
 const MAX_CHAR_COUNT = 10000;
+type DetectionPhase = "idle" | "regex" | "ner-loading" | "ner-running";
+type NerDetectionOutcome = "success" | "failed" | "cancelled";
+type DetectionCancellationReason =
+  | "manual"
+  | "source-changed"
+  | "session-cleared"
+  | "unmount";
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -56,15 +71,32 @@ export default function App() {
   const [manualCategory, setManualCategory] = useState<MaskCategory>("PERSON");
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [entrySearchOpen, setEntrySearchOpen] = useState(false);
+  const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
+  const detectionAbortRef = useRef<AbortController | undefined>(undefined);
+  const latestDetectionMergeContextRef = useRef({
+    entries: state.entries,
+    originalText: state.originalText,
+  });
   const lastSelectionControlRef = useRef<HTMLButtonElement>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const clearMenuItemRef = useRef<HTMLButtonElement>(null);
+  const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
+  const entrySearchInputRef = useRef<HTMLInputElement>(null);
+  const entryListRef = useRef<HTMLDivElement>(null);
   const maskedText = selectMaskedText(state);
   const counts = selectSessionCounts(state);
   const visibleEntries = selectVisibleEntries(state);
   const activeEntries = selectActiveEntries(state.entries);
   const restoration = selectRestoredResponse(state);
   const tokenInspection = selectTokenInspection(state);
+  const isDetecting = detectionPhase !== "idle";
+  const hasSessionData =
+    state.originalText.length > 0 ||
+    state.entries.length > 0 ||
+    state.externalResponse.length > 0;
   const manualPreviewToken = useMemo(() => {
     const normalizedSelection = normalizeText(selectedText);
     const existing = state.entries.find(
@@ -83,6 +115,65 @@ export default function App() {
     () => buildMaskSegments(state.originalText, state.entries),
     [state.entries, state.originalText],
   );
+  const originalHighlightSegments = useMemo(
+    () => buildHighlightSegments(state.originalText, state.entries),
+    [state.entries, state.originalText],
+  );
+
+  useEffect(() => {
+    latestDetectionMergeContextRef.current = {
+      entries: state.entries,
+      originalText: state.originalText,
+    };
+  }, [state.entries, state.originalText]);
+
+  useEffect(
+    () => () => {
+      const controller = detectionAbortRef.current;
+
+      if (controller && !controller.signal.aborted) {
+        controller.abort("unmount" satisfies DetectionCancellationReason);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (entrySearchOpen) {
+      window.requestAnimationFrame(() => entrySearchInputRef.current?.focus());
+    }
+  }, [entrySearchOpen]);
+
+  useEffect(() => {
+    if (!headerMenuOpen) {
+      return;
+    }
+
+    clearMenuItemRef.current?.focus();
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !headerMenuRef.current?.contains(event.target)
+      ) {
+        setHeaderMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHeaderMenuOpen(false);
+        headerMenuButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [headerMenuOpen]);
 
   useEffect(() => {
     if (!state.notice) {
@@ -95,18 +186,6 @@ export default function App() {
 
     return () => window.clearTimeout(timeout);
   }, [state.notice]);
-
-  function updateSelection() {
-    const textarea = textareaRef.current;
-
-    if (!textarea) {
-      return;
-    }
-
-    setSelectedText(
-      textarea.value.slice(textarea.selectionStart, textarea.selectionEnd),
-    );
-  }
 
   function openManualDialog() {
     const normalizedSelection = selectedText.normalize("NFC");
@@ -156,16 +235,78 @@ export default function App() {
       return;
     }
 
-    setIsDetecting(true);
-    dispatch({ type: "setNotice", value: "形式検出で検出中です。" });
+    setDetectionPhase("regex");
+    dispatch({ type: "setNotice", value: "形式候補を確認しています。" });
+    const detectionText = state.originalText;
+    const detectionController = new AbortController();
+    detectionAbortRef.current = detectionController;
 
     await new Promise<void>((resolve) => {
       window.setTimeout(resolve, 0);
     });
 
     try {
-      const candidates = runRegexDetection(state.originalText);
-      const summary = summarizeDetectionMerge(state.entries, candidates);
+      const regexCandidates = runRegexDetection(detectionText);
+      let nerCandidates: DetectionCandidate[] = [];
+      let nerOutcome: NerDetectionOutcome = "success";
+
+      try {
+        setDetectionPhase("ner-loading");
+        dispatch({
+          type: "setNotice",
+          value:
+            "AI検出モデルを準備しています。初回は公開モデル資材の取得に時間がかかります。",
+        });
+        nerCandidates = await runNerDetection(detectionText, {
+          signal: detectionController.signal,
+          onProgress: (progress) => {
+            setDetectionPhase(toDetectionPhase(progress));
+            dispatch({
+              type: "setNotice",
+              value:
+                progress.phase === "loading"
+                  ? "AI検出モデルを準備しています。"
+                  : "AI検出を実行しています。",
+            });
+          },
+        });
+      } catch (error) {
+        if (error instanceof NerDetectionCancelledError) {
+          if (error.reason === "source-changed") {
+            dispatch({
+              type: "setNotice",
+              value:
+                "原文が変更されたため、自動検出結果は反映しませんでした。もう一度自動検出してください。",
+            });
+            return;
+          }
+
+          if (error.reason === "session-cleared" || error.reason === "unmount") {
+            return;
+          }
+
+          nerOutcome = "cancelled";
+        } else {
+          nerOutcome = "failed";
+        }
+      }
+
+      const latestContext = latestDetectionMergeContextRef.current;
+
+      if (latestContext.originalText !== detectionText) {
+        dispatch({
+          type: "setNotice",
+          value:
+            "原文が変更されたため、自動検出結果は反映しませんでした。もう一度自動検出してください。",
+        });
+        return;
+      }
+
+      const candidates = enrichPersonCandidates(detectionText, [
+        ...regexCandidates,
+        ...nerCandidates,
+      ]);
+      const summary = summarizeDetectionMerge(latestContext.entries, candidates);
 
       dispatch({
         type: "mergeDetectedCandidates",
@@ -173,26 +314,40 @@ export default function App() {
         createId: createEntryId,
       });
 
-      if (summary.newCount > 0) {
-        dispatch({ type: "setEntryFilter", value: "unreviewed" });
+      if (candidates.length > 0) {
+        dispatch({ type: "setEntryFilter", value: "all" });
       }
 
       dispatch({
         type: "setNotice",
-        value:
-          candidates.length === 0
-            ? "形式検出では候補が見つかりませんでした。必要な対象は手動で追加してください。"
-            : `形式検出が完了しました。新規候補${summary.newCount}件、既存項目との統合${summary.mergedCount}件。`,
+        value: formatDetectionNotice(candidates.length, summary, nerOutcome),
       });
     } catch {
       dispatch({
         type: "setNotice",
         value:
-          "形式検出でエラーが発生しました。原文と既存のマスク設定は保持されています。",
+          "自動検出でエラーが発生しました。原文と既存のマスク設定は保持されています。",
       });
     } finally {
-      setIsDetecting(false);
+      if (detectionAbortRef.current === detectionController) {
+        detectionAbortRef.current = undefined;
+      }
+
+      setDetectionPhase("idle");
     }
+  }
+
+  function abortActiveDetection(reason: DetectionCancellationReason) {
+    const controller = detectionAbortRef.current;
+
+    if (controller && !controller.signal.aborted) {
+      controller.abort(reason);
+    }
+  }
+
+  function handleOriginalTextChange(value: string) {
+    abortActiveDetection("source-changed");
+    dispatch({ type: "setOriginalText", value });
   }
 
   return (
@@ -200,29 +355,62 @@ export default function App() {
       <header className="app-header">
         <div className="brand-cluster">
           <h1>Local PII Masker</h1>
-          <span className="badge badge-neutral">LOCAL ONLY</span>
-          <span className="badge badge-neutral">保存されません</span>
+          <span
+            aria-describedby="privacy-status-details"
+            className="privacy-status"
+            tabIndex={0}
+          >
+            <ShieldCheck aria-hidden="true" size={14} />
+            ローカル処理・保存なし
+            <span
+              className="privacy-tooltip"
+              id="privacy-status-details"
+              role="tooltip"
+            >
+              公開モデル資材を取得する場合がありますが、入力内容は送信・保存されません。再読み込みまたは終了すると作業内容は失われます。
+            </span>
+          </span>
         </div>
         <div className="header-actions">
-          <IconButton label="プライバシー境界">
-            <ShieldCheck size={20} />
-          </IconButton>
-          <IconButton label="再計算">
-            <RotateCw size={20} />
-          </IconButton>
-          <button
-            className="button button-danger-outline"
-            type="button"
-            onClick={() => setClearConfirmOpen(true)}
-          >
-            Clear All
-          </button>
+          <div className="header-menu" ref={headerMenuRef}>
+            <button
+              aria-controls="header-session-menu"
+              aria-expanded={headerMenuOpen}
+              aria-haspopup="menu"
+              aria-label="メニュー"
+              className="icon-button header-menu-trigger"
+              disabled={!hasSessionData}
+              onClick={() => setHeaderMenuOpen((open) => !open)}
+              ref={headerMenuButtonRef}
+              type="button"
+            >
+              <EllipsisVertical aria-hidden="true" size={20} />
+            </button>
+            {headerMenuOpen ? (
+              <div
+                aria-label="セッション操作"
+                className="header-menu-popover"
+                id="header-session-menu"
+                role="menu"
+              >
+                <button
+                  className="header-menu-item danger"
+                  onClick={() => {
+                    setHeaderMenuOpen(false);
+                    setClearConfirmOpen(true);
+                  }}
+                  ref={clearMenuItemRef}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={16} />
+                  すべて消去
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
-
-      <div className="privacy-strip">
-        入力内容は保存されません。ページを再読み込みまたは閉じると、原文、マスク設定、マスクを含む文章、マスクを復元した文章は失われます。
-      </div>
 
       <main className="main-grid">
         <section className="workspace" aria-label="テキストワークスペース">
@@ -250,16 +438,20 @@ export default function App() {
                 <>
                   <button
                     className="button button-primary"
-                    disabled={state.originalText.trim().length === 0 || isDetecting}
-                    onClick={() => void runAutoDetection()}
+                    disabled={state.originalText.trim().length === 0}
+                    onClick={() => {
+                      if (isDetecting) {
+                        abortActiveDetection("manual");
+                      } else {
+                        void runAutoDetection();
+                      }
+                    }}
                     type="button"
                   >
-                    <Search size={16} />
+                    {isDetecting ? <X aria-hidden="true" size={16} /> : <Search size={16} />}
                     {isDetecting
-                      ? "形式検出中"
-                      : state.entries.some((entry) => entry.sources.includes("regex"))
-                        ? "再検出"
-                        : "自動検出"}
+                      ? "中止"
+                      : getDetectionButtonLabel(detectionPhase, state.entries)}
                   </button>
                   <button
                     className="button button-secondary"
@@ -287,18 +479,13 @@ export default function App() {
 
           <div className="editor-frame">
             {state.activeTextView === "original" ? (
-              <textarea
-                aria-label="原文"
-                className="text-editor"
+              <OriginalTextEditor
+                highlights={originalHighlightSegments}
                 maxLength={MAX_CHAR_COUNT}
-                onChange={(event) =>
-                  dispatch({ type: "setOriginalText", value: event.target.value })
-                }
-                onKeyUp={updateSelection}
-                onMouseUp={updateSelection}
-                onSelect={updateSelection}
+                onChange={handleOriginalTextChange}
+                onSelectionChange={setSelectedText}
                 placeholder="個人情報をマスキングしたい日本語テキストを入力または貼り付けてください。"
-                ref={textareaRef}
+                selectedEntryId={state.selectedEntryId}
                 value={state.originalText}
               />
             ) : (
@@ -315,9 +502,7 @@ export default function App() {
                       <button
                         className="inline-token"
                         key={`${segment.entryId}-${index}`}
-                        onClick={() =>
-                          dispatch({ type: "selectEntry", id: segment.entryId })
-                        }
+                        onClick={() => selectEntryFromMaskedResult(segment.entryId)}
                         type="button"
                       >
                         {segment.value}
@@ -357,35 +542,66 @@ export default function App() {
         <aside className="management-panel" aria-label="マスク対象管理">
           <div className="panel-header">
             <strong>マスク対象</strong>
+            <div className="panel-header-actions">
+              <div className="filter-row" role="group" aria-label="候補フィルター">
+                <FilterButton filter="all" current={state.entryFilter} onClick={setFilter}>
+                  すべて ({counts.totalEntries})
+                </FilterButton>
+                <FilterButton filter="disabled" current={state.entryFilter} onClick={setFilter}>
+                  無効 ({counts.disabledEntries})
+                </FilterButton>
+              </div>
+              <button
+                aria-controls="entry-search"
+                aria-expanded={entrySearchOpen}
+                aria-label={entrySearchOpen ? "検索を閉じる" : "マスク対象を検索"}
+                className={`icon-button panel-search-toggle ${entrySearchOpen ? "is-active" : ""}`}
+                onClick={() => {
+                  if (entrySearchOpen) {
+                    dispatch({ type: "setEntrySearch", value: "" });
+                  }
+                  setEntrySearchOpen((open) => !open);
+                }}
+                ref={entrySearchButtonRef}
+                title={entrySearchOpen ? "検索を閉じる" : "マスク対象を検索"}
+                type="button"
+              >
+                {entrySearchOpen ? <X size={18} /> : <Search size={18} />}
+              </button>
+            </div>
           </div>
-          <div className="filter-row" role="group" aria-label="候補フィルター">
-            <FilterButton filter="all" current={state.entryFilter} onClick={setFilter}>
-              すべて
-            </FilterButton>
-            <FilterButton filter="unreviewed" current={state.entryFilter} onClick={setFilter}>
-              未確認 ({counts.unreviewed})
-            </FilterButton>
-            <FilterButton filter="approved" current={state.entryFilter} onClick={setFilter}>
-              有効 ({counts.activeEntries})
-            </FilterButton>
-          </div>
-          <label className="search-box">
-            <Search size={18} />
-            <input
-              aria-label="候補を検索"
-              onChange={(event) =>
-                dispatch({ type: "setEntrySearch", value: event.target.value })
-              }
-              placeholder="候補を検索..."
-              type="search"
-              value={state.entrySearch}
-            />
-          </label>
+          {entrySearchOpen ? (
+            <label className="search-box" id="entry-search">
+              <Search size={18} />
+              <input
+                aria-label="候補を検索"
+                onChange={(event) =>
+                  dispatch({ type: "setEntrySearch", value: event.target.value })
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    dispatch({ type: "setEntrySearch", value: "" });
+                    setEntrySearchOpen(false);
+                    window.requestAnimationFrame(() =>
+                      entrySearchButtonRef.current?.focus(),
+                    );
+                  }
+                }}
+                placeholder="候補を検索..."
+                ref={entrySearchInputRef}
+                type="search"
+                value={state.entrySearch}
+              />
+            </label>
+          ) : null}
 
-          <div className="entry-list">
+          <div className="entry-list" ref={entryListRef}>
             {visibleEntries.length === 0 ? (
               <div className="empty-state">
-                原文で文字列を選択し、マスク対象として追加してください。
+                {state.entryFilter === "disabled"
+                  ? "無効なマスク対象はありません。"
+                  : "原文で文字列を選択し、マスク対象として追加してください。"}
               </div>
             ) : (
               visibleEntries.map((entry) => (
@@ -393,14 +609,6 @@ export default function App() {
                   entry={entry}
                   isSelected={state.selectedEntryId === entry.id}
                   key={entry.id}
-                  onApprove={() =>
-                    dispatch({
-                      type: "setEntryReviewStatus",
-                      id: entry.id,
-                      reviewStatus: "approved",
-                      enabled: true,
-                    })
-                  }
                   onDelete={() => dispatch({ type: "deleteEntry", id: entry.id })}
                   onSelect={() => dispatch({ type: "selectEntry", id: entry.id })}
                   onToggle={() =>
@@ -488,10 +696,17 @@ export default function App() {
         <ConfirmDialog
           confirmLabel="全消去"
           danger
-          onCancel={() => setClearConfirmOpen(false)}
+          onCancel={() => {
+            setClearConfirmOpen(false);
+            window.requestAnimationFrame(() =>
+              headerMenuButtonRef.current?.focus(),
+            );
+          }}
           onConfirm={() => {
+            abortActiveDetection("session-cleared");
             dispatch({ type: "clearSession" });
             setSelectedText("");
+            setEntrySearchOpen(false);
             setClearConfirmOpen(false);
           }}
           title="セッションデータを消去します"
@@ -509,29 +724,42 @@ export default function App() {
   function setFilter(filter: EntryFilter) {
     dispatch({ type: "setEntryFilter", value: filter });
   }
+
+  function selectEntryFromMaskedResult(entryId: string) {
+    dispatch({ type: "selectEntry", id: entryId });
+
+    const entryCard = Array.from(
+      entryListRef.current?.querySelectorAll<HTMLElement>(".entry-card") ?? [],
+    ).find((card) => card.dataset.entryId === entryId);
+
+    if (!entryCard) {
+      return;
+    }
+
+    const reduceMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    entryCard.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "nearest",
+    });
+  }
 }
 
 function EntryCard(props: {
   entry: MaskEntry;
   isSelected: boolean;
-  onApprove: () => void;
   onDelete: () => void;
   onSelect: () => void;
   onToggle: () => void;
 }) {
-  const isUnreviewed = props.entry.reviewStatus === "unreviewed";
-  const isActive = props.entry.enabled && props.entry.reviewStatus === "approved";
-  const statusLabel = isUnreviewed ? "未確認" : isActive ? "有効" : "無効";
-  const statusClass =
-    isUnreviewed
-      ? "is-pending"
-      : isActive
-        ? "is-approved"
-        : "is-disabled";
+  const isActive = props.entry.enabled;
+  const statusLabel = isActive ? "有効" : "無効";
+  const statusClass = isActive ? "is-approved" : "is-disabled";
 
   return (
     <article
       className={`entry-card ${statusClass} ${props.isSelected ? "is-selected" : ""}`}
+      data-entry-id={props.entry.id}
       onFocus={props.onSelect}
       onMouseDown={props.onSelect}
       tabIndex={0}
@@ -571,15 +799,9 @@ function EntryCard(props: {
         ))}
       </div>
       <div className="entry-card-actions">
-        {isUnreviewed ? (
-          <button className="button button-primary" onClick={props.onApprove} type="button">
-            マスクする
-          </button>
-        ) : (
-          <button className="button button-primary" onClick={props.onToggle} type="button">
-            {props.entry.enabled ? "無効化" : "有効化"}
-          </button>
-        )}
+        <button className="button button-primary" onClick={props.onToggle} type="button">
+          {props.entry.enabled ? "無効化" : "有効化"}
+        </button>
         <button
           aria-label={`${props.entry.originalText}を削除`}
           className="icon-button"
@@ -730,20 +952,68 @@ function FilterButton(props: {
   );
 }
 
-function IconButton(props: { children: ReactNode; label: string }) {
-  return (
-    <button aria-label={props.label} className="icon-button" type="button">
-      {props.children}
-    </button>
-  );
-}
-
 function createEntryId(): string {
   return `entry-${crypto.randomUUID()}`;
 }
 
 function countSelectedOccurrences(originalText: string, selectedText: string): number {
   return countOccurrences(originalText, selectedText);
+}
+
+function toDetectionPhase(progress: NerDetectionProgress): DetectionPhase {
+  return progress.phase === "loading" ? "ner-loading" : "ner-running";
+}
+
+function getDetectionButtonLabel(
+  phase: DetectionPhase,
+  entries: MaskEntry[],
+): string {
+  if (phase === "regex") {
+    return "形式確認中";
+  }
+
+  if (phase === "ner-loading") {
+    return "モデル準備中";
+  }
+
+  if (phase === "ner-running") {
+    return "AI検出中";
+  }
+
+  return entries.some(
+    (entry) => entry.sources.includes("regex") || entry.sources.includes("ner"),
+  )
+    ? "再検出"
+    : "自動検出";
+}
+
+function formatDetectionNotice(
+  candidateCount: number,
+  summary: { mergedCount: number; newCount: number },
+  nerOutcome: NerDetectionOutcome,
+): string {
+  if (candidateCount === 0) {
+    if (nerOutcome === "failed") {
+      return "形式検出では候補が見つかりませんでした。AI検出も実行できなかったため、必要な対象は手動で追加してください。";
+    }
+
+    if (nerOutcome === "cancelled") {
+      return "形式検出では候補が見つかりませんでした。AI検出は中止しました。必要な対象は手動で追加してください。";
+    }
+
+    return "自動検出では候補が見つかりませんでした。必要な対象は手動で追加してください。";
+  }
+
+  const completionLabel =
+    nerOutcome === "success" ? "自動検出が完了しました" : "形式検出が完了しました";
+  const suffix =
+    nerOutcome === "failed"
+      ? " AI検出は実行できなかったため、形式候補と手動追加で確認してください。"
+      : nerOutcome === "cancelled"
+        ? " AI検出は中止しました。形式候補と手動追加で確認してください。"
+        : "";
+
+  return `${completionLabel}。新規対象${summary.newCount}件を有効にし、既存項目${summary.mergedCount}件へ検出情報を統合しました。不要な対象は無効化してください。${suffix}`;
 }
 
 function summarizeDetectionMerge(

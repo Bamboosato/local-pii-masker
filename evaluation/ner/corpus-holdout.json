@@ -1,0 +1,406 @@
+{
+  "version": 1,
+  "description": "Local PII Masker Japanese NER synthetic final holdout corpus. Do not use these fictional entities to tune detection rules.",
+  "documents": [
+    {
+      "id": "holdout-prose-001",
+      "annotatedText": "[[ORGANIZATION|月影情報株式会社]]の[[PERSON|大森美月]]が、訪問先[[ADDRESS|東京都つばき区南町一丁目2番3号]]で説明を行った。"
+    },
+    {
+      "id": "holdout-prose-002",
+      "annotatedText": "契約担当の[[PERSON|石川拓人]]は[[ORGANIZATION|合同会社虹色設計]]に所属し、[[ADDRESS|大阪府あさぎ市虹町二丁目4番5号]]から参加した。"
+    },
+    {
+      "id": "holdout-prose-003",
+      "annotatedText": "[[PERSON|中野真央]]から[[ORGANIZATION|株式会社風見データ]]へ連絡があり、登録先を[[ADDRESS|神奈川県しおん市風見台三丁目6番7号]]と確認した。"
+    },
+    {
+      "id": "holdout-prose-004",
+      "annotatedText": "配送責任者[[PERSON|島田圭介]]は[[ORGANIZATION|星雲物流株式会社]]から[[ADDRESS|千葉県ほしぞら市雲雀町四丁目8番9号]]へ向かった。"
+    },
+    {
+      "id": "holdout-prose-005",
+      "annotatedText": "[[ORGANIZATION|株式会社若草企画]]の[[PERSON|丸山智美]]が[[ADDRESS|埼玉県わかくさ市春日通一丁目10番2号]]で打ち合わせを開いた。"
+    },
+    {
+      "id": "holdout-prose-006",
+      "annotatedText": "保守担当は[[PERSON|内田悠斗]]、勤務先は[[ORGANIZATION|楓ネットワーク株式会社]]、派遣先は[[ADDRESS|愛知県かえで市東町二丁目11番4号]]です。"
+    },
+    {
+      "id": "holdout-prose-007",
+      "annotatedText": "[[PERSON|関口彩乃]]は[[ORGANIZATION|白鷺ソフト合同会社]]を代表し、[[ADDRESS|兵庫県しらさぎ市西町三丁目12番6号]]を訪問した。"
+    },
+    {
+      "id": "holdout-prose-008",
+      "annotatedText": "受付記録には[[ORGANIZATION|日向サポート株式会社]]の[[PERSON|服部亮太]]、所在地[[ADDRESS|福岡県ひなた市海風町一丁目13番8号]]と記載された。"
+    },
+    {
+      "id": "holdout-prose-009",
+      "annotatedText": "[[PERSON|荒木美和]]は[[ORGANIZATION|北雪テクノ株式会社]]から[[ADDRESS|北海道ゆきの市北二条西三丁目14番地]]へ資料を送付した。"
+    },
+    {
+      "id": "holdout-prose-010",
+      "annotatedText": "監査を担当した[[PERSON|浜田修平]]は[[ORGANIZATION|松島品質研究所]]に所属し、[[ADDRESS|宮城県あおぞら市松島町二丁目15番1号]]で報告した。"
+    },
+    {
+      "id": "holdout-markdown-011",
+      "annotatedText": "- 氏名: [[PERSON|成瀬由衣]]\n- 所属: [[ORGANIZATION|株式会社藤棚システム]]\n- 住所: [[ADDRESS|東京都ふじだな区花町二丁目3番4号]]"
+    },
+    {
+      "id": "holdout-table-012",
+      "annotatedText": "| 担当者 | 法人 | 所在地 |\n| --- | --- | --- |\n| [[PERSON|水野健吾]] | [[ORGANIZATION|合同会社水鏡ラボ]] | [[ADDRESS|山梨県みずかがみ市湖町一丁目5番6号]] |"
+    },
+    {
+      "id": "holdout-csv-013",
+      "annotatedText": "\"name\",\"organization\",\"address\"\n\"[[PERSON|谷口麻美]]\",\"[[ORGANIZATION|朝霧出版株式会社]]\",\"[[ADDRESS|青森県あさぎり市本町三丁目7番8号]]\""
+    },
+    {
+      "id": "holdout-json-014",
+      "annotatedText": "```json\n{\"contact\":\"[[PERSON|浅野直哉]]\",\"company\":\"[[ORGANIZATION|株式会社砂丘クラウド]]\",\"location\":\"[[ADDRESS|鳥取県すなはま市東町二丁目9番1号]]\"}\n```"
+    },
+    {
+      "id": "holdout-yaml-015",
+      "annotatedText": "contact: [[PERSON|大塚恵理]]\ncompany: [[ORGANIZATION|琵琶湖テストサービス株式会社]]\nlocation: [[ADDRESS|滋賀県みずうみ市中央四丁目2番3号]]"
+    },
+    {
+      "id": "holdout-key-value-016",
+      "annotatedText": "責任者=[[PERSON|望月雄介]]\n組織=[[ORGANIZATION|阿蘇データ合同会社]]\n所在地=[[ADDRESS|熊本県あそ野市高原町一丁目4番5号]]"
+    },
+    {
+      "id": "holdout-quote-017",
+      "annotatedText": "> [[PERSON|黒田奈緒子]]です。\n> [[ORGANIZATION|株式会社瀬戸内リンク]]から、[[ADDRESS|岡山県せとうち市港通二丁目6番7号]]の資料を送ります。"
+    },
+    {
+      "id": "holdout-slash-018",
+      "annotatedText": "[[PERSON|堀内達也]] / [[ORGANIZATION|飛騨ソリューション株式会社]] / [[ADDRESS|岐阜県ひだ市山手町三丁目8番9号]]"
+    },
+    {
+      "id": "holdout-parentheses-019",
+      "annotatedText": "確認者（[[PERSON|矢野明美]]）、所属（[[ORGANIZATION|越後企画合同会社]]）、訪問先（[[ADDRESS|新潟県こしじ市稲穂町一丁目10番11号]]）。"
+    },
+    {
+      "id": "holdout-code-020",
+      "annotatedText": "```text\n氏名: [[PERSON|岸本翔]]\n勤務先: [[ORGANIZATION|株式会社土佐ネット]]\n住所: [[ADDRESS|高知県とさ市桂浜通二丁目12番1号]]\n```"
+    },
+    {
+      "id": "holdout-school-021",
+      "annotatedText": "[[ORGANIZATION|学校法人星見学園]]の[[PERSON|塚本理沙]]は、[[ADDRESS|東京都ほしみ区学園町三丁目14番2号]]の校舎で説明した。"
+    },
+    {
+      "id": "holdout-medical-022",
+      "annotatedText": "[[ORGANIZATION|医療法人水明会]]に所属する[[PERSON|児玉勇人]]が[[ADDRESS|大阪府すいめい市健康通一丁目16番3号]]から連絡した。"
+    },
+    {
+      "id": "holdout-welfare-023",
+      "annotatedText": "[[PERSON|徳永千尋]]は[[ORGANIZATION|社会福祉法人こもれび園]]の担当として[[ADDRESS|神奈川県こもれび市福祉町二丁目18番4号]]を案内した。"
+    },
+    {
+      "id": "holdout-foundation-024",
+      "annotatedText": "[[ORGANIZATION|公益財団法人虹の森文化会]]の[[PERSON|北川誠司]]が[[ADDRESS|京都府にじのもり市文化町三丁目20番5号]]で式典を開いた。"
+    },
+    {
+      "id": "holdout-association-025",
+      "annotatedText": "[[PERSON|瀬戸麻衣子]]は[[ORGANIZATION|一般社団法人青海技術協会]]を代表し、[[ADDRESS|静岡県あおみ市技術町一丁目22番6号]]を訪れた。"
+    },
+    {
+      "id": "holdout-katakana-026",
+      "annotatedText": "[[PERSON|コバヤシリナ]]は[[ORGANIZATION|カゼノネ株式会社]]に所属し、[[ADDRESS|千葉県かぜのね市若潮町二丁目24番7号]]で受付した。"
+    },
+    {
+      "id": "holdout-hiragana-027",
+      "annotatedText": "[[PERSON|たかはしゆう]]が[[ORGANIZATION|ひだまり開発合同会社]]から[[ADDRESS|沖縄県ひだまり市南風町三丁目26番8号]]へ移動した。"
+    },
+    {
+      "id": "holdout-english-name-028",
+      "annotatedText": "氏名: [[PERSON|Kenji Mori]]、所属: [[ORGANIZATION|Global Sakura Labs]]、住所: [[ADDRESS|東京都さくら野区国際町一丁目28番9号]]"
+    },
+    {
+      "id": "holdout-fullwidth-space-029",
+      "annotatedText": "[[PERSON|高野　真琴]]は[[ORGANIZATION|株式会社東風メディア]]の担当で、[[ADDRESS|長野県こち市朝日町二丁目30番1号]]に居住している。"
+    },
+    {
+      "id": "holdout-halfwidth-space-030",
+      "annotatedText": "[[ORGANIZATION|宵月工業株式会社]]の[[PERSON|大橋 隆史]]が[[ADDRESS|愛知県よいづき市工業町三丁目32番2号]]で点検した。"
+    },
+    {
+      "id": "holdout-ambiguity-031",
+      "annotatedText": "[[PERSON|津田美穂]]は[[ORGANIZATION|神田技研株式会社]]から[[ADDRESS|東京都かんだ野区中央一丁目34番3号]]へ出張した。"
+    },
+    {
+      "id": "holdout-ambiguity-032",
+      "annotatedText": "[[ORGANIZATION|日南情報サービス株式会社]]の[[PERSON|稲垣浩平]]が[[ADDRESS|宮崎県にちなん市海岸町二丁目36番4号]]で会議を行った。"
+    },
+    {
+      "id": "holdout-ambiguity-033",
+      "annotatedText": "[[PERSON|長田友紀]]は[[ORGANIZATION|富山みらい機構]]を訪問し、[[ADDRESS|富山県たてやま市未来町三丁目38番5号]]で申請した。"
+    },
+    {
+      "id": "holdout-ambiguity-034",
+      "annotatedText": "[[ORGANIZATION|阿波テストセンター]]の[[PERSON|神田修一]]は[[ADDRESS|徳島県あわ市試験町一丁目40番6号]]から報告した。"
+    },
+    {
+      "id": "holdout-ambiguity-035",
+      "annotatedText": "[[PERSON|梶原彩]]が[[ORGANIZATION|出雲デジタル合同会社]]の資料を[[ADDRESS|島根県いずも野市神話町二丁目42番7号]]へ届けた。"
+    },
+    {
+      "id": "holdout-ambiguity-036",
+      "annotatedText": "[[ORGANIZATION|株式会社津軽データ]]の[[PERSON|松浦健]]は[[ADDRESS|青森県つがる市林檎町三丁目44番8号]]で作業した。"
+    },
+    {
+      "id": "holdout-ambiguity-037",
+      "annotatedText": "[[PERSON|宇野明子]]は[[ORGANIZATION|紀州品質研究所]]に所属し、[[ADDRESS|和歌山県きしゅう市梅町一丁目46番9号]]を訪れた。"
+    },
+    {
+      "id": "holdout-ambiguity-038",
+      "annotatedText": "[[ORGANIZATION|株式会社丹波リンク]]の[[PERSON|赤松亮]]から、[[ADDRESS|兵庫県たんば市森町二丁目48番1号]]で連絡を受けた。"
+    },
+    {
+      "id": "holdout-ambiguity-039",
+      "annotatedText": "[[PERSON|西尾恵美]]は[[ORGANIZATION|佐渡クラウド株式会社]]を代表し、[[ADDRESS|新潟県さど市金山町三丁目50番2号]]へ向かった。"
+    },
+    {
+      "id": "holdout-ambiguity-040",
+      "annotatedText": "[[ORGANIZATION|株式会社伊豆開発]]の[[PERSON|小泉直人]]が[[ADDRESS|静岡県いず野市温泉町一丁目52番3号]]で説明した。"
+    },
+    {
+      "id": "holdout-long-041",
+      "annotatedText": "これは最終確認用の長文データである。担当者は目的、前提、確認手順、完了条件を共有し、結果を順番に記録した。入力内容は端末内だけで扱い、外部サービスへ送らない。すべての項目を確認した後、[[PERSON|梅田香奈]]が[[ORGANIZATION|白神システム株式会社]]へ報告し、[[ADDRESS|秋田県しらかみ市山麓町二丁目54番4号]]で作業を完了した。"
+    },
+    {
+      "id": "holdout-long-042",
+      "annotatedText": "会議では課題、進捗、変更点、リスク、次回予定を確認した。資料の記載内容と実際の状態を照合し、差異には注記を付けた。最終確認者の[[PERSON|桜井良平]]は[[ORGANIZATION|合同会社霧島設計]]に所属し、[[ADDRESS|鹿児島県きりしま市高千穂町三丁目56番5号]]から参加した。"
+    },
+    {
+      "id": "holdout-punctuation-043",
+      "annotatedText": "責任者は「[[PERSON|戸田真由美]]」。所属は『[[ORGANIZATION|株式会社利根情報]]』。所在地は（[[ADDRESS|群馬県とね市川辺町一丁目58番6号]]）。"
+    },
+    {
+      "id": "holdout-newline-044",
+      "annotatedText": "氏名\n[[PERSON|早川健介]]\n法人\n[[ORGANIZATION|甲斐テクノ合同会社]]\n住所\n[[ADDRESS|山梨県かい市葡萄町二丁目60番7号]]"
+    },
+    {
+      "id": "holdout-email-045",
+      "annotatedText": "差出人: [[PERSON|新田美里]]\n勤務先: [[ORGANIZATION|株式会社伊勢サポート]]\n本文: 次回は[[ADDRESS|三重県いせ市神宮町三丁目62番8号]]へ伺います。"
+    },
+    {
+      "id": "holdout-tab-046",
+      "annotatedText": "[[PERSON|黒川達郎]]\t[[ORGANIZATION|筑紫ネットワーク株式会社]]\t[[ADDRESS|福岡県ちくし市梅林町一丁目64番9号]]"
+    },
+    {
+      "id": "holdout-repeated-047",
+      "annotatedText": "[[PERSON|平井智恵]]は[[ORGANIZATION|合同会社隠岐ラボ]]から[[ADDRESS|島根県おき市島前町二丁目66番1号]]へ向かった。到着後、[[PERSON|平井智恵]]が完了を報告した。"
+    },
+    {
+      "id": "holdout-brackets-048",
+      "annotatedText": "【担当】[[PERSON|岡本翔太]] 【組織】[[ORGANIZATION|株式会社淡路企画]] 【場所】[[ADDRESS|兵庫県あわじ市海峡町三丁目68番2号]]"
+    },
+    {
+      "id": "holdout-honorific-049",
+      "annotatedText": "[[ORGANIZATION|富士見データ株式会社]]の[[PERSON|馬場由美]]様へ、[[ADDRESS|山梨県ふじみ市高原町一丁目70番3号]]の確認書を送付した。"
+    },
+    {
+      "id": "holdout-final-050",
+      "annotatedText": "最終担当の[[PERSON|柳沢和也]]は[[ORGANIZATION|株式会社八雲ソフト]]の記録を確認し、保管場所を[[ADDRESS|北海道やくも市雲町二丁目72番4号]]と記載した。"
+    },
+    {
+      "id": "holdout-negative-051",
+      "annotatedText": "大森方式、石川モデル、中野パターンは手順名であり、人名を指す記載ではない。"
+    },
+    {
+      "id": "holdout-negative-052",
+      "annotatedText": "月影色、虹色設計図、風見データ列、星雲画像という一般的な説明を並べた。"
+    },
+    {
+      "id": "holdout-negative-053",
+      "annotatedText": "若草マーク、楓アイコン、白鷺写真、日向表示は画面テーマの候補名である。"
+    },
+    {
+      "id": "holdout-negative-054",
+      "annotatedText": "北雪モード、松島ビュー、藤棚レイアウト、水鏡効果を比較する。"
+    },
+    {
+      "id": "holdout-negative-055",
+      "annotatedText": "朝霧フィルター、砂丘背景、琵琶湖サイズ、阿蘇カラーは設定値の例である。"
+    },
+    {
+      "id": "holdout-negative-056",
+      "annotatedText": "瀬戸内リンク切れ、飛騨ソリューション案、越後企画書、土佐ネット図を確認した。"
+    },
+    {
+      "id": "holdout-negative-057",
+      "annotatedText": "星見学習、水明処理、こもれび表示、虹の森配色は機能名として記載した。"
+    },
+    {
+      "id": "holdout-negative-058",
+      "annotatedText": "青海技術、風の音、ひだまり開発版、桜ラボという仮称を議論した。"
+    },
+    {
+      "id": "holdout-negative-059",
+      "annotatedText": "東風メディア欄、宵月工業値、神田技研法、日南情報列はテスト項目名である。"
+    },
+    {
+      "id": "holdout-negative-060",
+      "annotatedText": "富山未来像、阿波テスト手順、出雲デジタル化、津軽データ形式を説明した。"
+    },
+    {
+      "id": "holdout-negative-061",
+      "annotatedText": "開発部、営業部、総務部、品質保証部、企画室、管理課を部署例として列挙した。"
+    },
+    {
+      "id": "holdout-negative-062",
+      "annotatedText": "第一会議室、中央受付、北側倉庫、南口広場、西棟廊下は施設内の一般表現である。"
+    },
+    {
+      "id": "holdout-negative-063",
+      "annotatedText": "利用者、担当者、責任者、申請者、確認者という役割名だけが入力されている。"
+    },
+    {
+      "id": "holdout-negative-064",
+      "annotatedText": "製品A、試作品B、サービスC、計画D、案件Eは匿名の識別子である。"
+    },
+    {
+      "id": "holdout-negative-065",
+      "annotatedText": "中央一丁目、南町二丁目、海岸町三丁目という町域断片を例示しただけである。"
+    },
+    {
+      "id": "holdout-negative-066",
+      "annotatedText": "1番2号、三丁目4番、字中央25番地は住所形式の説明用断片である。"
+    },
+    {
+      "id": "holdout-negative-067",
+      "annotatedText": "東京都、大阪府、北海道、福岡県、愛知県を対象地域の選択肢として表示する。"
+    },
+    {
+      "id": "holdout-negative-068",
+      "annotatedText": "病院、学校、市役所、研究所、会議場という施設種別を分類する。"
+    },
+    {
+      "id": "holdout-negative-069",
+      "annotatedText": "株式会社、合同会社、一般社団法人、財団法人という法人種別を説明する。"
+    },
+    {
+      "id": "holdout-negative-070",
+      "annotatedText": "姓、名、氏名、法人名、所在地という入力欄のラベルだけが並んでいる。"
+    },
+    {
+      "id": "holdout-negative-071",
+      "annotatedText": "```ts\nconst personName = sampleName;\nconst organizationName = sampleOrg;\nconst addressText = sampleAddress;\n```"
+    },
+    {
+      "id": "holdout-negative-072",
+      "annotatedText": "```json\n{\"name\":\"sample_name\",\"org\":\"sample_org\",\"address\":\"sample_address\"}\n```"
+    },
+    {
+      "id": "holdout-negative-073",
+      "annotatedText": "name, organization, address というCSV列名だけを定義し、データ行は空である。"
+    },
+    {
+      "id": "holdout-negative-074",
+      "annotatedText": "userId=test_user、password=example_value、host=192.0.2.10はNER評価対象外の形式データである。"
+    },
+    {
+      "id": "holdout-negative-075",
+      "annotatedText": "メールsample@example.testとURLhttps://example.test/pathは人名・組織名・住所ではない。"
+    },
+    {
+      "id": "holdout-negative-076",
+      "annotatedText": "Blue Moon, Rainbow Design, Wind Data, Star Cloud are placeholder phrases."
+    },
+    {
+      "id": "holdout-negative-077",
+      "annotatedText": "North Snow, Pine Island, Wisteria System, Water Mirror are test labels, not named entities."
+    },
+    {
+      "id": "holdout-negative-078",
+      "annotatedText": "Kenji Model and Mika Pattern are feature names in this synthetic specification."
+    },
+    {
+      "id": "holdout-negative-079",
+      "annotatedText": "Global Value, Future State, Central Process, Local Result are ordinary headings."
+    },
+    {
+      "id": "holdout-negative-080",
+      "annotatedText": "Aoba, Sakura, Mirai, Hikari are color preset names in this test screen."
+    },
+    {
+      "id": "holdout-negative-081",
+      "annotatedText": "# 大森方式\n## 石川モデル\n### 中野パターン\n見出しは人物一覧ではない。"
+    },
+    {
+      "id": "holdout-negative-082",
+      "annotatedText": "| 項目 | 例 |\n| --- | --- |\n| 方式 | 島田式 |\n| 色 | 丸山色 |"
+    },
+    {
+      "id": "holdout-negative-083",
+      "annotatedText": "- 内田案を採用\n- 関口方式を比較\n- 服部値を更新\nいずれも内部の仮称である。"
+    },
+    {
+      "id": "holdout-negative-084",
+      "annotatedText": "荒木線、浜田曲線、成瀬係数、水野比率をグラフの凡例として使う。"
+    },
+    {
+      "id": "holdout-negative-085",
+      "annotatedText": "谷口幅、浅野高さ、大塚角度、望月速度はレイアウト試験の変数名である。"
+    },
+    {
+      "id": "holdout-negative-086",
+      "annotatedText": "黒田色、堀内線、矢野点、岸本面を描画設定として保存した。"
+    },
+    {
+      "id": "holdout-negative-087",
+      "annotatedText": "塚本表、児玉列、徳永行、北川セル、瀬戸枠という表計算上の呼称を使う。"
+    },
+    {
+      "id": "holdout-negative-088",
+      "annotatedText": "神田駅、日南公園、富山湾、阿波踊り、出雲そばを一般例として列挙した。"
+    },
+    {
+      "id": "holdout-negative-089",
+      "annotatedText": "津軽海峡、紀州梅、丹波豆、佐渡金山、伊豆温泉は地域に関する一般表現である。"
+    },
+    {
+      "id": "holdout-negative-090",
+      "annotatedText": "白神山地、霧島山、利根川、甲斐路、伊勢湾を教材の見出しとして扱う。"
+    },
+    {
+      "id": "holdout-negative-091",
+      "annotatedText": "長い説明文の中で候補がない場合を確認する。入力、確認、処理、出力という一般語だけを繰り返し、固有の人物や法人や所在地は記載しない。"
+    },
+    {
+      "id": "holdout-negative-092",
+      "annotatedText": "この記録は空状態、読み込み状態、成功状態、失敗状態の遷移を説明するための合成文章であり、実在情報を含まない。"
+    },
+    {
+      "id": "holdout-negative-093",
+      "annotatedText": "担当欄は未入力、所属欄は未選択、住所欄は未設定である。値がないこと自体を確認する。"
+    },
+    {
+      "id": "holdout-negative-094",
+      "annotatedText": "サンプル、テスト、ダミー、仮入力、未設定という語を表示し、候補を生成しないことを確認する。"
+    },
+    {
+      "id": "holdout-negative-095",
+      "annotatedText": "東、西、南、北、中央、上、下、前、後という位置語だけを組み合わせた。"
+    },
+    {
+      "id": "holdout-negative-096",
+      "annotatedText": "春、夏、秋、冬、朝、昼、夜、空、海、山という一般名詞を並べた。"
+    },
+    {
+      "id": "holdout-negative-097",
+      "annotatedText": "赤、青、緑、白、黒、金、銀、虹、星、月は配色名として使用する。"
+    },
+    {
+      "id": "holdout-negative-098",
+      "annotatedText": "第一案、第二案、最終案、旧版、新版、試験版、正式版を比較する。"
+    },
+    {
+      "id": "holdout-negative-099",
+      "annotatedText": "有効、無効、保留、完了、未確認、対象外という状態ラベルを列挙した。"
+    },
+    {
+      "id": "holdout-negative-100",
+      "annotatedText": "以上で否定例の確認を終了する。この文章には評価対象となる固有表現を設定していない。"
+    }
+  ]
+}

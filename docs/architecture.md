@@ -56,7 +56,7 @@ flowchart LR
 
 ### 3.1 UI層
 
-- 原文入力
+- CodeMirrorによる原文入力と同一描画面上の候補背景色表示
 - 検出開始・進行表示
 - 候補一覧
 - 手動追加
@@ -76,6 +76,8 @@ flowchart LR
 - UI状態
 
 状態はReactコンポーネントへ分散させず、`useReducer`または同等の一方向データフローで管理する。
+
+原文エディターは、ネイティブ`textarea`と別DOMを重ねる方式を使用しない。CodeMirrorの文書位置と装飾範囲を使用し、入力文字列、選択範囲、候補背景色を同じ文字レイアウトで描画する。CodeMirrorの文書はUI入力面であり、正本は引き続きセッション状態の`originalText`とする。
 
 ### 3.3 検出層
 
@@ -108,7 +110,7 @@ sequenceDiagram
     Regex-->>UI: 正規表現候補
     Worker-->>UI: NER候補
     UI->>State: 候補を文字列単位で統合
-    User->>UI: 候補を承認・無効化・削除・手動追加
+    User->>UI: 対象を確認・無効化・有効化・削除・手動追加
     UI->>State: entriesを更新
     State->>MaskEngine: originalText + enabled entries
     MaskEngine-->>UI: maskedText
@@ -132,32 +134,33 @@ export type MaskCategory =
 
 export type DetectionSource = "regex" | "ner" | "manual";
 
-export type CandidateStatus = "pending" | "accepted" | "rejected";
+export type ReviewStatus = "unreviewed" | "approved" | "excluded";
 
 export type MaskEntry = {
   id: string;
   originalText: string;
+  normalizedText: string;
   token: string;
   category: MaskCategory;
   sources: DetectionSource[];
   confidence?: number;
-  status: CandidateStatus;
   enabled: boolean;
   occurrenceCount: number;
+  reviewStatus: ReviewStatus;
+  displayOrder: number;
+  manuallyPromotedAt?: number;
 };
 
-export type ModelStatus =
+export type DetectionPhase =
   | { state: "idle" }
-  | { state: "downloading"; progress?: number }
-  | { state: "loading" }
-  | { state: "ready"; backend: "webgpu" | "wasm" }
-  | { state: "error"; code: string };
+  | { state: "regex" }
+  | { state: "ner-loading" }
+  | { state: "ner-running" };
 
 export type MaskSessionState = {
   originalText: string;
   entries: MaskEntry[];
   externalResponse: string;
-  modelStatus: ModelStatus;
   activeTextView: "original" | "masked";
 };
 ```
@@ -279,9 +282,13 @@ export function maskText(text: string, entries: ActiveMask[]): string {
 flowchart TD
     A[原文] --> B[Unicode NFC正規化]
     B --> C[Regex検出]
+    B --> K[メール検出用正規化と位置マップ]
+    K --> L[正規化メールRegex検出]
+    L --> M[検出範囲を原文へ変換]
     B --> D[NER用チャンク分割]
     D --> E[NER推論]
     C --> F[候補正規化]
+    M --> F
     E --> F
     F --> G[同一文字列の統合]
     G --> H[カテゴリ競合の解決]
@@ -310,6 +317,11 @@ type RegexDetector = (text: string) => Detection[];
 - `detectEmails`
 - `detectPhoneNumbers`
 - `detectPostalCodes`
+- `detectUrls`
+- `detectIpAddresses`
+- `detectCredentials`
+- `detectBirthDates`
+- `detectJapaneseAddresses`
 
 検出後に形式検査を追加し、単純な正規表現一致だけに依存しない。
 
@@ -318,27 +330,48 @@ Phase 2では以下の責務分割で実装する。
 ```text
 domain/detection/regex/
 ├─ detectEmails.ts
+├─ detectEmailsWithNormalization.ts
 ├─ detectPhoneNumbers.ts
 ├─ detectPostalCodes.ts
+├─ detectUrls.ts
+├─ detectIpAddresses.ts
+├─ detectCredentials.ts
+├─ detectBirthDates.ts
+├─ detectJapaneseAddresses.ts
+├─ detectPersonNames.ts
 └─ runRegexDetection.ts
 ```
 
 | 検出器 | カテゴリ | 主な検査 |
 | --- | --- | --- |
 | `detectEmails` | `EMAIL` | `@`の前後に有効な文字列があり、ドメイン部に区切りとTLD相当の文字列がある |
+| `detectEmailsWithNormalization` | `EMAIL` | `@`前後の半角・全角空白だけを検出用テキストから除去し、検出範囲を空白込みの原文範囲へ戻す |
 | `detectPhoneNumbers` | `PHONE` | 数字数、区切り位置、国内電話番号として過度に短すぎない・長すぎないことを検査する |
 | `detectPostalCodes` | `POSTAL_CODE` | `〒`の有無にかかわらず、3桁-4桁相当の郵便番号形式を検査する |
+| `detectUrls` | `OTHER` | `http://`・`https://`、ホスト名、ASCII URL文字列を検査する |
+| `detectIpAddresses` | `OTHER` | IPv4の各オクテットとIPv6の完全・圧縮表記を検証し、URL候補内の一致は除外する |
+| `detectCredentials` | `SECRET` | ユーザーID・ログインID・パスワード等の明示ラベルと区切りを確認し、値だけを抽出する |
+| `detectBirthDates` | `OTHER` | 生年月日・誕生日・DOB等の明示ラベルを確認し、西暦・和暦の実在日だけを抽出する |
+| `detectJapaneseAddresses` | `ADDRESS` | 市区町村、町域、丁目・番地・号または地番、任意の建物名を保守的に検査する |
+| `detectPersonNames` | `PERSON` | `氏名`、`名義人`、`担当の`、`顧客である`等の文脈と、Markdown表・CSV・JSON・キー値行の人名フィールドに限定して日本語・英語姓名を補助検出する |
 
 実装上の共通ルールは以下とする。
 
 - 検出器はブラウザAPIやReact stateに依存しない純粋関数とする
 - 入力テキストは既存のNFC正規化方針に従う。検出位置を扱う場合は、候補文字列と`start`、`end`が原文上の範囲と対応していることを保証できる範囲だけを候補にする
+- 検出用正規化は純粋関数として原文とは別のテキストとUTF-16位置マッピングを生成する。正規化テキスト上の候補は原文範囲へ変換し、候補文字列、候補統合、マスク生成には原文表記だけを渡す
+- メール正規化は完全なメール形式に見える範囲の`@`前後だけを対象とし、通常文の空白、タブ、改行は除去しない。コードブロック内のメールには適用する
 - 検出結果には`start`、`end`を含め、後続のハイライトや該当箇所移動に利用できるようにする
 - 末尾の句読点、閉じ括弧、引用符などを候補本体に含めないため、検出後に範囲をtrimする
 - 同じ検出器内で重複した範囲が出た場合は、同一`text + category + start + end`を1件へまとめる
 - 複数検出器の結果は`mergeCandidates`へ渡し、同じ文字列の既存候補または手動追加項目へ統合する
 - 既存項目と同じ文字列を検出した場合は、既存のカテゴリ、有効状態、トークンを上書きせず、`sources`に`regex`を追加する
 - Regex検出はユーザーデータを外部へ送信せず、検出文字列をログへ出力しない
+- 人名補助検出は、NER漏れを補うための文脈ルールであり、文脈のない漢字列を無差別に候補化しない
+- 姓名間の半角・全角空白は保持し、一般姓と漢字名が空白で明確に区切られた姓名は文脈なしでも有効な対象にする。漢字名1文字の直後に同一行の空白と漢字1文字が続く場合は、OCR由来の分断として候補終端を延長し、原文表記を保持する。AI検出した一般姓を持つ漢字姓名ごとに、各文字を`[ \u3000]?`で接続した形式パターンを構築し、少なくとも1文字の空白を含み、前後が漢字に直結しない原文範囲を形式候補として派生する。空白2文字以上、タブ、改行は許容せず、同一範囲を形式検出済みの場合は重複追加しない。1件以上の検出済みフルネームから得た2文字以上の一般姓が原文中に独立して存在する場合は、初期有効の姓単独候補を派生する。姓候補も文字列単位で管理するため、同姓で始まる複合語内を含む全出現箇所をマスクし、専用警告は追加しない。1文字姓は自動派生しない。既知フルネームと独立姓があり、同姓の別姓名がMarkdownの単一値コードブロックにある場合は、その別姓名を先に補完してから姓候補を派生する
+- 構造化人名検出ではMarkdown表・CSVの人名列、妥当なJSONの既知フィールド、キー値行の値範囲だけを解析する。英語氏名は各語がTitle Caseまたは全大文字の2〜4語を対象にし、文脈のない英単語列は形式検出しない。CSVは引用符内の区切り文字を考慮し、不正JSONは候補化しない
+- NERが原文上の完全一致範囲を`PER`として返した英語氏名は、形式検出の文脈条件に関係なく`PERSON`候補として維持する
+- 住所検出では`自宅住所`、`登録住所`、`配送先`、`住所`、`所在地`、`送付先`等の文脈ラベルを検出範囲から除外する
 
 Phase 2の自動検出フローは以下とする。
 
@@ -351,16 +384,44 @@ sequenceDiagram
 
     User->>UI: 自動検出を実行
     UI->>Regex: originalTextを渡す
-    Regex-->>UI: EMAIL / PHONE / POSTAL_CODE候補
-    UI->>State: mergeCandidatesで未確認候補へ統合
+    Regex-->>UI: EMAIL / PHONE / POSTAL_CODE / ADDRESS / OTHER候補
+    UI->>State: mergeCandidatesで有効な対象へ統合
     State-->>UI: 管理パネルとサマリーを更新
 ```
 
-Regex候補は`reviewStatus: "unreviewed"`、`enabled: false`で登録する。承認操作により`reviewStatus: "approved"`、`enabled: true`へ変更され、既存のマスクエンジンでマスク結果へ反映する。
+新規Regex候補は`reviewStatus: "approved"`、`enabled: true`で登録し、検出直後から既存のマスクエンジンでマスク結果へ反映する。既存項目との統合では、旧仕様の`unreviewed`だけを`approved + enabled`へ移行し、ユーザーが無効化した`approved + disabled`は上書きしない。`reviewStatus`は既存の内部モデルとの互換のため保持するが、現行UIは`enabled`に基づく有効・無効の2状態を表示する。
 
 ### 9.2 NER検出
 
 Transformers.jsの`token-classification`パイプラインを使用する。モデル固有のサブワード出力を、連続したエンティティ単位へ再構成する処理が必要となる。
+
+MVPでは`jiting/xlm-roberta-ner-japanese_onnx`を採用モデルとしてWorker内でロードする。推論バックエンドは互換性を優先して`wasm`、dtypeは量子化ONNXを優先するため`q8`を指定する。選定用100文書と未見100文書の比較結果は`docs/model-evaluation.md`に記録する。
+
+ONNX RuntimeのWASMバイナリとMJSローダーは、`onnxruntime-web`の固定バージョンからViteビルド資産として取り込み、Worker初期化前に`env.backends.onnx.wasm.wasmPaths`へ同一オリジンURLを設定する。ONNX Runtimeの既定CDNへ実行時アクセスしない。
+
+実装上の責務分割は以下とする。
+
+```text
+domain/detection/ner/
+├─ configureOnnxRuntime.ts
+├─ mapNerOutputs.ts
+├─ runChunkedNerDetection.ts
+├─ runNerDetection.ts
+├─ nerWorker.ts
+└─ types.ts
+```
+
+`mapNerOutputs.ts`はブラウザAPIに依存しない純粋関数とし、モデルラベルをMVPカテゴリへ写像する。モデル出力に`start`、`end`がある場合は、`word`ではなく原文の該当範囲を候補文字列として使用する。`O`ラベル、空文字列、カテゴリへ写像できないラベルは候補にしない。
+
+Phase 3初期実装の過検出抑制は以下とする。
+
+- 原文に完全一致しないNER候補は除外する
+- 1文字だけのNER候補は除外する
+- 3文字以下の英数字だけのNER候補は除外する
+- メールアドレス、URL、形式検出済み住所、構造から検出済みフルネーム内に含まれる部分文字列候補は除外する
+- 2文字漢字のNER候補が長い日本語複合語内にしか存在しない場合は除外する
+- `LOC`・`INS`の一般姓候補は、明示的な住所ラベル直後にない限り除外し、構造から検出したフルネームを優先する
+- `LOC`と`INS`は、施設名や建物名が住所文脈で扱われるケースを優先し、暫定的に`ADDRESS`へ写像する
 
 評価項目：
 
@@ -374,43 +435,43 @@ Transformers.jsの`token-classification`パイプラインを使用する。モ�
 
 NERモデルには最大トークン長があるため、長文を分割する。
 
-MVPでは次の順に評価する。
+Phase 3の長文対応では、原文をWorker内で最大320文字のチャンクへ分割し、隣接チャンクを64文字重複させる。候補モデルのトークナイザー上限は512トークンであり、320文字は日本語入力に対する保守的な初期値とする。
+
+実装順は以下とする。
 
 1. 句点、改行などの自然な境界で分割
-2. 上限を超える部分のみトークン単位で分割
-3. チャンク間にオーバーラップを設ける
-4. 重複検出結果を元文章の位置で統合する
+2. 自然な境界がない場合は320文字で分割
+3. チャンク間に64文字のオーバーラップを設ける
+4. 同じカテゴリ・同じ文字列の重複候補を統合し、最初の原文位置と最大信頼度を保持する
 
-分割値はモデル評価後に確定する。固定文字数だけで分割すると、日本語固有表現を境界で切断するため、文章境界とトークナイザー上限を併用する。
+文字数による分割はトークン数の厳密な保証ではないため、10,000文字での性能・メモリ・境界見逃しを継続評価する。モデルまたはトークナイザーを変更する場合は分割値も再評価する。
 
 ## 11. Web Worker
 
 ### 11.1 Workerへ送るデータ
 
 - 推論要求ID
-- 正規化済み原文またはチャンク
-- モデル設定
+- 原文またはチャンク
 
 ### 11.2 Workerから返すデータ
 
 - モデル取得・初期化進捗
 - 推論結果
-- バックエンド情報
-- 原文を含まないエラーコード
+- 原文を含まない一般化エラー
 
 ### 11.3 メッセージ例
 
 ```ts
-type WorkerRequest =
-  | { type: "LOAD_MODEL"; modelId: string; dtype?: string }
-  | { type: "DETECT"; requestId: string; text: string }
-  | { type: "CANCEL"; requestId: string };
+type WorkerRequest = {
+  id: number;
+  text: string;
+  type: "detect";
+};
 
 type WorkerResponse =
-  | { type: "MODEL_PROGRESS"; progress?: number }
-  | { type: "MODEL_READY"; backend: "webgpu" | "wasm" }
-  | { type: "DETECTION_RESULT"; requestId: string; entities: unknown[] }
-  | { type: "ERROR"; requestId?: string; code: string };
+  | { id: number; type: "progress"; progress: { phase: "loading" | "running" } }
+  | { id: number; type: "success"; candidates: DetectionCandidate[] }
+  | { id: number; type: "error"; message: string };
 ```
 
 エラー通知へ原文、検出文字列、モデル出力全体を含めない。
@@ -424,6 +485,7 @@ type WorkerResponse =
 | マスク対象・対応表 | 可 | 不可 | 不可 |
 | マスクを含む文章・マスクを復元した文章 | 可 | 不可 | 不可 |
 | JavaScript/CSS | 可 | 可 | 取得時のみ |
+| ONNX Runtime WASM/MJS | 可 | 可 | アプリ配信元からの取得時のみ |
 | ONNXモデル | 可 | 可 | 取得時のみ |
 | トークナイザー資材 | 可 | 可 | 取得時のみ |
 
@@ -434,6 +496,7 @@ type WorkerResponse =
 MVPで許容するネットワーク通信：
 
 - HTML、JavaScript、CSSなどのアプリ資材取得
+- 同一オリジンで配信するONNX Runtime WASM/MJSの取得
 - NERモデル、設定、トークナイザー資材の取得
 
 許容しない通信：
@@ -455,7 +518,7 @@ stateDiagram-v2
     Editing --> Detecting: 自動検出
     Detecting --> Reviewing: 検出完了
     Detecting --> Reviewing: NER失敗・Regex結果のみ
-    Reviewing --> Reviewing: 承認/無効化/削除/手動追加
+    Reviewing --> Reviewing: 無効化/有効化/削除/手動追加
     Reviewing --> MaskReady: 有効対象あり
     MaskReady --> Reviewing: 対象変更
     MaskReady --> ResponseInput: マスク結果をコピー
@@ -480,6 +543,8 @@ stateDiagram-v2
 | `MODEL_DOWNLOAD_FAILED` | モデル取得失敗 | 再試行、Regex・手動のみで継続 |
 | `MODEL_INIT_FAILED` | モデル初期化失敗 | WASMフォールバックまたは再試行 |
 | `INFERENCE_FAILED` | 推論失敗 | 原文と設定を保持し再実行 |
+| `INFERENCE_TIMEOUT` | NER処理が5分を超過 | Workerを破棄し再実行 |
+| `INFERENCE_CANCELLED` | 手動中止、原文変更、全消去 | Workerを破棄し、理由に応じてRegex候補反映または古い結果破棄 |
 | `INPUT_TOO_LARGE` | 上限超過 | 文字数と上限を表示 |
 | `CLIPBOARD_DENIED` | コピー権限拒否 | 手動選択・コピーを案内 |
 | `INVALID_SELECTION` | 手動選択が空 | 選択し直しを案内 |
@@ -508,11 +573,9 @@ src/
 │  ├─ detection/
 │  │  ├─ mergeCandidates.ts
 │  │  ├─ regex/
+│  │  ├─ ner/
 │  │  └─ types.ts
 │  └─ normalization/
-├─ workers/
-│  ├─ ner.worker.ts
-│  └─ messages.ts
 ├─ hooks/
 └─ tests/
 ```
@@ -537,7 +600,7 @@ src/
 - 電話番号
 - 郵便番号
 - 候補統合と確認UI
-- Regex候補の未確認・無効初期状態
+- Regex候補の有効初期状態
 - 手動追加済み項目との重複統合
 - 再検出時の冪等性
 - 形式検出のみの進行表示と完了メッセージ
@@ -545,22 +608,39 @@ src/
 
 テスト観点：
 
-- 機能観点：メールアドレス、電話番号、郵便番号を検出し、未確認候補として追加できること
+- 機能観点：メールアドレス、電話番号、郵便番号を検出し、有効な対象として追加できること
 - 非機能観点：検出時にユーザーテキストをネットワーク、ストレージ、コンソールへ出さないこと
 - データ観点：半角・全角、句読点付き、複数出現、既存手動項目との重複、0件化後の再検出を確認すること
-- UI観点：自動検出ボタン、進行表示、完了トースト、候補カード、承認・無効化・削除操作、キーボード操作を確認すること
-- 正常系：3カテゴリすべてが検出され、承認後に全出現箇所がマスクされること
+- UI観点：自動検出ボタン、進行表示、完了トースト、候補カード、無効化・有効化・削除操作、キーボード操作を確認すること
+- 正常系：3カテゴリすべてが検出直後から有効になり、全出現箇所がマスクされること
 - 異常系：候補0件、検出器例外、原文変更後の再検出でも既存設定を失わないこと
 - 境界値：メール末尾の句読点、電話番号の桁数不足・過剰、郵便番号のハイフン有無、全角数字を確認すること
-- 状態遷移：未確認から有効、有効から無効、無効から有効、削除、再検出による検出元追加を確認すること
+- 状態遷移：検出直後の有効、有効から無効、無効から有効、削除、再検出による検出元追加と無効状態維持を確認すること
 
 ### Phase 3：ローカルNER
 
-- Web Worker
-- モデル取得・進捗表示
-- 日本語NER
-- 長文チャンク分割
+- Web WorkerによるTransformers.js実行
+- MVP採用モデル`jiting/xlm-roberta-ner-japanese_onnx`をロード
+- NER出力からMVPカテゴリへの写像
+- AI検出候補の有効初期状態
 - 信頼度表示
+- NER失敗時のRegex・手動追加継続
+- NER処理の5分タイムアウトと`AbortSignal`による手動中止
+- 失敗、タイムアウト、中止時のWorker破棄と次回実行時の再生成
+- Worker内のモデル初期化失敗をキャッシュせず、再試行可能にするローダー
+- 原文変更、全消去、画面破棄時の中止と遅延結果の反映防止
+- 長文チャンク分割、Chrome Worker性能測定、200文書による採用判断を完了
+
+テスト観点：
+
+- 機能観点：正常完了、進捗通知、Worker再利用、失敗後のWorker再生成、手動中止後のRegex候補反映を確認すること
+- 非機能観点：5分タイムアウト、イベントリスナー解放、失敗したモデル初期化Promiseを再利用しないことを確認すること
+- データ観点：原文と既存候補を失わず、原文変更・全消去後に古い候補が混入しないことを確認すること
+- UI観点：処理中は`中止`、完了・失敗・中止後は`再検出`を表示し、一般化した通知だけを表示すること
+- 正常系：同じWorkerを再利用して複数回検出できること
+- 異常系：Worker応答エラー、Worker自体のエラー、タイムアウト、初期化失敗から再試行できること
+- 境界値：開始前に中止済みのSignal、タイムアウト直前の完了、候補0件を確認すること
+- 状態遷移：検出中から手動中止、原文変更、全消去、画面破棄へ遷移しても遅延結果を反映しないこと
 
 ### Phase 4：マスク復元
 

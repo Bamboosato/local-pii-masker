@@ -54,9 +54,7 @@ export function selectReplacementCount(state: AppState): number {
 
 export function selectSessionCounts(state: AppState) {
   const activeEntries = selectActiveEntries(state.entries);
-  const unreviewed = state.entries.filter(
-    (entry) => entry.reviewStatus === "unreviewed",
-  );
+  const disabledEntries = state.entries.filter((entry) => !entry.enabled);
   const zeroOccurrence = state.entries.filter(
     (entry) => entry.occurrenceCount === 0,
   );
@@ -67,7 +65,8 @@ export function selectSessionCounts(state: AppState) {
       (sum, entry) => sum + entry.occurrenceCount,
       0,
     ),
-    unreviewed: unreviewed.length,
+    totalEntries: state.entries.length,
+    disabledEntries: disabledEntries.length,
     zeroOccurrence: zeroOccurrence.length,
   };
 }
@@ -76,10 +75,8 @@ function matchesFilter(entry: MaskEntry, filter: EntryFilter): boolean {
   switch (filter) {
     case "all":
       return true;
-    case "unreviewed":
-      return entry.reviewStatus === "unreviewed";
-    case "approved":
-      return entry.reviewStatus === "approved" && entry.enabled;
+    case "disabled":
+      return !entry.enabled;
     default:
       return true;
   }
