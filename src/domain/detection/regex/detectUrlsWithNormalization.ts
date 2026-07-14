@@ -1,16 +1,15 @@
-import type { DetectionCandidate } from "../mergeCandidates";
 import { normalizeForDetection } from "../../normalization/detection/normalizeForDetection";
-import { detectEmails } from "./detectEmails";
+import type { DetectionCandidate } from "../mergeCandidates";
+import { detectUrls } from "./detectUrls";
 import { mapNormalizedCandidates } from "./mapNormalizedCandidates";
 
-export function detectEmailsWithNormalization(
+export function detectUrlsWithNormalization(
   sourceText: string,
 ): DetectionCandidate[] {
   const normalized = normalizeForDetection(sourceText, [
     "fullwidth_ascii",
     "hyphen_variants",
-    "email_line_break",
-    "email_at_spacing",
+    "url_line_break",
   ]);
 
   if (normalized.appliedRules.length === 0) {
@@ -20,6 +19,6 @@ export function detectEmailsWithNormalization(
   return mapNormalizedCandidates(
     sourceText,
     normalized,
-    detectEmails(normalized.text),
+    detectUrls(normalized.text),
   );
 }

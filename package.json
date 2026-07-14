@@ -13,8 +13,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test --project=chromium",
+    "test:e2e:dev": "playwright test --config=playwright.dev.config.ts",
     "test:e2e:edge": "npm run build && playwright test --project=msedge",
-    "test:phase5": "npm test && npm run test:e2e && npm run benchmark:core",
+    "test:phase5": "npm test && npm run test:e2e:dev && npm run test:e2e && npm run benchmark:core",
     "typecheck": "tsc -b"
   },
   "dependencies": {

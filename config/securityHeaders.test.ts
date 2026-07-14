@@ -11,17 +11,21 @@ describe("security headers", () => {
 
     expect(policy).toContain("default-src 'self'");
     expect(policy).toContain(`connect-src 'self' ${MODEL_ASSET_ORIGINS.join(" ")}`);
-    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval';");
     expect(policy).toContain("worker-src 'self' blob:");
     expect(policy).not.toContain("ws://");
     expect(policy).not.toContain("frame-ancestors");
   });
 
-  it("開発時だけlocalhostのHMR接続を許可する", () => {
+  it("開発時だけReact RefreshとlocalhostのHMR接続を許可する", () => {
     const policy = buildContentSecurityPolicy({
+      allowDevelopmentScripts: true,
       allowDevelopmentSockets: true,
     });
 
+    expect(policy).toContain(
+      "script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'",
+    );
     expect(policy).toContain("ws://localhost:*");
     expect(policy).toContain("ws://127.0.0.1:*");
   });

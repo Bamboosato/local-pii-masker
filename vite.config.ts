@@ -20,6 +20,7 @@ export default defineConfig(({ command }) => {
               tag: "meta",
               attrs: {
                 content: buildContentSecurityPolicy({
+                  allowDevelopmentScripts: isDevelopment,
                   allowDevelopmentSockets: isDevelopment,
                 }),
                 "http-equiv": "Content-Security-Policy",
@@ -34,11 +35,14 @@ export default defineConfig(({ command }) => {
       headers: buildSecurityHeaders(),
     },
     server: {
-      headers: buildSecurityHeaders({ allowDevelopmentSockets: true }),
+      headers: buildSecurityHeaders({
+        allowDevelopmentScripts: true,
+        allowDevelopmentSockets: true,
+      }),
     },
     test: {
       environment: "jsdom",
-      exclude: [...configDefaults.exclude, "e2e/**"],
+      exclude: [...configDefaults.exclude, "e2e/**", "e2e-dev/**"],
       setupFiles: "./vitest.setup.ts",
       css: true,
     },

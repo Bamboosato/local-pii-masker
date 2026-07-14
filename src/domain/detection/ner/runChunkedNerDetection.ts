@@ -160,7 +160,12 @@ function mergeCandidate(
   merged: Map<string, DetectionCandidate>,
   candidate: DetectionCandidate,
 ) {
-  const key = [candidate.category, candidate.originalText].join("\u0000");
+  const key = [
+    candidate.category,
+    candidate.originalText,
+    candidate.start ?? -1,
+    candidate.end ?? -1,
+  ].join("\u0000");
   const existing = merged.get(key);
 
   if (!existing) {

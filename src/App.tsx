@@ -1008,26 +1008,27 @@ function formatDetectionNotice(
 ): string {
   if (candidateCount === 0) {
     if (nerOutcome === "failed") {
-      return "形式検出では候補が見つかりませんでした。AI検出も実行できなかったため、必要な対象は手動で追加してください。";
+      return "AI検出に失敗しました。候補は見つかりませんでした。";
     }
 
     if (nerOutcome === "cancelled") {
-      return "形式検出では候補が見つかりませんでした。AI検出は中止しました。必要な対象は手動で追加してください。";
+      return "AI検出を中止しました。形式検出では候補が見つかりませんでした。";
     }
 
-    return "自動検出では候補が見つかりませんでした。必要な対象は手動で追加してください。";
+    return "自動検出では候補が見つかりませんでした。";
   }
 
-  const completionLabel =
-    nerOutcome === "success" ? "自動検出が完了しました" : "形式検出が完了しました";
-  const suffix =
-    nerOutcome === "failed"
-      ? " AI検出は実行できなかったため、形式候補と手動追加で確認してください。"
-      : nerOutcome === "cancelled"
-        ? " AI検出は中止しました。形式候補と手動追加で確認してください。"
-        : "";
+  const result = `追加${summary.newCount}件、更新${summary.mergedCount}件。`;
 
-  return `${completionLabel}。新規対象${summary.newCount}件を有効にし、既存項目${summary.mergedCount}件へ検出情報を統合しました。不要な対象は無効化してください。${suffix}`;
+  if (nerOutcome === "failed") {
+    return `AI検出に失敗しました。形式検出のみ完了：${result}`;
+  }
+
+  if (nerOutcome === "cancelled") {
+    return `AI検出を中止しました。形式検出のみ完了：${result}`;
+  }
+
+  return `自動検出完了：${result}`;
 }
 
 function summarizeDetectionMerge(

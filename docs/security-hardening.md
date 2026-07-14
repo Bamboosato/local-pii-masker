@@ -28,6 +28,10 @@ CSPは`config/securityHeaders.ts`を正本とする。Viteは開発・プレビ�
 | `object-src` / `base-uri` / `form-action` | 使用しない |
 | 開発用WebSocket | Vite開発サーバー時だけlocalhostを許可 |
 
+Vite開発サーバーではReact Refreshがインラインのmodule scriptを挿入するため、開発時の`script-src`に限り`'unsafe-inline'`を追加する。本番ビルドとプレビューでは許可しない。`npm run test:e2e:dev`で開発用CSP下の画面表示とCSPエラー0件を確認する。
+
+NERは専用Worker内で実行し、ONNX Runtimeの`numThreads`を`1`へ固定する。また、同一オリジン配信するWASMローダーをTransformers.jsが`blob:`化しないよう`useWasmCache`を無効化する。公開モデル資材のキャッシュは維持し、`script-src`へ`blob:`を許可せずに推論を実行する。
+
 `connect-src`が許可するHugging Face通信は、公開モデル、トークナイザー、設定ファイルの取得に限定する。ユーザー入力をこの通信へ付加しない。
 
 ## 3. HTTPヘッダー
@@ -89,6 +93,7 @@ CSPは`config/securityHeaders.ts`を正本とする。Viteは開発・プレビ�
 npm test
 npm run audit:dependencies
 npm run test:e2e
+npm run test:e2e:dev
 npm run test:e2e:edge
 npm run benchmark:core
 ```
