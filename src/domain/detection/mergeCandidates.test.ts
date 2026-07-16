@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { maskText } from "../mask/maskText";
+import { detectOrganizationsWithNormalization } from "./regex/detectOrganizationsWithNormalization";
 import { mergeCandidates } from "./mergeCandidates";
 
 describe("mergeCandidates", () => {
@@ -216,5 +217,34 @@ describe("mergeCandidates", () => {
     expect(maskText(originalText, entries)).toBe(
       "送信先は[メール_1]です。再送先も[メール_1]です。",
     );
+  });
+
+  it("組織改行の形式候補をNER候補と統合してもカテゴリとトークンを一致させる", () => {
+    const originalText = "東海システム開発セン\nター";
+    const [organizationCandidate] =
+      detectOrganizationsWithNormalization(originalText);
+    const entries = mergeCandidates({
+      originalText,
+      entries: [],
+      candidates: [
+        organizationCandidate,
+        {
+          originalText,
+          category: "ORGANIZATION",
+          source: "ner",
+          confidence: 0.77,
+        },
+      ],
+      createId: () => "organization-1",
+    });
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        category: "ORGANIZATION",
+        token: "[組織_1]",
+        sources: ["regex", "ner"],
+        normalizationRules: ["organization_line_break"],
+      }),
+    ]);
   });
 });

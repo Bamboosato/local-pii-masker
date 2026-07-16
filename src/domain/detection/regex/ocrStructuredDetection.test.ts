@@ -78,4 +78,70 @@ describe("OCR structured detection", () => {
       ),
     ).toBe(false);
   });
+
+  it("複数行と行末ハイフンを含むメールを原文範囲で検出する", () => {
+    const email = "taro-\nyamada@\nexample.\nco.jp";
+    const candidate = runRegexDetection(`連絡先は${email}です。`).find(
+      (item) => item.category === "EMAIL",
+    );
+
+    expect(candidate).toMatchObject({ originalText: email });
+    expect(candidate?.normalizationRules).toEqual(
+      expect.arrayContaining(["email_line_break", "line_end_hyphen"]),
+    );
+  });
+
+  it("複数行と行末ハイフンを含むURLを原文範囲で検出する", () => {
+    const url = "https://dev.\nexample.jp/long-\npath";
+    const candidate = runRegexDetection(`参照先は${url}です。`).find(
+      (item) => item.originalText === url,
+    );
+
+    expect(candidate).toMatchObject({ category: "OTHER" });
+    expect(candidate?.normalizationRules).toEqual(
+      expect.arrayContaining(["url_line_break", "line_end_hyphen"]),
+    );
+  });
+
+  it("複数行に折り返された住所を原文範囲で検出する", () => {
+    const address = "愛知県\n豊田市\n若宮町二丁目15番地";
+    const addressCandidates = runRegexDetection(
+      `登録住所は${address}です。`,
+    ).filter((item) => item.category === "ADDRESS");
+    const candidate = addressCandidates.find(
+      (item) => item.originalText === address,
+    );
+
+    expect(addressCandidates).toHaveLength(1);
+    expect(candidate).toMatchObject({
+      originalText: address,
+      normalizationRules: ["address_line_break"],
+    });
+  });
+
+  it("番と号の間で折り返された住所を前半候補へ分割しない", () => {
+    const address = "東京都新宿区西新宿二丁目8番\n1号";
+    const addressCandidates = runRegexDetection(address).filter(
+      (item) => item.category === "ADDRESS",
+    );
+
+    expect(addressCandidates).toEqual([
+      expect.objectContaining({
+        originalText: address,
+        normalizationRules: ["address_line_break"],
+      }),
+    ]);
+  });
+
+  it("空行や通常文をまたいで住所候補を作らない", () => {
+    const candidates = runRegexDetection(
+      "愛知県で会議を行った。\n豊田市から参加した。\n\n愛知県\n\n豊田市若宮町二丁目15番地",
+    );
+
+    expect(
+      candidates.some((candidate) =>
+        candidate.normalizationRules?.includes("address_line_break"),
+      ),
+    ).toBe(false);
+  });
 });

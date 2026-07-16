@@ -209,6 +209,7 @@ describe("App", () => {
     expect(within(managementPanel).getByText("090-1234-5678")).toBeInTheDocument();
     expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
     expect(within(managementPanel).getAllByText("有効")).toHaveLength(2);
+    expect(screen.queryByText("AI検出中")).not.toBeInTheDocument();
     expect(
       Array.from(container.querySelectorAll(".original-highlight.is-approved")).map(
         (element) => element.textContent,
@@ -274,6 +275,72 @@ describe("App", () => {
     );
   });
 
+  it("OCR途中改行を含む電話番号を郵便番号へ分割せずマスクする", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const phones = [
+      "090-1234-\n5678",
+      "052-\n123-4567",
+      "080-9876-\n5432",
+      "03-5123-\n8800",
+    ];
+    const sourceText = phones.join("\n");
+
+    setEditorText(screen.getByLabelText("原文"), sourceText);
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    const managementPanel = screen.getByLabelText("マスク対象管理");
+    await waitFor(() => {
+      expect(
+        Array.from(managementPanel.querySelectorAll(".entry-text")).map(
+          (element) => element.textContent,
+        ),
+      ).toEqual(expect.arrayContaining(phones));
+    });
+    expect(within(managementPanel).queryByText("123-4567")).not.toBeInTheDocument();
+    expect(within(managementPanel).queryByText("080-9876")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "マスク結果" }));
+    const maskedResult = screen.getByLabelText("マスク結果");
+
+    for (const phone of phones) {
+      expect(maskedResult).not.toHaveTextContent(phone);
+    }
+  });
+
+  it("OCR補正ルールを対象ごとの候補カードへ表示する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const email = "taro-\nyamada@\nexample.\nco.jp";
+    const address = "愛知県\n豊田市\n若宮町二丁目15番地";
+
+    setEditorText(
+      screen.getByLabelText("原文"),
+      `連絡先は${email}です。\n登録住所は${address}です。`,
+    );
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    const managementPanel = screen.getByLabelText("マスク対象管理");
+    await waitFor(() =>
+      expect(
+        Array.from(managementPanel.querySelectorAll(".entry-text")).map(
+          (element) => element.textContent,
+        ),
+      ).toEqual(expect.arrayContaining([email, address])),
+    );
+    const cards = Array.from(managementPanel.querySelectorAll(".entry-card"));
+    const emailCard = cards.find(
+      (card) => card.querySelector(".entry-text")?.textContent === email,
+    ) as HTMLElement;
+    const addressCard = cards.find(
+      (card) => card.querySelector(".entry-text")?.textContent === address,
+    ) as HTMLElement;
+
+    expect(within(emailCard).getByText("メール改行結合")).toBeInTheDocument();
+    expect(within(emailCard).getByText("行末ハイフン継続")).toBeInTheDocument();
+    expect(within(addressCard).getByText("住所改行結合")).toBeInTheDocument();
+  });
+
   it("無効化した自動検出対象は再検出しても無効状態を維持する", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -325,6 +392,87 @@ describe("App", () => {
     await user.click(screen.getByRole("tab", { name: "マスク結果" }));
 
     expect(screen.getByRole("button", { name: "[人名_1]" })).toBeInTheDocument();
+  });
+
+  it("読み仮名付き氏名を補完し、読み仮名内のNER断片を表示しない", async () => {
+    const user = userEvent.setup();
+    const sourceText = [
+      "山田太郎やまだたろう",
+      "鈴木一郎すずきいちろう",
+    ].join("\n");
+    const madaStart = sourceText.indexOf("まだ");
+    const rouStart = sourceText.indexOf("ろう");
+    runNerDetectionMock.mockResolvedValue([
+      {
+        originalText: "まだ",
+        category: "ORGANIZATION",
+        source: "ner",
+        start: madaStart,
+        end: madaStart + 2,
+        confidence: 0.95,
+      },
+      {
+        originalText: "ろう",
+        category: "ORGANIZATION",
+        source: "ner",
+        start: rouStart,
+        end: rouStart + 2,
+        confidence: 0.94,
+      },
+    ]);
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), sourceText);
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    const managementPanel = screen.getByLabelText("マスク対象管理");
+    expect(
+      await within(managementPanel).findByText("山田太郎"),
+    ).toBeInTheDocument();
+    expect(within(managementPanel).getByText("鈴木一郎")).toBeInTheDocument();
+    expect(within(managementPanel).queryByText("まだ")).not.toBeInTheDocument();
+    expect(within(managementPanel).queryByText("ろう")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "すべて (2)" })).toBeInTheDocument();
+  });
+
+  it("1秒を超える検出だけ進捗を表示し、候補反映後に完了表示へ切り替える", async () => {
+    const user = userEvent.setup();
+    let resolveDetection: (candidates: DetectionCandidate[]) => void = () => {};
+    runNerDetectionMock.mockImplementation(
+      () =>
+        new Promise<DetectionCandidate[]>((resolve) => {
+          resolveDetection = resolve;
+        }),
+    );
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), "氏名：山田太郎");
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    expect(screen.queryByText("AI検出中")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("AI検出中", {}, { timeout: 2000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "中止" })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveDetection([
+        {
+          originalText: "山田太郎",
+          category: "PERSON",
+          source: "ner",
+          confidence: 0.91,
+        },
+      ]);
+    });
+
+    expect(
+      await within(screen.getByLabelText("マスク対象管理")).findByText(
+        "山田太郎",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("AI検出中")).not.toBeInTheDocument();
+    expect(screen.getByText(/自動検出完了/)).toBeInTheDocument();
   });
 
   it("URLと日本語住所を有効な形式検出対象として表示する", async () => {
@@ -438,6 +586,33 @@ describe("App", () => {
     expect(runNerDetectionMock).toHaveBeenCalledTimes(2);
   });
 
+  it("AI検出に失敗しても改行された組織名を形式候補として表示する", async () => {
+    const user = userEvent.setup();
+    const organization = "合同会社みらいテクノロ\nジー";
+    runNerDetectionMock.mockRejectedValueOnce(new Error("model failed"));
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), `所属：${organization}です。`);
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    const managementPanel = screen.getByLabelText("マスク対象管理");
+    await waitFor(() => {
+      expect(
+        Array.from(managementPanel.querySelectorAll(".entry-text")).some(
+          (element) => element.textContent === organization,
+        ),
+      ).toBe(true);
+    });
+    const card = Array.from(managementPanel.querySelectorAll(".entry-card")).find(
+      (element) => element.querySelector(".entry-text")?.textContent === organization,
+    ) as HTMLElement;
+
+    expect(within(card).getByText("組織")).toBeInTheDocument();
+    expect(within(card).getByText("形式")).toBeInTheDocument();
+    expect(within(card).getByText("組織改行結合")).toBeInTheDocument();
+    expect(await screen.findByText(/AI検出に失敗しました/)).toBeInTheDocument();
+  });
+
   it("検出中に原文が変更された場合は古い候補を統合しない", async () => {
     const user = userEvent.setup();
     runNerDetectionMock.mockImplementation(
@@ -458,7 +633,9 @@ describe("App", () => {
     const editor = screen.getByLabelText("原文");
     setEditorText(editor, "山田太郎さんに連絡する。");
     await user.click(screen.getByRole("button", { name: "自動検出" }));
-    await screen.findByText(/AI検出モデルを準備しています/);
+    expect(
+      await screen.findByText("AI検出中", {}, { timeout: 2000 }),
+    ).toBeInTheDocument();
     setEditorText(editor, "佐藤さんに連絡する。");
 
     expect(

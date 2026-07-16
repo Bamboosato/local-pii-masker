@@ -191,6 +191,41 @@ describe("enrichPersonCandidates", () => {
 
     expect(enrichPersonCandidates(sourceText, candidates)).toEqual(candidates);
   });
+
+  it("一覧行で漢字氏名に読み仮名が連結されても漢字部分を補完する", () => {
+    const sourceText = [
+      "山田太郎やまだたろう",
+      "- 鈴木一郎すずきいちろう",
+      "| 佐藤健一さとうけんいち | 担当 |",
+    ].join("\n");
+
+    const derived = enrichPersonCandidates(sourceText, []).filter(
+      (candidate) => candidate.category === "PERSON",
+    );
+
+    expect(derived.map((candidate) => candidate.originalText)).toEqual([
+      "山田太郎",
+      "鈴木一郎",
+      "佐藤健一",
+    ]);
+    expect(
+      derived.every(
+        ({ start, end, originalText }) =>
+          start !== undefined &&
+          end !== undefined &&
+          sourceText.slice(start, end) === originalText,
+      ),
+    ).toBe(true);
+  });
+
+  it("通常文中の氏名直後のひらがなを読み仮名とはみなさない", () => {
+    expect(
+      enrichPersonCandidates(
+        "山田太郎よろしくお願いします。鈴木一郎すずきさんに確認した。",
+        [],
+      ),
+    ).toEqual([]);
+  });
 });
 
 function createPersonCandidates(

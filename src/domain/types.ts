@@ -64,6 +64,23 @@ export const SOURCE_LABELS: Record<DetectionSource, string> = {
   manual: "手動",
 };
 
+export const NORMALIZATION_RULE_LABELS: Record<
+  DetectionNormalizationRule,
+  string
+> = {
+  address_line_break: "住所改行結合",
+  email_at_spacing: "@周辺空白補正",
+  email_line_break: "メール改行結合",
+  fullwidth_ascii: "全角文字補正",
+  hyphen_variants: "ハイフン補正",
+  japanese_inter_character_space: "氏名空白補正",
+  line_end_hyphen: "行末ハイフン継続",
+  person_name_line_break: "氏名改行結合",
+  organization_line_break: "組織改行結合",
+  phone_line_break: "電話番号改行結合",
+  url_line_break: "URL改行結合",
+};
+
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   unreviewed: "未確認",
   approved: "有効",

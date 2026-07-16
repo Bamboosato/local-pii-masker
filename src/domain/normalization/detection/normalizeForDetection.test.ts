@@ -185,6 +185,22 @@ describe("normalizeForDetection", () => {
   });
 
   it.each([
+    ["担当者は山田太\n郎です。", "担当者は山田太郎です。"],
+    ["品質確認は佐藤健\n一が担当します。", "品質確認は佐藤健一が担当します。"],
+    ["問い合わせ先は田中美\n咲です。", "問い合わせ先は田中美咲です。"],
+    ["開発責任者は高橋健\n太です。", "開発責任者は高橋健太です。"],
+  ])("文中で分断された姓名を結合する: %s", (sourceText, expectedText) => {
+    const result = normalizeForDetection(sourceText, [
+      "person_name_line_break",
+    ]);
+
+    expect(result.text).toBe(expectedText);
+    expect(result.appliedRules).toEqual([
+      expect.objectContaining({ rule: "person_name_line_break" }),
+    ]);
+  });
+
+  it.each([
     "本日は山田\n太郎さんと会議を行った",
     "山田。\n太郎",
     "山田\n\n太郎",
@@ -266,5 +282,85 @@ describe("normalizeForDetection", () => {
 
     expect(result.text).toBe(["```text", "山田太郎", "```"].join("\n"));
     expect(sourceText).toBe(["```text", "山 田 太 郎", "```"].join("\n"));
+  });
+
+  it("複数箇所で折り返されたメールを1つの検出用文字列へ結合する", () => {
+    const sourceText = "taro.\nyamada@\nexample.\nco.jp";
+    const result = normalizeForDetection(sourceText, ["email_line_break"]);
+
+    expect(result.text).toBe("taro.yamada@example.co.jp");
+    expect(result.appliedRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rule: "email_line_break" }),
+      ]),
+    );
+    expect(
+      result.appliedRules.every((event) => event.rule === "email_line_break"),
+    ).toBe(true);
+  });
+
+  it("メールの行末ハイフンを保持して改行だけを除去する", () => {
+    const sourceText = "taro-\nyamada@example.co.jp";
+    const result = normalizeForDetection(sourceText, ["email_line_break"]);
+
+    expect(result.text).toBe("taro-yamada@example.co.jp");
+    expect(result.appliedRules.map((event) => event.rule)).toEqual([
+      "email_line_break",
+      "line_end_hyphen",
+    ]);
+  });
+
+  it("構造記号で複数回折り返されたURLを順番に結合する", () => {
+    const sourceText = "https://dev.\nexample.\njp/\nlogin";
+    const result = normalizeForDetection(sourceText, ["url_line_break"]);
+
+    expect(result.text).toBe("https://dev.example.jp/login");
+    expect(
+      result.appliedRules.filter((event) => event.rule === "url_line_break"),
+    ).toHaveLength(3);
+  });
+
+  it("URLの行末ハイフンを保持して改行だけを除去する", () => {
+    const sourceText = "https://example.jp/long-\npath";
+    const result = normalizeForDetection(sourceText, ["url_line_break"]);
+
+    expect(result.text).toBe("https://example.jp/long-path");
+    expect(result.appliedRules.map((event) => event.rule)).toEqual([
+      "url_line_break",
+      "line_end_hyphen",
+    ]);
+  });
+
+  it("都道府県・市区町村・町域の境界で折り返された住所を結合する", () => {
+    const sourceText = "愛知県\n豊田市\n若宮町二丁目15番地";
+    const result = normalizeForDetection(sourceText, ["address_line_break"]);
+
+    expect(result.text).toBe("愛知県豊田市若宮町二丁目15番地");
+    expect(result.appliedRules).toEqual([
+      expect.objectContaining({ rule: "address_line_break" }),
+    ]);
+  });
+
+  it.each([
+    "東京都新宿区西新宿二丁目8番\n1号",
+    "大阪府大阪市北区梅田一丁目\n1番1号",
+  ])("丁目・番・号の途中で折り返された住所を結合する: %s", (sourceText) => {
+    const result = normalizeForDetection(sourceText, ["address_line_break"]);
+
+    expect(result.text).toBe(sourceText.replace("\n", ""));
+    expect(result.appliedRules).toEqual([
+      expect.objectContaining({ rule: "address_line_break" }),
+    ]);
+  });
+
+  it.each([
+    "愛知県で会議を行った。\n豊田市から参加した。",
+    "愛知県\n\n豊田市若宮町二丁目15番地",
+    "# 愛知県\n豊田市若宮町二丁目15番地",
+  ])("住所として連続しない改行は結合しない: %s", (sourceText) => {
+    const result = normalizeForDetection(sourceText, ["address_line_break"]);
+
+    expect(result.text).toBe(sourceText);
+    expect(result.appliedRules).toEqual([]);
   });
 });

@@ -5,6 +5,10 @@ import { COMMON_JAPANESE_SURNAMES } from "./regex/personNamePatterns";
 const SORTED_SURNAMES = COMMON_JAPANESE_SURNAMES.split("|").sort(
   (left, right) => right.length - left.length,
 );
+const RUBY_ADJACENT_FULL_NAME_PATTERN = new RegExp(
+  `(^|[\\r\\n|])([ \\t]*(?:[-*+][ \\t]+)?)((?:${SORTED_SURNAMES.join("|")})[一-龥々]{1,4})([ぁ-ゖー]{4,12})(?=[ \\t]*(?:$|\\r?\\n|\\|))`,
+  "gu",
+);
 const COMPACT_JAPANESE_NAME_PATTERN = /^[一-龥々]{3,7}$/u;
 const MARKDOWN_FENCED_COMPACT_NAME_PATTERN =
   /```[^\r\n]*\r?\n[ \t]*([一-龥々]{4,7})[ \t]*\r?\n```/gu;
@@ -32,10 +36,13 @@ export function enrichPersonCandidates(
     sourceText,
     candidates,
   );
+  const rubyAdjacentFullNameCandidates =
+    deriveRubyAdjacentFullNameCandidates(sourceText);
   const enrichedPersonCandidates = [
     ...personCandidates,
     ...fencedFullNameCandidates,
     ...aiSpacedFullNameCandidates,
+    ...rubyAdjacentFullNameCandidates,
   ];
   const surnameEvidence = collectSurnameEvidence(enrichedPersonCandidates);
   const fullNameRanges = enrichedPersonCandidates.flatMap((candidate) =>
@@ -79,9 +86,37 @@ export function enrichPersonCandidates(
     ...uniqueCandidates([
       ...fencedFullNameCandidates,
       ...aiSpacedFullNameCandidates,
+      ...rubyAdjacentFullNameCandidates,
       ...derivedCandidates,
     ]),
   ];
+}
+
+function deriveRubyAdjacentFullNameCandidates(
+  sourceText: string,
+): DetectionCandidate[] {
+  const candidates: DetectionCandidate[] = [];
+
+  for (const match of sourceText.matchAll(RUBY_ADJACENT_FULL_NAME_PATTERN)) {
+    const prefix = match[1] ?? "";
+    const indentation = match[2] ?? "";
+    const name = match[3];
+
+    if (!name || !splitCommonJapaneseName(name)) {
+      continue;
+    }
+
+    const start = match.index + prefix.length + indentation.length;
+    candidates.push({
+      originalText: name,
+      category: "PERSON",
+      source: "regex",
+      start,
+      end: start + name.length,
+    });
+  }
+
+  return uniqueCandidates(candidates);
 }
 
 function deriveAiSpacedFullNameCandidates(
