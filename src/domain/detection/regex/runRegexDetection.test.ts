@@ -104,6 +104,53 @@ describe("runRegexDetection", () => {
     expect(candidates).toEqual([]);
   });
 
+  it("電話番号の先頭7桁を郵便番号候補として重複登録しない", () => {
+    const candidates = runRegexDetection("連絡先は080-9876-5432です。");
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        originalText: "080-9876-5432",
+        category: "PHONE",
+        source: "regex",
+      }),
+    ]);
+  });
+
+  it("電話番号の途中改行を除去して原文範囲を候補化する", () => {
+    const phoneValues = [
+      "090-1234-\n5678",
+      "052-\n123-4567",
+      "080-9876-\n5432",
+      "03-5123-\n8800",
+    ];
+    const sourceText = phoneValues.join("\n");
+    const candidates = runRegexDetection(sourceText).filter(
+      (candidate) => candidate.category === "PHONE",
+    );
+
+    expect(candidates.map((candidate) => candidate.originalText)).toEqual(
+      phoneValues,
+    );
+    expect(
+      candidates.every(
+        ({ start, end, originalText }) =>
+          start !== undefined &&
+          end !== undefined &&
+          sourceText.slice(start, end) === originalText,
+      ),
+    ).toBe(true);
+    expect(
+      candidates.every((candidate) =>
+        candidate.normalizationRules?.includes("phone_line_break"),
+      ),
+    ).toBe(true);
+    expect(
+      runRegexDetection(sourceText).some(
+        (candidate) => candidate.category === "POSTAL_CODE",
+      ),
+    ).toBe(false);
+  });
+
   it("一般的なメール形式から外れるドメインは候補にしない", () => {
     const candidates = runRegexDetection(
       "候補外は user@example.c と user@example.123 です。",
@@ -219,6 +266,39 @@ describe("runRegexDetection", () => {
     expect(candidates.some((candidate) => candidate.category === "ADDRESS")).toBe(
       false,
     );
+  });
+
+  it("途中改行された組織名をNER未検出でも形式候補にする", () => {
+    const sourceText = [
+      "株式会社青葉デジタルソリューショ\nンズ",
+      "合同会社みらいテクノロ\nジー",
+      "北星メディカル株式\n会社",
+      "東海システム開発セン\nター",
+    ].join("。\n");
+    const candidates = runRegexDetection(sourceText).filter(
+      (candidate) => candidate.category === "ORGANIZATION",
+    );
+
+    expect(candidates.map((candidate) => candidate.originalText)).toEqual([
+      "株式会社青葉デジタルソリューショ\nンズ",
+      "合同会社みらいテクノロ\nジー",
+      "北星メディカル株式\n会社",
+      "東海システム開発セン\nター",
+    ]);
+    expect(
+      candidates.every(
+        ({ start, end, originalText }) =>
+          start !== undefined &&
+          end !== undefined &&
+          sourceText.slice(start, end) === originalText &&
+          originalText.includes("\n"),
+      ),
+    ).toBe(true);
+    expect(
+      candidates.every((candidate) =>
+        candidate.normalizationRules?.includes("organization_line_break"),
+      ),
+    ).toBe(true);
   });
 
   it("自宅住所・登録住所・配送先などの文脈ラベルを住所候補に含めない", () => {

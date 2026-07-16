@@ -5,19 +5,37 @@ import { detectEmails } from "./detectEmails";
 import { detectEmailsWithNormalization } from "./detectEmailsWithNormalization";
 import { detectIpAddresses } from "./detectIpAddresses";
 import { detectJapaneseAddresses } from "./detectJapaneseAddresses";
+import { detectJapaneseAddressesWithNormalization } from "./detectJapaneseAddressesWithNormalization";
+import { detectOrganizationsWithNormalization } from "./detectOrganizationsWithNormalization";
 import { detectPersonNames } from "./detectPersonNames";
 import { detectPersonNamesWithNormalization } from "./detectPersonNamesWithNormalization";
 import { detectPhoneNumbers } from "./detectPhoneNumbers";
+import { detectPhoneNumbersWithNormalization } from "./detectPhoneNumbersWithNormalization";
 import { detectPostalCodes } from "./detectPostalCodes";
 import { detectUrls } from "./detectUrls";
 import { detectUrlsWithNormalization } from "./detectUrlsWithNormalization";
 import { uniqueCandidates } from "./common";
 
 export function runRegexDetection(sourceText: string): DetectionCandidate[] {
-  const urlCandidates = uniqueCandidates([
-    ...detectUrls(sourceText),
-    ...detectUrlsWithNormalization(sourceText),
-  ]);
+  const emailCandidates = preferNormalizedCandidates(
+    detectEmails(sourceText),
+    detectEmailsWithNormalization(sourceText),
+  );
+  const urlCandidates = preferNormalizedCandidates(
+    detectUrls(sourceText),
+    detectUrlsWithNormalization(sourceText),
+  );
+  const addressCandidates = preferNormalizedCandidates(
+    detectJapaneseAddresses(sourceText),
+    detectJapaneseAddressesWithNormalization(sourceText),
+  );
+  const phoneCandidates = preferNormalizedCandidates(
+    detectPhoneNumbers(sourceText),
+    detectPhoneNumbersWithNormalization(sourceText),
+  );
+  const postalCodeCandidates = detectPostalCodes(sourceText).filter(
+    (candidate) => !isContainedInAny(candidate, phoneCandidates),
+  );
   const ipAddressCandidates = detectIpAddresses(sourceText).filter(
     (candidate) => !isContainedInAny(candidate, urlCandidates),
   );
@@ -25,15 +43,27 @@ export function runRegexDetection(sourceText: string): DetectionCandidate[] {
   return uniqueCandidates([
     ...detectBirthDates(sourceText),
     ...detectCredentials(sourceText),
-    ...detectEmails(sourceText),
-    ...detectEmailsWithNormalization(sourceText),
-    ...detectPhoneNumbers(sourceText),
-    ...detectPostalCodes(sourceText),
+    ...emailCandidates,
+    ...phoneCandidates,
+    ...postalCodeCandidates,
     ...urlCandidates,
     ...ipAddressCandidates,
-    ...detectJapaneseAddresses(sourceText),
+    ...detectOrganizationsWithNormalization(sourceText),
+    ...addressCandidates,
     ...detectPersonNames(sourceText),
     ...detectPersonNamesWithNormalization(sourceText),
+  ]);
+}
+
+function preferNormalizedCandidates(
+  plainCandidates: DetectionCandidate[],
+  normalizedCandidates: DetectionCandidate[],
+): DetectionCandidate[] {
+  return uniqueCandidates([
+    ...normalizedCandidates,
+    ...plainCandidates.filter(
+      (candidate) => !isContainedInAny(candidate, normalizedCandidates),
+    ),
   ]);
 }
 

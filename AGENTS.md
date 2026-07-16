@@ -39,7 +39,7 @@ The MVP is a single-page, browser-complete application for PC use.
 - Regex-based detection of structured PII
 - Browser-local Japanese NER through Transformers.js and an ONNX model
 - Manual selection and addition of mask targets
-- Candidate review, approval, exclusion, category change, and deletion
+- Candidate review through enabled/disabled state, manual addition, and deletion; category is selected at detection or manual addition and fixed after registration
 - Original-text and masked-result tabs
 - Copying masked text
 - Pasting an external AI response and restoring known tokens

@@ -6,6 +6,7 @@ import {
   Eye,
   EllipsisVertical,
   Info,
+  LoaderCircle,
   Search,
   ShieldCheck,
   Trash2,
@@ -36,6 +37,7 @@ import {
 import { OriginalTextEditor } from "./components/OriginalTextEditor";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
+import { refineDetectionCandidates } from "./domain/detection/refineDetectionCandidates";
 import {
   NerDetectionCancelledError,
   runNerDetection,
@@ -50,12 +52,14 @@ import { normalizeText } from "./domain/normalization/normalizeText";
 import {
   CATEGORY_LABELS,
   MASK_CATEGORIES,
+  NORMALIZATION_RULE_LABELS,
   SOURCE_LABELS,
   type MaskCategory,
   type MaskEntry,
 } from "./domain/types";
 
 const MAX_CHAR_COUNT = 10000;
+const DETECTION_PROGRESS_DELAY_MS = 1000;
 type DetectionPhase = "idle" | "regex" | "ner-loading" | "ner-running";
 type NerDetectionOutcome = "success" | "failed" | "cancelled";
 type DetectionCancellationReason =
@@ -74,6 +78,7 @@ export default function App() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
   const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
+  const [showDetectionProgress, setShowDetectionProgress] = useState(false);
   const detectionAbortRef = useRef<AbortController | undefined>(undefined);
   const latestDetectionMergeContextRef = useRef({
     entries: state.entries,
@@ -187,6 +192,18 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [state.notice]);
 
+  useEffect(() => {
+    if (!isDetecting) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setShowDetectionProgress(true);
+    }, DETECTION_PROGRESS_DELAY_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [isDetecting]);
+
   function openManualDialog() {
     const normalizedSelection = selectedText.normalize("NFC");
 
@@ -235,8 +252,9 @@ export default function App() {
       return;
     }
 
+    setShowDetectionProgress(false);
     setDetectionPhase("regex");
-    dispatch({ type: "setNotice", value: "形式候補を確認しています。" });
+    dispatch({ type: "setNotice" });
     const detectionText = state.originalText;
     const detectionController = new AbortController();
     detectionAbortRef.current = detectionController;
@@ -252,22 +270,10 @@ export default function App() {
 
       try {
         setDetectionPhase("ner-loading");
-        dispatch({
-          type: "setNotice",
-          value:
-            "AI検出モデルを準備しています。初回は公開モデル資材の取得に時間がかかります。",
-        });
         nerCandidates = await runNerDetection(detectionText, {
           signal: detectionController.signal,
           onProgress: (progress) => {
             setDetectionPhase(toDetectionPhase(progress));
-            dispatch({
-              type: "setNotice",
-              value:
-                progress.phase === "loading"
-                  ? "AI検出モデルを準備しています。"
-                  : "AI検出を実行しています。",
-            });
           },
         });
       } catch (error) {
@@ -302,10 +308,13 @@ export default function App() {
         return;
       }
 
-      const candidates = enrichPersonCandidates(detectionText, [
-        ...regexCandidates,
-        ...nerCandidates,
-      ]);
+      const candidates = refineDetectionCandidates(
+        detectionText,
+        enrichPersonCandidates(detectionText, [
+          ...regexCandidates,
+          ...nerCandidates,
+        ]),
+      );
       const summary = summarizeDetectionMerge(latestContext.entries, candidates);
 
       dispatch({
@@ -333,6 +342,7 @@ export default function App() {
         detectionAbortRef.current = undefined;
       }
 
+      setShowDetectionProgress(false);
       setDetectionPhase("idle");
     }
   }
@@ -412,7 +422,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="main-grid">
+      <main aria-busy={isDetecting} className="main-grid">
         <section className="workspace" aria-label="テキストワークスペース">
           <div className="tabs">
             <div className="tab-list" role="tablist" aria-label="表示切り替え">
@@ -730,7 +740,14 @@ export default function App() {
       ) : null}
 
       <div aria-live="polite" className="toast-region">
-        {state.notice ? <div className="toast">{state.notice}</div> : null}
+        {isDetecting && showDetectionProgress ? (
+          <div className="toast toast-progress" role="status">
+            <LoaderCircle aria-hidden="true" className="loading-spinner" size={18} />
+            AI検出中
+          </div>
+        ) : state.notice ? (
+          <div className="toast">{state.notice}</div>
+        ) : null}
       </div>
     </div>
   );
@@ -809,6 +826,11 @@ function EntryCard(props: {
         {props.entry.sources.map((source) => (
           <span className="chip" key={source}>
             {SOURCE_LABELS[source]}
+          </span>
+        ))}
+        {props.entry.normalizationRules?.map((rule) => (
+          <span className="chip chip-normalization" key={rule}>
+            {NORMALIZATION_RULE_LABELS[rule]}
           </span>
         ))}
       </div>

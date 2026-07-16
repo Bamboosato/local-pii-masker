@@ -26,8 +26,14 @@ test("CSPとセキュリティヘッダーを適用して起動できる", async
 });
 
 test("入力内容を外部通信・Storage・Consoleへ出さず、NER失敗時も形式候補を保持する", async ({
+  baseURL,
   page,
 }) => {
+  if (!baseURL) {
+    throw new Error("Playwright baseURL is required for the privacy test.");
+  }
+
+  const allowedOrigin = new URL(baseURL).origin;
   const observedRequests: string[] = [];
   const externalRequests: string[] = [];
   const consoleMessages: string[] = [];
@@ -47,7 +53,7 @@ test("入力内容を外部通信・Storage・Consoleへ出さず、NER失敗時
   await page.route("**/*", async (route) => {
     const requestUrl = new URL(route.request().url());
 
-    if (requestUrl.origin !== "http://127.0.0.1:4173") {
+    if (requestUrl.origin !== allowedOrigin) {
       externalRequests.push(requestUrl.href);
       await route.abort("blockedbyclient");
       return;
