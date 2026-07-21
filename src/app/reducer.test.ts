@@ -308,6 +308,88 @@ describe("appReducer", () => {
 
     expect(appReducer(state, { type: "clearSession" })).toEqual(initialAppState);
   });
+
+  it("正規化適用時は新しい原文を正本にして検出前状態を維持する", () => {
+    const state = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "氏名：\n山田 太郎",
+    });
+
+    const normalized = appReducer(state, {
+      type: "applyNormalizedOriginal",
+      value: "氏名:山田 太郎",
+      expectedRevision: state.originalRevision,
+    });
+
+    expect(normalized).toMatchObject({
+      originalText: "氏名:山田 太郎",
+      entries: [],
+      activeTextView: "original",
+    });
+    expect(normalized.normalizationLockReason).toBeUndefined();
+    expect(normalized.originalRevision).toBe(state.originalRevision + 1);
+  });
+
+  it("正規化適用は古い原文リビジョンを受け付けない", () => {
+    const state = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "山田",
+    });
+
+    const stale = appReducer(state, {
+      type: "applyNormalizedOriginal",
+      value: "佐藤",
+      expectedRevision: state.originalRevision - 1,
+    });
+
+    expect(stale).toBe(state);
+  });
+
+  it("自動検出の候補0件完了でも正規化をロックする", () => {
+    const state = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "候補なし",
+    });
+
+    const completed = appReducer(state, {
+      type: "completeDetection",
+      candidates: [],
+      createId: () => "unused",
+      outcome: "success",
+    });
+
+    expect(completed.normalizationLockReason).toBe("detection_completed");
+  });
+
+  it("候補なしの検出失敗・中止では正規化ロックを作らない", () => {
+    const state = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "候補なし",
+    });
+
+    expect(
+      appReducer(state, {
+        type: "completeDetection",
+        candidates: [],
+        createId: () => "unused",
+        outcome: "failed",
+      }).normalizationLockReason,
+    ).toBeUndefined();
+  });
+
+  it("手動追加後は対象を削除しても正規化ロックを維持する", () => {
+    const withEntry = appReducer(
+      appReducer(initialAppState, { type: "setOriginalText", value: "山田" }),
+      {
+        type: "addManualEntry",
+        value: { id: "entry-1", selectedText: "山田", category: "PERSON" },
+      },
+    );
+    const deleted = appReducer(withEntry, { type: "deleteEntry", id: "entry-1" });
+
+    expect(deleted.entries).toHaveLength(0);
+    expect(deleted.normalizationLockReason).toBe("candidate_registered");
+  });
 });
 
 function createSequentialId(): () => string {

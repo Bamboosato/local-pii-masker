@@ -25,6 +25,52 @@ test("CSPとセキュリティヘッダーを適用して起動できる", async
   await expect(page.getByRole("textbox", { name: "原文" })).toBeVisible();
 });
 
+test("メニューから正規化Workerの結果を確認して原文へ適用できる", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "原文" });
+  await editor.fill("氏名：\n山田 太郎");
+
+  await page.getByRole("button", { name: "メニュー" }).click();
+  await page.getByRole("menuitem", { name: "テキストを正規化" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "テキスト正規化" });
+  const applyButton = dialog.getByRole("button", { name: "適用" });
+  await expect(applyButton).toBeEnabled();
+  await expect(applyButton).toHaveText("適用");
+  await expect(applyButton).toHaveAttribute("title", "正規化後の内容を原文に適用します。");
+  await expect(dialog.getByText("電話・メール・日付を保守的に補正", { exact: true })).toHaveCount(0);
+  await expect(
+    dialog.locator('label[title="構造が明確な電話番号、メール、日付などを保守的に補正します。"]'),
+  ).toHaveCount(1);
+
+  const layout = await dialog.evaluate((root) => {
+    const rect = (selector: string) => root.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+    const mode = rect(".normalization-mode-fieldset");
+    const before = rect('[aria-label="正規化前"]');
+    const header = rect(".modal-header");
+    const footer = rect(".modal-footer");
+    const cancel = rect(".normalization-cancel-button");
+    const apply = rect(".normalization-apply-button");
+    return {
+      modeWidth: mode?.width ?? 0,
+      beforeWidth: before?.width ?? 0,
+      headerHeight: header?.height ?? 0,
+      footerHeight: footer?.height ?? 0,
+      cancelHeight: cancel?.height ?? 0,
+      applyHeight: apply?.height ?? 0,
+    };
+  });
+  expect(Math.abs(layout.modeWidth - layout.beforeWidth)).toBeLessThanOrEqual(1);
+  expect(layout.headerHeight).toBeLessThanOrEqual(52);
+  expect(layout.footerHeight).toBeLessThanOrEqual(44);
+  expect(Math.abs(layout.cancelHeight - layout.applyHeight)).toBeLessThanOrEqual(1);
+  await expect(dialog.getByLabel("正規化後")).toContainText("氏名:山田 太郎");
+
+  await applyButton.click();
+  await expect(dialog).toBeHidden();
+  await expect(editor).toContainText("氏名:山田 太郎");
+});
+
 test("入力内容を外部通信・Storage・Consoleへ出さず、NER失敗時も形式候補を保持する", async ({
   baseURL,
   page,

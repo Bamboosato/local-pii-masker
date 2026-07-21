@@ -67,6 +67,8 @@
 - [NERモデル評価計画](docs/model-evaluation.md)
 - [Phase 5 セキュリティ・品質ハードニング](docs/security-hardening.md)
 - [Phase 6 OCR崩れ対応](docs/ocr-normalization.md)
+- [マスキング前テキスト正規化 追加機能要件](docs/text-normalization-requirements.md)
+- [マスキング前テキスト正規化 詳細設計](docs/text-normalization-design.md)
 
 ## 開発ステータス
 
