@@ -26,6 +26,9 @@ MVPでは、ユーザーデータをブラウザメモリ内だけに保持し�
 6. **復元可能性を過大評価しない**  
    復元できるのは、マスクを含む文章中に完全な形で残っている既知トークンだけとする。
 
+7. **原文を書き換える正規化は明示操作に限定する**
+   マスキング前テキスト正規化はプレビューと明示適用を必須とし、適用後のテキストを新しい原文の正本とする。検出完了または手動追加後は全消去まで再適用しない。
+
 ## 3. 論理構成
 
 ```mermaid
@@ -35,6 +38,7 @@ flowchart LR
     ST[Session State]
     RG[Regex Detector]
     WK[NER Web Worker]
+    NW[Normalization Web Worker]
     TF[Transformers.js]
     MD[ONNX NER Model]
     ME[Mask Engine]
@@ -45,6 +49,7 @@ flowchart LR
     UI <--> ST
     UI --> RG
     UI <--> WK
+    UI <--> NW
     WK --> TF
     TF --> MD
     ST --> ME
@@ -65,6 +70,7 @@ flowchart LR
 - マスクを含む文章の入力
 - マスクを復元した文章とトークン検査結果の表示
 - セッション消去
+- マスキング前テキスト正規化の起動、前後確認、適用
 
 ### 3.2 セッション状態層
 
@@ -74,6 +80,8 @@ flowchart LR
 - マスクを含む文章
 - モデル状態
 - UI状態
+- 原文リビジョン
+- 正規化ロック理由
 
 状態はReactコンポーネントへ分散させず、`useReducer`または同等の一方向データフローで管理する。
 
@@ -92,6 +100,15 @@ flowchart LR
 - Restore Engine：マスクを含む文章内の既知トークンを元文字列へ置換
 - Token Inspector：既知、不明、未出現トークンを分類
 
+### 3.5 マスキング前正規化層
+
+- Document Normalization Engine：モードと固定順序の純粋ルールから正規化結果、原文位置対応、変更イベントを生成
+- Normalization Worker：正規化計算をUIスレッドから分離
+- Preview Segment Builder：位置対応と変更イベントから正規化前後の強調範囲を生成
+- Normalization Availability：原文、検出状態、ロック状態から起動可否と無効理由を算出
+
+本層は検出候補を生成せず、適用後にも自動検出を開始しない。既存の`normalization/detection`は原文を保持する検出専用補正、本層の`normalization/document`はユーザー適用によって新しい原文を生成する処理として分離する。
+
 ## 4. データフロー
 
 ```mermaid
@@ -100,12 +117,19 @@ sequenceDiagram
     participant UI
     participant State
     participant Regex
+    participant Normalizer
     participant Worker
     participant Refiner
     participant MaskEngine
 
     User->>UI: 原文を入力
     UI->>State: originalTextを更新
+    opt ユーザーが正規化を選択
+        UI->>Normalizer: 原文・モード・リビジョンを送信
+        Normalizer-->>UI: 正規化結果・変更イベント
+        User->>UI: 正規化結果を原文へ適用
+        UI->>State: originalTextとリビジョンを原子的に更新
+    end
     User->>UI: 自動検出を実行
     UI->>Regex: 原文を検査
     UI->>Worker: 原文を送信
@@ -168,6 +192,10 @@ export type MaskSessionState = {
   entries: MaskEntry[];
   externalResponse: string;
   activeTextView: "original" | "masked";
+  originalRevision: number;
+  normalizationLockReason?:
+    | "detection_completed"
+    | "candidate_registered";
 };
 ```
 
@@ -497,6 +525,7 @@ type WorkerResponse =
 | データ | メモリ保持 | ブラウザキャッシュ | サーバー送信 |
 | --- | --- | --- | --- |
 | 原文 | 可 | 不可 | 不可 |
+| 正規化前後のドラフト・位置対応 | ダイアログ表示中のみ可 | 不可 | 不可 |
 | 検出候補 | 可 | 不可 | 不可 |
 | マスク対象・対応表 | 可 | 不可 | 不可 |
 | マスクを含む文章・マスクを復元した文章 | 可 | 不可 | 不可 |
@@ -531,9 +560,13 @@ MVPで許容するネットワーク通信：
 stateDiagram-v2
     [*] --> Empty
     Empty --> Editing: 原文入力
+    Editing --> Normalizing: 正規化画面を開く
+    Normalizing --> Editing: キャンセル
+    Normalizing --> Editing: 正規化後を原文へ適用
     Editing --> Detecting: 自動検出
     Detecting --> Reviewing: 検出完了
     Detecting --> Reviewing: NER失敗・Regex結果のみ
+    Detecting --> Editing: 候補なしで失敗・中止
     Reviewing --> Reviewing: 無効化/有効化/削除/手動追加
     Reviewing --> MaskReady: 有効対象あり
     MaskReady --> Reviewing: 対象変更
@@ -564,6 +597,10 @@ stateDiagram-v2
 | `INPUT_TOO_LARGE` | 上限超過 | 文字数と上限を表示 |
 | `CLIPBOARD_DENIED` | コピー権限拒否 | 手動選択・コピーを案内 |
 | `INVALID_SELECTION` | 手動選択が空 | 選択し直しを案内 |
+| `NORMALIZATION_FAILED` | 正規化ルール処理失敗 | 原文を保持して再試行またはキャンセル |
+| `NORMALIZATION_WORKER_FAILED` | 正規化Worker通信失敗 | Workerを再生成して再試行 |
+| `NORMALIZATION_STALE` | 適用時の原文リビジョン不一致 | 古い結果を適用せず再計算 |
+| `NORMALIZATION_LOCKED` | 検出完了または手動追加後の適用 | 全消去と貼り直しを案内 |
 
 ログへ原文、候補文字列、マスクを復元した文章を出力しない。
 
@@ -592,6 +629,9 @@ src/
 │  │  ├─ ner/
 │  │  └─ types.ts
 │  └─ normalization/
+│     ├─ shared/
+│     ├─ detection/
+│     └─ document/
 ├─ hooks/
 └─ tests/
 ```
@@ -698,6 +738,19 @@ src/
 - 正規化イベントを候補とマスク項目へ保持
 - 正規化イベントを候補カードへ日本語ラベルで表示
 
+### Phase 7：マスキング前テキスト正規化
+
+- ヘッダーメニューから開く大型正規化ダイアログ
+- 標準・検出優先モード
+- 専用Web Workerによる正規化計算
+- UTF-16原文位置対応とルールイベントによる前後差分
+- 原文リビジョンを使った古いプレビューの適用防止
+- 検出完了・手動追加による明示的な正規化ロック
+- 候補0件の検出完了と未検出状態の区別
+- 合成データによるルール、状態、アクセシビリティ、漏えい、性能テスト
+
+詳細は[マスキング前テキスト正規化 詳細設計](text-normalization-design.md)を正本とする。
+
 ## 18. 初期アーキテクチャ決定
 
 | ID | 決定 |
@@ -712,3 +765,5 @@ src/
 | ADR-008 | 復元対象は完全な形で残った既知トークンに限定する |
 | ADR-009 | CSPとセキュリティヘッダーは単一モジュールで管理し、本番ホストでも同等のHTTPヘッダーを適用する |
 | ADR-010 | OCR正規化は原文を変更せず用途別に適用し、候補範囲を原文へ戻してから統合する |
+| ADR-011 | ユーザー適用型のマスキング前正規化は専用Workerで実行し、適用後の結果を新しい原文の正本とする |
+| ADR-012 | 正規化ロックは候補件数から導出せず、検出完了・手動追加をReducerの明示状態として保持する |

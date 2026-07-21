@@ -8,6 +8,11 @@ import {
   runNerDetection,
 } from "./domain/detection/ner/runNerDetection";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
+import { normalizeDocumentText } from "./domain/normalization/document/normalizeDocumentText";
+
+const normalizationClientMock = vi.hoisted(() => ({
+  createNormalizationClient: vi.fn(),
+}));
 
 vi.mock("./domain/detection/ner/runNerDetection", async (importOriginal) => {
   const actual = await importOriginal<
@@ -20,6 +25,8 @@ vi.mock("./domain/detection/ner/runNerDetection", async (importOriginal) => {
   };
 });
 
+vi.mock("./domain/normalization/document/normalizationClient", () => normalizationClientMock);
+
 const runNerDetectionMock = vi.mocked(runNerDetection);
 const scrollIntoViewMock = vi.fn();
 
@@ -27,6 +34,16 @@ describe("App", () => {
   beforeEach(() => {
     runNerDetectionMock.mockReset();
     runNerDetectionMock.mockResolvedValue([]);
+    normalizationClientMock.createNormalizationClient.mockReturnValue({
+      request: async (text: string, mode: "standard" | "detection_priority", sourceRevision: number) => ({
+        type: "success",
+        requestId: 1,
+        sourceRevision,
+        mode,
+        result: normalizeDocumentText(text, mode),
+      }),
+      terminate: vi.fn(),
+    });
     scrollIntoViewMock.mockReset();
     Object.defineProperty(Element.prototype, "scrollIntoView", {
       configurable: true,
@@ -89,12 +106,69 @@ describe("App", () => {
     await user.click(menuButton);
 
     expect(
-      screen.getByRole("menuitem", { name: "すべて消去" }),
+      screen.getByRole("menuitem", { name: "テキストを正規化" }),
     ).toHaveFocus();
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(menuButton).toHaveFocus();
+  });
+
+  it("メニューから正規化を開き、適用結果を新しい原文にする", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), "氏名：\n山田 太郎");
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "テキストを正規化" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "テキスト正規化" });
+    expect(within(dialog).getByRole("radio", { name: /^標準/ })).toBeChecked();
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "適用" })).toBeEnabled(),
+    );
+    const applyButton = within(dialog).getByRole("button", { name: "適用" });
+    expect(applyButton).toHaveTextContent("適用");
+    expect(applyButton).toHaveAttribute("title", "正規化後の内容を原文に適用します。");
+    expect(within(dialog).getByLabelText("正規化前")).toHaveTextContent("氏名：");
+    expect(within(dialog).getByLabelText("正規化後")).toHaveTextContent("氏名:");
+
+    await user.click(applyButton);
+
+    expect(screen.queryByRole("dialog", { name: "テキスト正規化" })).not.toBeInTheDocument();
+    expect(getEditorText(screen.getByLabelText("原文"))).toBe("氏名:山田 太郎");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "自動検出" })).toHaveFocus(),
+    );
+  });
+
+  it("正規化のキャンセルでは原文を変更しない", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const editor = screen.getByLabelText("原文");
+    setEditorText(editor, "氏名：\n山田 太郎");
+
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "テキストを正規化" }));
+    const dialog = await screen.findByRole("dialog", { name: "テキスト正規化" });
+    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }));
+
+    expect(getEditorText(editor)).toBe("氏名：\n山田 太郎");
+  });
+
+  it("候補0件の検出完了後は正規化をロックする", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    setEditorText(screen.getByLabelText("原文"), "候補なしの文章です。");
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+    await waitFor(() =>
+      expect(screen.getByText("自動検出では候補が見つかりませんでした。")).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+    const normalizeItem = screen.getByRole("menuitem", { name: "テキストを正規化" });
+    expect(normalizeItem).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/マスク対象の検出後は正規化できません/)).toBeInTheDocument();
   });
 
   it("原文入力、手動追加、マスク結果タブ切替を通しで操作できる", async () => {

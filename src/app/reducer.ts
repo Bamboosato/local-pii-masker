@@ -12,6 +12,9 @@ import { createMaskToken } from "../domain/mask/tokenFactory";
 
 export type TextView = "original" | "masked";
 export type EntryFilter = "all" | "disabled";
+export type NormalizationLockReason =
+  | "detection_completed"
+  | "candidate_registered";
 
 export type AppState = MaskSession & {
   activeTextView: TextView;
@@ -19,6 +22,8 @@ export type AppState = MaskSession & {
   entryFilter: EntryFilter;
   entrySearch: string;
   restoreExpanded: boolean;
+  originalRevision: number;
+  normalizationLockReason?: NormalizationLockReason;
   notice?: string;
 };
 
@@ -30,12 +35,18 @@ export const initialAppState: AppState = {
   entryFilter: "all",
   entrySearch: "",
   restoreExpanded: false,
+  originalRevision: 0,
 };
 
 const MANUAL_PROMOTION_STEP = 1;
 
 export type AppAction =
   | { type: "setOriginalText"; value: string }
+  | {
+      type: "applyNormalizedOriginal";
+      value: string;
+      expectedRevision: number;
+    }
   | { type: "setActiveTextView"; value: TextView }
   | { type: "setEntryFilter"; value: EntryFilter }
   | { type: "setEntrySearch"; value: string }
@@ -52,6 +63,12 @@ export type AppAction =
       type: "mergeDetectedCandidates";
       candidates: DetectionCandidate[];
       createId: () => string;
+    }
+  | {
+      type: "completeDetection";
+      candidates: DetectionCandidate[];
+      createId: () => string;
+      outcome: "success" | "failed" | "cancelled";
     }
   | {
       type: "setEntryReviewStatus";
@@ -75,6 +92,34 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         originalText,
         entries: recalculateOccurrences(originalText, state.entries),
+        originalRevision:
+          originalText === state.originalText
+            ? state.originalRevision
+            : state.originalRevision + 1,
+      };
+    }
+
+    case "applyNormalizedOriginal": {
+      const originalText = normalizeText(action.value);
+      if (
+        action.expectedRevision !== state.originalRevision ||
+        state.normalizationLockReason !== undefined ||
+        state.entries.length > 0 ||
+        originalText === state.originalText
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        originalText,
+        originalRevision: state.originalRevision + 1,
+        entries: [],
+        activeTextView: "original",
+        selectedEntryId: undefined,
+        entryFilter: "all",
+        entrySearch: "",
+        notice: "原文を正規化しました。マスク対象を検出してください。",
       };
     }
 
@@ -102,7 +147,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           candidates: action.candidates,
           createId: action.createId,
         }),
+        normalizationLockReason:
+          state.normalizationLockReason ??
+          (action.candidates.length > 0 ? "candidate_registered" : undefined),
       };
+
+    case "completeDetection": {
+      const entries = mergeCandidates({
+        originalText: state.originalText,
+        entries: state.entries,
+        candidates: action.candidates,
+        createId: action.createId,
+      });
+      const shouldLock = action.outcome === "success" || action.candidates.length > 0;
+
+      return {
+        ...state,
+        entries,
+        normalizationLockReason:
+          state.normalizationLockReason ??
+          (shouldLock
+            ? action.outcome === "success"
+              ? "detection_completed"
+              : "candidate_registered"
+            : undefined),
+      };
+    }
 
     case "setEntryReviewStatus":
       return {
@@ -197,6 +267,7 @@ function addManualEntry(
       ),
       selectedEntryId: existing.id,
       entryFilter: "all",
+      normalizationLockReason: "candidate_registered",
       notice: "同じ文字列は既存の項目を更新しました。",
     };
   }
@@ -223,6 +294,7 @@ function addManualEntry(
     entries: [entry, ...state.entries],
     selectedEntryId: entry.id,
     entryFilter: "all",
+    normalizationLockReason: "candidate_registered",
     notice: "マスク対象に追加しました。",
   };
 }

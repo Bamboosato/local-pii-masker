@@ -27,6 +27,10 @@ import {
   initialAppState,
 } from "./app/reducer";
 import {
+  getNormalizationAvailability,
+  getNormalizationAvailabilityMessage,
+} from "./app/normalizationAvailability";
+import {
   selectActiveEntries,
   selectMaskedText,
   selectRestoredResponse,
@@ -35,6 +39,7 @@ import {
   selectVisibleEntries,
 } from "./app/selectors";
 import { OriginalTextEditor } from "./components/OriginalTextEditor";
+import { TextNormalizationDialog } from "./components/TextNormalizationDialog";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
 import { refineDetectionCandidates } from "./domain/detection/refineDetectionCandidates";
@@ -49,6 +54,7 @@ import { buildHighlightSegments } from "./domain/mask/highlightText";
 import { buildMaskSegments } from "./domain/mask/maskText";
 import { createMaskToken } from "./domain/mask/tokenFactory";
 import { normalizeText } from "./domain/normalization/normalizeText";
+import { useTextNormalization } from "./hooks/useTextNormalization";
 import {
   CATEGORY_LABELS,
   MASK_CATEGORIES,
@@ -79,6 +85,7 @@ export default function App() {
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
   const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
   const [showDetectionProgress, setShowDetectionProgress] = useState(false);
+  const normalization = useTextNormalization();
   const detectionAbortRef = useRef<AbortController | undefined>(undefined);
   const latestDetectionMergeContextRef = useRef({
     entries: state.entries,
@@ -88,6 +95,8 @@ export default function App() {
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const clearMenuItemRef = useRef<HTMLButtonElement>(null);
+  const normalizationMenuItemRef = useRef<HTMLButtonElement>(null);
+  const detectionButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchInputRef = useRef<HTMLInputElement>(null);
   const entryListRef = useRef<HTMLDivElement>(null);
@@ -98,6 +107,15 @@ export default function App() {
   const restoration = selectRestoredResponse(state);
   const tokenInspection = selectTokenInspection(state);
   const isDetecting = detectionPhase !== "idle";
+  const normalizationAvailability = getNormalizationAvailability({
+    originalText: state.originalText,
+    normalizationLockReason: state.normalizationLockReason,
+    isDetecting,
+    isNormalizing: normalization.state.open,
+  });
+  const normalizationAvailabilityMessage = getNormalizationAvailabilityMessage(
+    normalizationAvailability,
+  );
   const hasSessionData =
     state.originalText.length > 0 ||
     state.entries.length > 0 ||
@@ -154,7 +172,7 @@ export default function App() {
       return;
     }
 
-    clearMenuItemRef.current?.focus();
+    normalizationMenuItemRef.current?.focus();
 
     const closeOnOutsidePointer = (event: PointerEvent) => {
       if (
@@ -228,6 +246,23 @@ export default function App() {
     });
     setManualDialogOpen(false);
     lastSelectionControlRef.current?.focus();
+  }
+
+  function openNormalizationDialog() {
+    if (normalizationAvailability.state !== "enabled") {
+      return;
+    }
+    setHeaderMenuOpen(false);
+    normalization.open(state.originalText, state.originalRevision);
+  }
+
+  function applyNormalization(
+    value: string,
+    expectedRevision: number,
+  ) {
+    dispatch({ type: "applyNormalizedOriginal", value, expectedRevision });
+    normalization.close();
+    window.requestAnimationFrame(() => detectionButtonRef.current?.focus());
   }
 
   async function copyMaskedText(force = false) {
@@ -318,9 +353,10 @@ export default function App() {
       const summary = summarizeDetectionMerge(latestContext.entries, candidates);
 
       dispatch({
-        type: "mergeDetectedCandidates",
+        type: "completeDetection",
         candidates,
         createId: createEntryId,
+        outcome: nerOutcome,
       });
 
       if (candidates.length > 0) {
@@ -404,6 +440,28 @@ export default function App() {
                 role="menu"
               >
                 <button
+                  aria-describedby={
+                    normalizationAvailabilityMessage
+                      ? "normalization-menu-disabled-reason"
+                      : undefined
+                  }
+                  aria-disabled={normalizationAvailability.state !== "enabled"}
+                  className="header-menu-item"
+                  onClick={openNormalizationDialog}
+                  ref={normalizationMenuItemRef}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Eraser aria-hidden="true" size={16} />
+                  テキストを正規化
+                </button>
+                {normalizationAvailabilityMessage ? (
+                  <span className="header-menu-disabled-reason" id="normalization-menu-disabled-reason">
+                    {normalizationAvailabilityMessage}
+                  </span>
+                ) : null}
+                <div aria-hidden="true" className="header-menu-separator" role="separator" />
+                <button
                   className="header-menu-item danger"
                   onClick={() => {
                     setHeaderMenuOpen(false);
@@ -462,6 +520,7 @@ export default function App() {
                         void runAutoDetection();
                       }
                     }}
+                    ref={detectionButtonRef}
                     type="button"
                   >
                     {isDetecting ? <X aria-hidden="true" size={16} /> : <Search size={16} />}
@@ -737,6 +796,23 @@ export default function App() {
         >
           原文、候補、マスク対象、マスクを含む文章、マスクを復元した文章を初期化します。モデルなどの公開資材キャッシュは対象外です。
         </ConfirmDialog>
+      ) : null}
+
+      {normalization.state.open ? (
+        <TextNormalizationDialog
+          onApply={(result, sourceRevision) =>
+            applyNormalization(result.normalizedText, sourceRevision)
+          }
+          onCancel={() => {
+            normalization.close();
+            window.requestAnimationFrame(() =>
+              normalizationMenuItemRef.current?.focus(),
+            );
+          }}
+          onModeChange={normalization.setMode}
+          onRetry={normalization.retry}
+          state={normalization.state}
+        />
       ) : null}
 
       <div aria-live="polite" className="toast-region">
