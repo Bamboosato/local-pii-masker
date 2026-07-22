@@ -6,6 +6,7 @@ import {
   Eye,
   EllipsisVertical,
   Info,
+  Link2,
   LoaderCircle,
   Search,
   ShieldCheck,
@@ -38,7 +39,10 @@ import {
   selectTokenInspection,
   selectVisibleEntries,
 } from "./app/selectors";
-import { OriginalTextEditor } from "./components/OriginalTextEditor";
+import {
+  OriginalTextEditor,
+  type OriginalTextEditorHandle,
+} from "./components/OriginalTextEditor";
 import { TextNormalizationDialog } from "./components/TextNormalizationDialog";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
@@ -49,7 +53,7 @@ import {
 } from "./domain/detection/ner/runNerDetection";
 import type { NerDetectionProgress } from "./domain/detection/ner/types";
 import { runRegexDetection } from "./domain/detection/regex/runRegexDetection";
-import { countOccurrences } from "./domain/mask/findOccurrences";
+import { countOccurrences, findOccurrences } from "./domain/mask/findOccurrences";
 import { buildHighlightSegments } from "./domain/mask/highlightText";
 import { buildMaskSegments } from "./domain/mask/maskText";
 import { createMaskToken } from "./domain/mask/tokenFactory";
@@ -100,6 +104,8 @@ export default function App() {
   const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchInputRef = useRef<HTMLInputElement>(null);
   const entryListRef = useRef<HTMLDivElement>(null);
+  const originalEditorRef = useRef<OriginalTextEditorHandle>(null);
+  const maskedPreviewRef = useRef<HTMLDivElement>(null);
   const maskedText = selectMaskedText(state);
   const counts = selectSessionCounts(state);
   const visibleEntries = selectVisibleEntries(state);
@@ -564,8 +570,10 @@ export default function App() {
                   highlights={originalHighlightSegments}
                   maxLength={MAX_CHAR_COUNT}
                   onChange={handleOriginalTextChange}
+                  onHighlightClick={selectEntryFromOriginal}
                   onSelectionChange={setSelectedText}
                   placeholder="個人情報をマスキングしたい日本語テキストを入力または貼り付けてください。"
+                  ref={originalEditorRef}
                   selectedEntryId={state.selectedEntryId}
                   value={state.originalText}
                 />
@@ -575,6 +583,7 @@ export default function App() {
                 aria-label="マスク結果"
                 className="masked-preview"
                 id="masked-panel"
+                ref={maskedPreviewRef}
                 role="tabpanel"
               >
                 {state.originalText.length === 0 ? (
@@ -583,6 +592,7 @@ export default function App() {
                   maskedSegments.map((segment, index) =>
                     segment.type === "token" ? (
                       <button
+                        data-entry-id={segment.entryId}
                         className="inline-token"
                         key={`${segment.entryId}-${index}`}
                         onClick={() => selectEntryFromMaskedResult(segment.entryId)}
@@ -693,6 +703,7 @@ export default function App() {
                   isSelected={state.selectedEntryId === entry.id}
                   key={entry.id}
                   onDelete={() => dispatch({ type: "deleteEntry", id: entry.id })}
+                  onNavigateToEntry={() => navigateToEntry(entry.id)}
                   onSelect={() => dispatch({ type: "selectEntry", id: entry.id })}
                   onToggle={() =>
                     dispatch({ type: "toggleEntryEnabled", id: entry.id })
@@ -832,9 +843,11 @@ export default function App() {
     dispatch({ type: "setEntryFilter", value: filter });
   }
 
-  function selectEntryFromMaskedResult(entryId: string) {
-    dispatch({ type: "selectEntry", id: entryId });
+  function prefersReducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  }
 
+  function scrollEntryCard(entryId: string) {
     const entryCard = Array.from(
       entryListRef.current?.querySelectorAll<HTMLElement>(".entry-card") ?? [],
     ).find((card) => card.dataset.entryId === entryId);
@@ -843,11 +856,57 @@ export default function App() {
       return;
     }
 
-    const reduceMotion =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     entryCard.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
       block: "nearest",
+    });
+  }
+
+  function selectEntryFromMaskedResult(entryId: string) {
+    selectEntryFromOriginal(entryId);
+  }
+
+  function selectEntryFromOriginal(entryId: string) {
+    dispatch({ type: "selectEntry", id: entryId });
+    scrollEntryCard(entryId);
+  }
+
+  function navigateToEntry(entryId: string) {
+    const entry = state.entries.find((candidate) => candidate.id === entryId);
+
+    if (!entry || entry.occurrenceCount === 0) {
+      return;
+    }
+
+    dispatch({ type: "selectEntry", id: entryId });
+
+    if (state.activeTextView === "masked" && entry.enabled && entry.reviewStatus === "approved") {
+      const maskedToken = Array.from(
+        maskedPreviewRef.current?.querySelectorAll<HTMLElement>("[data-entry-id]") ?? [],
+      ).find((element) => element.dataset.entryId === entryId);
+
+      if (maskedToken) {
+        maskedToken.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+        return;
+      }
+    }
+
+    const occurrence = findOccurrences(state.originalText, entry.originalText)[0];
+
+    if (!occurrence) {
+      return;
+    }
+
+    if (state.activeTextView !== "original") {
+      dispatch({ type: "setActiveTextView", value: "original" });
+    }
+
+    window.requestAnimationFrame(() => {
+      originalEditorRef.current?.scrollToRange(occurrence);
     });
   }
 }
@@ -856,6 +915,7 @@ function EntryCard(props: {
   entry: MaskEntry;
   isSelected: boolean;
   onDelete: () => void;
+  onNavigateToEntry: () => void;
   onSelect: () => void;
   onToggle: () => void;
 }) {
@@ -884,7 +944,23 @@ function EntryCard(props: {
           <span>信頼度 {Math.round(props.entry.confidence * 100)}%</span>
         ) : null}
       </div>
-      <div className="entry-text">{props.entry.originalText}</div>
+      <div className="entry-text">
+        <span>{props.entry.originalText}</span>
+        <button
+          aria-label={`${props.entry.originalText}の最初の出現箇所へ移動`}
+          className="icon-button entry-locate-button"
+          disabled={props.entry.occurrenceCount === 0}
+          onClick={props.onNavigateToEntry}
+          title={
+            props.entry.occurrenceCount === 0
+              ? "現在の原文に存在しません"
+              : "本文内の最初の出現箇所へ移動"
+          }
+          type="button"
+        >
+          <Link2 aria-hidden="true" size={17} />
+        </button>
+      </div>
       <div className="chip-row">
         <span className="chip mono">{props.entry.token}</span>
         <span className="chip">{CATEGORY_LABELS[props.entry.category]}</span>

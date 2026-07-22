@@ -75,6 +75,31 @@ describe("normalizeDocumentText", () => {
     );
   });
 
+  it("reports special-space conversion separately from invisible-character removal", () => {
+    const result = normalizeDocumentText("前\u3000後", "standard");
+
+    expect(result.normalizedText).toBe("前 後");
+    expect(result.summary.map((item) => item.ruleId)).toContain("special_whitespace");
+    expect(result.summary.map((item) => item.ruleId)).not.toContain("invisible_character");
+  });
+
+  it("does not attach a postal-address paragraph to the preceding prose", () => {
+    const result = normalizeDocumentText(
+      "株式会社サンプル\nのおかず\n\n123-4567 名古屋市 中村区 細岡町 1 - 54 - 6",
+      "standard",
+    );
+
+    expect(result.normalizedText).toContain("のおかず\n\n123-4567");
+    expect(result.normalizedText).not.toContain("のおかず123-4567");
+  });
+
+  it("joins an OCR line break inside a postal code only", () => {
+    const result = normalizeDocumentText("説明\n\n123-\n4567", "standard");
+
+    expect(result.normalizedText).toBe("説明\n\n123-4567");
+    expect(result.summary.map((item) => item.ruleId)).toContain("postal_code_line_break");
+  });
+
   it("aggressively joins Japanese names and address lines in detection-priority mode", () => {
     const result = normalizeDocumentText(
       "山 田 太 郎\n愛知県名古屋市\n中村区名駅一丁目1番4号",
@@ -84,8 +109,19 @@ describe("normalizeDocumentText", () => {
       "山田太郎愛知県名古屋市中村区名駅一丁目1番4号",
     );
     expect(result.summary.map((item) => item.ruleId)).toEqual(
-      expect.arrayContaining(["person_inter_character_space", "address_line_break"]),
+      expect.arrayContaining(["japanese_inter_character_space", "address_line_break"]),
     );
+  });
+
+  it("reports generic Japanese spacing for postal-address text", () => {
+    const result = normalizeDocumentText(
+      "123-4567 名古屋市 中村区 細岡町",
+      "detection_priority",
+    );
+
+    expect(result.normalizedText).toBe("123-4567名古屋市中村区細岡町");
+    expect(result.summary.map((item) => item.ruleId)).toContain("japanese_inter_character_space");
+    expect(result.summary.map((item) => item.ruleId)).not.toContain("person_inter_character_space");
   });
 
   it("joins a wrapped list item but preserves the next item boundary", () => {

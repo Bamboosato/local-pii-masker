@@ -647,6 +647,19 @@ button:disabled {
   word-break: break-word;
 }
 
+.entry-locate-button {
+  width: 28px;
+  height: 28px;
+  margin-left: 6px;
+  color: var(--blue);
+  vertical-align: middle;
+}
+
+.entry-locate-button:hover:not(:disabled) {
+  background: var(--blue-soft);
+  color: var(--blue-strong);
+}
+
 .chip-row {
   flex-wrap: wrap;
   gap: 6px;
@@ -869,10 +882,11 @@ button:disabled {
   position: relative;
   display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: max-content max-content max-content;
   grid-template-rows: minmax(0, 1fr);
   gap: 0 12px;
   align-items: center;
+  justify-content: start;
   margin: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -911,9 +925,10 @@ button:disabled {
   min-width: 0;
   min-height: 24px;
   grid-row: 1;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: max-content max-content;
   align-items: center;
   gap: 6px;
+  justify-content: start;
   color: #1f2937;
   line-height: 1.45;
 }
@@ -940,25 +955,93 @@ button:disabled {
 .normalization-summary {
   align-items: center;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   background: #f8fafc;
   color: #334155;
   font-weight: 700;
 }
 
-.normalization-summary strong {
+.normalization-summary-content {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.normalization-summary-content strong {
   flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.normalization-summary-details {
-  min-width: 0;
-  overflow: hidden;
-  flex: 1 1 auto;
-  color: var(--text-muted);
-  font-size: 11px;
+.normalization-summary-actions {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.normalization-details-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.normalization-details-trigger:hover,
+.normalization-details-trigger[aria-expanded="true"] {
+  background: #dbeafe;
+}
+
+.normalization-details-trigger:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.normalization-details-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 48px));
+  max-height: min(260px, 36vh);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 16%);
+  color: var(--text);
+  font-size: 12px;
   font-weight: 600;
-  text-overflow: ellipsis;
+}
+
+.normalization-details-popover > strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.normalization-details-popover ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.normalization-details-popover li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
   white-space: nowrap;
 }
 
@@ -1055,12 +1138,13 @@ button:disabled {
 
 .normalization-modal .modal-footer {
   gap: 12px;
-  padding: 3px 20px;
+  padding: 10px 20px;
 }
 
 .normalization-modal .modal-footer .button,
 .normalization-cancel-button {
-  min-height: 36px;
+  min-height: var(--compact-control-height);
+  height: var(--compact-control-height);
   padding-block: 0;
 }
 
@@ -1174,6 +1258,8 @@ button:disabled {
   }
 
   .normalization-preview-grid {
+    align-self: start;
+    min-height: 0;
     grid-template-columns: 1fr;
   }
 
@@ -1199,6 +1285,12 @@ button:disabled {
   .normalization-preview-pane pre {
     min-height: 220px;
     max-height: 320px;
+  }
+
+  /* Include the preview heading and gap in the mobile row height so the
+     second pane cannot overlap the first pane's scroll area. */
+  .normalization-preview-pane {
+    min-height: 248px;
   }
 }
 

@@ -51,6 +51,8 @@ test("メニューから正規化Workerの結果を確認して原文へ適用�
     const footer = rect(".modal-footer");
     const cancel = rect(".normalization-cancel-button");
     const apply = rect(".normalization-apply-button");
+    const footerElement = root.querySelector<HTMLElement>(".modal-footer");
+    const mainActions = document.querySelector<HTMLElement>(".tab-actions");
     return {
       modeWidth: mode?.width ?? 0,
       beforeWidth: before?.width ?? 0,
@@ -58,11 +60,16 @@ test("メニューから正規化Workerの結果を確認して原文へ適用�
       footerHeight: footer?.height ?? 0,
       cancelHeight: cancel?.height ?? 0,
       applyHeight: apply?.height ?? 0,
+      footerPaddingTop: Number.parseFloat(getComputedStyle(footerElement ?? root).paddingTop),
+      footerPaddingBottom: Number.parseFloat(getComputedStyle(footerElement ?? root).paddingBottom),
+      mainActionPaddingBottom: Number.parseFloat(getComputedStyle(mainActions ?? root).paddingBottom),
     };
   });
   expect(Math.abs(layout.modeWidth - layout.beforeWidth)).toBeLessThanOrEqual(1);
   expect(layout.headerHeight).toBeLessThanOrEqual(52);
-  expect(layout.footerHeight).toBeLessThanOrEqual(44);
+  expect(layout.footerHeight).toBeLessThanOrEqual(54);
+  expect(Math.abs(layout.footerPaddingTop - layout.mainActionPaddingBottom)).toBeLessThanOrEqual(1);
+  expect(Math.abs(layout.footerPaddingBottom - layout.mainActionPaddingBottom)).toBeLessThanOrEqual(1);
   expect(Math.abs(layout.cancelHeight - layout.applyHeight)).toBeLessThanOrEqual(1);
   await expect(dialog.getByLabel("正規化後")).toContainText("氏名:山田 太郎");
 

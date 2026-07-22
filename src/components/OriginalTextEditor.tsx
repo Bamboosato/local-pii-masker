@@ -7,17 +7,22 @@ import {
   keymap,
   placeholder as placeholderExtension,
 } from "@codemirror/view";
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { HighlightSegment } from "../domain/mask/highlightText";
 
 type OriginalTextEditorProps = {
   highlights: HighlightSegment[];
   maxLength: number;
   onChange: (value: string) => void;
+  onHighlightClick: (entryId: string) => void;
   onSelectionChange: (value: string) => void;
   placeholder: string;
   selectedEntryId?: string;
   value: string;
+};
+
+export type OriginalTextEditorHandle = {
+  scrollToRange: (range: { start: number; end: number }) => void;
 };
 
 const setHighlightsEffect = StateEffect.define<DecorationSet>();
@@ -38,23 +43,49 @@ const highlightField = StateField.define<DecorationSet>({
   },
 });
 
-export function OriginalTextEditor({
-  highlights,
-  maxLength,
-  onChange,
-  onSelectionChange,
-  placeholder,
-  selectedEntryId,
-  value,
-}: OriginalTextEditorProps) {
+export const OriginalTextEditor = forwardRef<
+  OriginalTextEditorHandle,
+  OriginalTextEditorProps
+>(function OriginalTextEditor(
+  {
+    highlights,
+    maxLength,
+    onChange,
+    onHighlightClick,
+    onSelectionChange,
+    placeholder,
+    selectedEntryId,
+    value,
+  },
+  ref,
+) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView>(null);
-  const callbacksRef = useRef({ onChange, onSelectionChange });
+  const callbacksRef = useRef({ onChange, onHighlightClick, onSelectionChange });
   const initialValueRef = useRef(value);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToRange: (range) => {
+        const view = viewRef.current;
+
+        if (!view) {
+          return;
+        }
+
+        const start = Math.max(0, Math.min(range.start, view.state.doc.length));
+        view.dispatch({
+          effects: EditorView.scrollIntoView(start, { y: "center" }),
+        });
+      },
+    }),
+    [],
+  );
+
   useEffect(() => {
-    callbacksRef.current = { onChange, onSelectionChange };
-  }, [onChange, onSelectionChange]);
+    callbacksRef.current = { onChange, onHighlightClick, onSelectionChange };
+  }, [onChange, onHighlightClick, onSelectionChange]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -73,6 +104,24 @@ export function OriginalTextEditor({
           "aria-label": "原文",
           "aria-multiline": "true",
           spellcheck: "true",
+        }),
+        EditorView.domEventHandlers({
+          click: (event) => {
+            const target = event.target;
+
+            if (!(target instanceof HTMLElement)) {
+              return false;
+            }
+
+            const entryId = target.closest<HTMLElement>("[data-entry-id]")?.dataset.entryId;
+
+            if (!entryId) {
+              return false;
+            }
+
+            callbacksRef.current.onHighlightClick(entryId);
+            return false;
+          },
         }),
         placeholderExtension(placeholder),
         EditorState.changeFilter.of(
@@ -130,6 +179,7 @@ export function OriginalTextEditor({
 
       return [
         Decoration.mark({
+          attributes: { "data-entry-id": segment.entryId },
           class: getHighlightClass(
             segment,
             selectedEntryId === segment.entryId,
@@ -144,7 +194,7 @@ export function OriginalTextEditor({
   }, [highlights, selectedEntryId]);
 
   return <div className="original-text-editor" ref={hostRef} />;
-}
+});
 
 function getHighlightClass(
   segment: Extract<HighlightSegment, { type: "highlight" }>,
