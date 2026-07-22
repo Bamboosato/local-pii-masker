@@ -25,5 +25,5 @@ export function createMaskToken(
 }
 
 export function isMaskToken(value: string): boolean {
-  return /^\[[^\]\s]+_\d+\]$/.test(value);
+  return /^\[(?!\[)[^\]\s]+_\d+\]$/.test(value);
 }

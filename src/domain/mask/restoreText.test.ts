@@ -21,4 +21,14 @@ describe("restoreText", () => {
     expect(inspection.absent).toEqual(["[電話番号_1]"]);
     expect(inspection.unknown).toEqual(["[住所_9]"]);
   });
+
+  it("Markdownリンクの二重角括弧を不明トークンとして数えない", () => {
+    const inspection = inspectTokens(
+      "[[メール_1]](mailto:[メール_1])",
+      [{ token: "[メール_1]" }],
+    );
+
+    expect(inspection.knownPresent).toEqual(["[メール_1]"]);
+    expect(inspection.unknown).toEqual([]);
+  });
 });

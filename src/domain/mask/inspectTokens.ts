@@ -6,7 +6,9 @@ export type TokenInspection = {
   unknown: string[];
 };
 
-const TOKEN_PATTERN = /\[[^\]\s]+_\d+\]/g;
+// Do not allow a nested opening bracket so Markdown links such as
+// `[[メール_1]](mailto:[メール_1])` are inspected as one known token.
+const TOKEN_PATTERN = /\[(?!\[)[^\]\s]+_\d+\]/g;
 
 export function inspectTokens(
   response: string,

@@ -8,6 +8,8 @@ import {
   Info,
   Link2,
   LoaderCircle,
+  Maximize2,
+  Minimize2,
   Search,
   ShieldCheck,
   Trash2,
@@ -70,6 +72,7 @@ import {
 
 const MAX_CHAR_COUNT = 10000;
 const DETECTION_PROGRESS_DELAY_MS = 1000;
+const RESTORE_TEXTAREA_MIN_HEIGHT = 160;
 type DetectionPhase = "idle" | "regex" | "ner-loading" | "ner-running";
 type NerDetectionOutcome = "success" | "failed" | "cancelled";
 type DetectionCancellationReason =
@@ -77,6 +80,56 @@ type DetectionCancellationReason =
   | "source-changed"
   | "session-cleared"
   | "unmount";
+
+function calculateRestoreTextareaHeight(
+  content: HTMLDivElement,
+  dock: HTMLElement,
+  appHeader: HTMLElement,
+  appShell: HTMLElement,
+): number | undefined {
+  const textareas = Array.from(
+    content.querySelectorAll<HTMLTextAreaElement>("textarea"),
+  );
+
+  if (textareas.length === 0) {
+    return undefined;
+  }
+
+  const columns = Math.max(
+    1,
+    getComputedStyle(content).gridTemplateColumns
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean).length,
+  );
+  const rows = Math.ceil(textareas.length / columns);
+  const rowHeights = Array.from({ length: rows }, () => 0);
+
+  textareas.forEach((textarea, index) => {
+    const row = Math.floor(index / columns);
+    rowHeights[row] = Math.max(
+      rowHeights[row],
+      textarea.getBoundingClientRect().height,
+    );
+  });
+
+  const currentTextareasHeight = rowHeights.reduce(
+    (sum, height) => sum + height,
+    0,
+  );
+  const fixedHeight = dock.getBoundingClientRect().height - currentTextareasHeight;
+  const availableHeight =
+    (appShell.getBoundingClientRect().bottom -
+      appHeader.getBoundingClientRect().bottom -
+      fixedHeight) /
+    rows;
+
+  if (!Number.isFinite(availableHeight)) {
+    return undefined;
+  }
+
+  return Math.max(RESTORE_TEXTAREA_MIN_HEIGHT, Math.floor(availableHeight));
+}
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -89,6 +142,8 @@ export default function App() {
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
   const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
   const [showDetectionProgress, setShowDetectionProgress] = useState(false);
+  const [restoreInputsExpanded, setRestoreInputsExpanded] = useState(false);
+  const [restoreTextareaHeight, setRestoreTextareaHeight] = useState<number>();
   const normalization = useTextNormalization();
   const detectionAbortRef = useRef<AbortController | undefined>(undefined);
   const latestDetectionMergeContextRef = useRef({
@@ -96,6 +151,8 @@ export default function App() {
     originalText: state.originalText,
   });
   const lastSelectionControlRef = useRef<HTMLButtonElement>(null);
+  const appShellRef = useRef<HTMLDivElement>(null);
+  const appHeaderRef = useRef<HTMLElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuButtonRef = useRef<HTMLButtonElement>(null);
   const clearMenuItemRef = useRef<HTMLButtonElement>(null);
@@ -104,6 +161,9 @@ export default function App() {
   const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchInputRef = useRef<HTMLInputElement>(null);
   const entryListRef = useRef<HTMLDivElement>(null);
+  const restoreDockRef = useRef<HTMLElement>(null);
+  const restoreContentRef = useRef<HTMLDivElement>(null);
+  const restoreTextareaHeightBeforeExpandRef = useRef<number | undefined>(undefined);
   const originalEditorRef = useRef<OriginalTextEditorHandle>(null);
   const maskedPreviewRef = useRef<HTMLDivElement>(null);
   const maskedText = selectMaskedText(state);
@@ -126,6 +186,10 @@ export default function App() {
     state.originalText.length > 0 ||
     state.entries.length > 0 ||
     state.externalResponse.length > 0;
+  const restoreTextareaStyle =
+    restoreTextareaHeight === undefined
+      ? undefined
+      : { height: `${restoreTextareaHeight}px` };
   const manualPreviewToken = useMemo(() => {
     const normalizedSelection = normalizeText(selectedText);
     const existing = state.entries.find(
@@ -228,6 +292,89 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [isDetecting]);
 
+  useEffect(() => {
+    if (!state.restoreExpanded || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const content = restoreContentRef.current;
+
+    if (!content) {
+      return;
+    }
+
+    const textareas = Array.from(
+      content.querySelectorAll<HTMLTextAreaElement>("textarea"),
+    );
+
+    if (textareas.length === 0) {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+
+      if (!entry) {
+        return;
+      }
+
+      const measuredHeight = Math.round(
+        (entry.target as HTMLTextAreaElement).getBoundingClientRect().height,
+      );
+      const content = restoreContentRef.current;
+      const dock = restoreDockRef.current;
+      const appHeader = appHeaderRef.current;
+      const appShell = appShellRef.current;
+      const maxExpandedHeight =
+        restoreInputsExpanded && content && dock && appHeader && appShell
+          ? calculateRestoreTextareaHeight(content, dock, appHeader, appShell)
+          : undefined;
+      const nextHeight = Math.max(
+        RESTORE_TEXTAREA_MIN_HEIGHT,
+        Math.min(measuredHeight, maxExpandedHeight ?? measuredHeight),
+      );
+      setRestoreTextareaHeight((currentHeight) =>
+        currentHeight === nextHeight ? currentHeight : nextHeight,
+      );
+    });
+
+    textareas.forEach((textarea) => observer.observe(textarea));
+
+    return () => observer.disconnect();
+  }, [restoreInputsExpanded, state.restoreExpanded]);
+
+  useEffect(() => {
+    if (!restoreInputsExpanded) {
+      return;
+    }
+
+    const updateExpandedHeight = () => {
+      const content = restoreContentRef.current;
+      const dock = restoreDockRef.current;
+      const appHeader = appHeaderRef.current;
+      const appShell = appShellRef.current;
+
+      if (!content || !dock || !appHeader || !appShell) {
+        return;
+      }
+
+      const nextHeight = calculateRestoreTextareaHeight(
+        content,
+        dock,
+        appHeader,
+        appShell,
+      );
+
+      if (nextHeight !== undefined) {
+        setRestoreTextareaHeight(nextHeight);
+      }
+    };
+
+    window.addEventListener("resize", updateExpandedHeight);
+
+    return () => window.removeEventListener("resize", updateExpandedHeight);
+  }, [restoreInputsExpanded]);
+
   function openManualDialog() {
     const normalizedSelection = selectedText.normalize("NFC");
 
@@ -269,6 +416,44 @@ export default function App() {
     dispatch({ type: "applyNormalizedOriginal", value, expectedRevision });
     normalization.close();
     window.requestAnimationFrame(() => detectionButtonRef.current?.focus());
+  }
+
+  function toggleRestoreInputsExpanded() {
+    const nextExpanded = !restoreInputsExpanded;
+
+    if (nextExpanded) {
+      const content = restoreContentRef.current;
+      const dock = restoreDockRef.current;
+      const appHeader = appHeaderRef.current;
+      const appShell = appShellRef.current;
+
+      const currentTextarea = content?.querySelector<HTMLTextAreaElement>("textarea");
+      const currentHeight = currentTextarea?.getBoundingClientRect().height;
+
+      restoreTextareaHeightBeforeExpandRef.current =
+        restoreTextareaHeight ??
+        (currentHeight && currentHeight >= RESTORE_TEXTAREA_MIN_HEIGHT
+          ? Math.round(currentHeight)
+          : RESTORE_TEXTAREA_MIN_HEIGHT);
+
+      if (content && dock && appHeader && appShell) {
+        const nextHeight = calculateRestoreTextareaHeight(
+          content,
+          dock,
+          appHeader,
+          appShell,
+        );
+
+        if (nextHeight !== undefined) {
+          setRestoreTextareaHeight(nextHeight);
+        }
+      }
+    } else {
+      setRestoreTextareaHeight(restoreTextareaHeightBeforeExpandRef.current);
+      restoreTextareaHeightBeforeExpandRef.current = undefined;
+    }
+
+    setRestoreInputsExpanded(nextExpanded);
   }
 
   async function copyMaskedText(force = false) {
@@ -403,8 +588,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
+    <div className="app-shell" ref={appShellRef}>
+      <header className="app-header" ref={appHeaderRef}>
         <div className="brand-cluster">
           <h1>Local PII Masker</h1>
           <span
@@ -689,12 +874,15 @@ export default function App() {
             </label>
           ) : null}
 
-          <div className="entry-list" ref={entryListRef}>
+          <div
+            className={`entry-list${visibleEntries.length === 0 ? " is-empty" : ""}`}
+            ref={entryListRef}
+          >
             {visibleEntries.length === 0 ? (
               <div className="empty-state">
                 {state.entryFilter === "disabled"
                   ? "無効なマスク対象はありません。"
-                  : "原文で文字列を選択し、マスク対象として追加してください。"}
+                  : "原文でマスク対象が検出、選択されると表示されます。"}
               </div>
             ) : (
               visibleEntries.map((entry) => (
@@ -715,7 +903,11 @@ export default function App() {
         </aside>
       </main>
 
-      <section className="restore-dock" aria-label="マスクの復元">
+      <section
+        className="restore-dock"
+        aria-label="マスクの復元"
+        ref={restoreDockRef}
+      >
         <button
           aria-expanded={state.restoreExpanded}
           className="restore-toggle"
@@ -735,23 +927,53 @@ export default function App() {
           {tokenInspection.absent.length} / 不明: {tokenInspection.unknown.length}
         </div>
         {state.restoreExpanded ? (
-          <div className="restore-content">
-            <label>
-              <span>マスクを含む文章</span>
-              <textarea
-                aria-label="マスクを含む文章"
-                onChange={(event) =>
-                  dispatch({
-                    type: "setExternalResponse",
-                    value: event.target.value,
-                  })
-                }
-                value={state.externalResponse}
-              />
+          <div
+            className={`restore-content${restoreInputsExpanded ? " is-expanded" : ""}`}
+            ref={restoreContentRef}
+          >
+            <label className="restore-field">
+              <div className="restore-field-heading">
+                <span>マスクを含む文章</span>
+                <button
+                  aria-label={
+                    restoreInputsExpanded ? "入力欄を縮小" : "入力欄を拡大"
+                  }
+                  className="icon-button restore-expand-button"
+                  onClick={toggleRestoreInputsExpanded}
+                  title={restoreInputsExpanded ? "入力欄を縮小" : "入力欄を拡大"}
+                  type="button"
+                >
+                  {restoreInputsExpanded ? (
+                    <Minimize2 aria-hidden="true" size={17} />
+                  ) : (
+                    <Maximize2 aria-hidden="true" size={17} />
+                  )}
+                </button>
+              </div>
+              <div className="restore-textarea-wrap">
+                <textarea
+                  aria-label="マスクを含む文章"
+                  onChange={(event) =>
+                    dispatch({
+                      type: "setExternalResponse",
+                      value: event.target.value,
+                    })
+                  }
+                  style={restoreTextareaStyle}
+                  value={state.externalResponse}
+                />
+              </div>
             </label>
-            <label>
+            <label className="restore-field">
               <span>マスクを復元した文章</span>
-              <textarea aria-label="マスクを復元した文章" readOnly value={restoration} />
+              <div className="restore-textarea-wrap">
+                <textarea
+                  aria-label="マスクを復元した文章"
+                  readOnly
+                  style={restoreTextareaStyle}
+                  value={restoration}
+                />
+              </div>
             </label>
           </div>
         ) : null}
