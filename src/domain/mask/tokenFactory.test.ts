@@ -23,5 +23,6 @@ describe("tokenFactory", () => {
   it("トークン形式を検証できる", () => {
     expect(isMaskToken("[人名_1]")).toBe(true);
     expect(isMaskToken("人名_1")).toBe(false);
+    expect(isMaskToken("[[人名_1]")).toBe(false);
   });
 });

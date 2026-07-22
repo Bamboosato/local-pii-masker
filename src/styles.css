@@ -1,9 +1,10 @@
 :root {
   color: #191c1e;
   background: #f7f9fb;
-  font-family:
+  --app-font-family:
     Inter, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo,
     sans-serif;
+  font-family: var(--app-font-family);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,7 +26,9 @@
   --section-header-height: 52px;
   --compact-control-height: 32px;
   --workspace-footer-height: 44px;
+  --empty-guidance-color: #5f6b7a;
   --empty-guidance-font-size: 16px;
+  --empty-guidance-font-weight: 600;
 }
 
 * {
@@ -394,9 +397,10 @@ button:disabled {
 }
 
 .original-text-editor .cm-placeholder {
-  color: #5f6b7a;
+  color: var(--empty-guidance-color);
+  font-family: var(--app-font-family);
   font-size: var(--empty-guidance-font-size);
-  font-weight: 600;
+  font-weight: var(--empty-guidance-font-weight);
 }
 
 .original-text-editor .cm-selectionBackground,
@@ -445,6 +449,14 @@ button:disabled {
 .masked-preview {
   overflow: auto;
   background: var(--surface);
+}
+
+.masked-preview .muted,
+.entry-list .empty-state {
+  color: var(--empty-guidance-color);
+  font-family: var(--app-font-family);
+  font-size: var(--empty-guidance-font-size);
+  font-weight: var(--empty-guidance-font-weight);
 }
 
 .inline-token {
@@ -590,6 +602,18 @@ button:disabled {
   overflow: auto;
   border-top: 1px solid var(--line);
   padding: 20px;
+}
+
+/* Keep the initial empty panel aligned with the original editor frame. The
+   1px top border is already part of the list, so the top inset is 23px. */
+.entry-list.is-empty {
+  padding: 23px 24px calc(var(--workspace-footer-height) + 24px);
+}
+
+.entry-list.is-empty .empty-state {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 24px;
 }
 
 .entry-card {
@@ -806,12 +830,41 @@ button:disabled {
   font-weight: 700;
 }
 
+.restore-field-heading {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.restore-textarea-wrap {
+  min-height: 160px;
+}
+
 .restore-content textarea {
+  display: block;
+  width: 100%;
   min-height: 160px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
   resize: vertical;
+}
+
+.restore-expand-button {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+}
+
+.restore-expand-button:hover {
+  background: var(--blue-soft);
+  color: var(--blue-strong);
 }
 
 .modal-backdrop {
@@ -1315,5 +1368,14 @@ button:disabled {
   .restore-summary {
     float: none;
     padding: 0 24px 12px;
+  }
+
+  .entry-list.is-empty {
+    padding: 20px;
+  }
+
+  .entry-list.is-empty .empty-state {
+    flex: 0 0 auto;
+    padding: 18px;
   }
 }

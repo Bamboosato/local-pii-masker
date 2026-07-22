@@ -79,6 +79,11 @@ describe("App", () => {
     expect(
       within(panelHeader).getByRole("button", { name: "マスク対象を検索" }),
     ).toBeInTheDocument();
+    const emptyGuidance = screen.getByText(
+      "原文でマスク対象が検出、選択されると表示されます。",
+    );
+    expect(emptyGuidance).toHaveClass("empty-state");
+    expect(emptyGuidance.parentElement).toHaveClass("is-empty");
     expect(screen.queryByRole("searchbox", { name: "候補を検索" })).not.toBeInTheDocument();
 
     await user.click(within(panelHeader).getByRole("button", { name: "マスク対象を検索" }));
@@ -899,8 +904,28 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "マスクを復元" }));
 
-    expect(screen.getByLabelText("マスクを含む文章")).toBeInTheDocument();
-    expect(screen.getByLabelText("マスクを復元した文章")).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "マスクを含む文章" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "マスクを復元した文章" }),
+    ).toBeInTheDocument();
+    const expandButton = screen.getByRole("button", { name: "入力欄を拡大" });
+    expect(expandButton).toBeInTheDocument();
+    expect(expandButton.parentElement).toHaveClass("restore-field-heading");
+    expect(expandButton.closest(".restore-textarea-wrap")).not.toBeInTheDocument();
+    const restoreInput = screen.getByRole("textbox", { name: "マスクを含む文章" });
+
+    await user.click(screen.getByRole("button", { name: "入力欄を拡大" }));
+    expect(screen.getByRole("button", { name: "入力欄を縮小" })).toBeInTheDocument();
+    expect(document.querySelector(".restore-content")).toHaveClass("is-expanded");
+    expect((restoreInput as HTMLTextAreaElement).style.height).toMatch(/px$/);
+
+    await user.click(screen.getByRole("button", { name: "入力欄を縮小" }));
+    expect(screen.getByRole("button", { name: "入力欄を拡大" })).toBeInTheDocument();
+    expect(document.querySelector(".restore-content")).not.toHaveClass("is-expanded");
+    expect(restoreInput).toHaveStyle({ height: "160px" });
+
     expect(
       screen.queryByRole("button", { name: "外部AI回答のトークンを復元" }),
     ).not.toBeInTheDocument();
