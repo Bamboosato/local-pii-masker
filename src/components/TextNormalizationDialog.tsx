@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, LoaderCircle, X } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { buildNormalizationPreview } from "../domain/normalization/document/buildPreviewSegments";
 import type {
   DocumentNormalizationMode,
@@ -13,6 +13,7 @@ const RULE_LABELS: Record<string, string> = {
   unicode_nfc: "Unicode正規化",
   line_ending: "改行コード統一",
   invisible_character: "不可視文字除去",
+  special_whitespace: "特殊空白補正",
   fullwidth_ascii: "全角文字補正",
   structured_hyphen: "ハイフン統一",
   email_spacing: "メール空白補正",
@@ -25,7 +26,7 @@ const RULE_LABELS: Record<string, string> = {
   date_time_line_break: "日付・時刻改行結合",
   label_value_line_break: "ラベルと値の結合",
   list_item_wrap: "箇条書き折り返し",
-  person_inter_character_space: "氏名空白補正",
+  japanese_inter_character_space: "日本語文字間空白補正",
   person_line_break: "氏名改行結合",
   kana_inter_character_space: "フリガナ空白補正",
   address_line_break: "住所改行結合",
@@ -203,24 +204,87 @@ function NormalizationSummary(props: {
   result: DocumentNormalizationResult;
   changed: boolean;
 }) {
-  const details = props.result.summary
-    .map((item) => `${RULE_LABELS[item.ruleId] ?? item.ruleId}: ${item.count}件`)
-    .join(" ・ ");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsButtonRef = useRef<HTMLButtonElement>(null);
+  const detailsPopoverRef = useRef<HTMLDivElement>(null);
+  const hasDetails = props.result.summary.length > 0;
+
+  useEffect(() => {
+    if (!detailsOpen) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (detailsButtonRef.current?.contains(target) || detailsPopoverRef.current?.contains(target)) {
+        return;
+      }
+      setDetailsOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      setDetailsOpen(false);
+      detailsButtonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [detailsOpen]);
 
   return (
     <div aria-live="polite" className="normalization-summary" role="status">
-      {props.changed ? (
-        <>
-          <CheckCircle2 aria-hidden="true" size={18} />
-          <strong>変更箇所 {props.result.changedLocationCount}件</strong>
-        </>
-      ) : (
-        "変更箇所なし"
-      )}
-      {details ? (
-        <span className="normalization-summary-details" title={details}>
-          {details}
-        </span>
+      <div className="normalization-summary-content">
+        {props.changed ? (
+          <>
+            <CheckCircle2 aria-hidden="true" size={18} />
+            <strong>変更箇所 {props.result.changedLocationCount}件</strong>
+          </>
+        ) : (
+          "変更箇所なし"
+        )}
+      </div>
+      {hasDetails ? (
+        <div className="normalization-summary-actions">
+          <button
+            aria-controls="normalization-summary-details"
+            aria-expanded={detailsOpen}
+            className="normalization-details-trigger"
+            onClick={() => setDetailsOpen((open) => !open)}
+            ref={detailsButtonRef}
+            title="変更ルール別の内訳を表示します。"
+            type="button"
+          >
+            {detailsOpen ? "内訳を閉じる" : "内訳を表示"}
+            <span aria-hidden="true">{detailsOpen ? "▴" : "▾"}</span>
+          </button>
+          <div
+            aria-label="内訳（ルール別・延べ件数）"
+            className="normalization-details-popover"
+            hidden={!detailsOpen}
+            id="normalization-summary-details"
+            ref={detailsPopoverRef}
+            role="region"
+          >
+            <strong>内訳（ルール別・延べ件数）</strong>
+            <ul>
+              {props.result.summary.map((item) => (
+                <li key={`${item.ruleId}-${item.kind}`}>
+                  <span>{RULE_LABELS[item.ruleId] ?? item.ruleId}</span>
+                  <span>{item.count}件</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       ) : null}
     </div>
   );

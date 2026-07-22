@@ -52,7 +52,9 @@ const EMAIL_LOCAL_CHARACTERS = new Set(
   Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.!#$%&'*+/=?^_`{|}~-"),
 );
 const PHONE_PATTERN = /\d[\d\s\r\n‐‑‒–—―−﹣－-]{5,}\d/g;
-const POSTAL_PATTERN = /(?<![\d-])〒?[\s\u3000]*\d{3}[\s\u3000\r\n]*(?:[‐‑‒–—―−﹣－-][\s\u3000\r\n]*|[\s\u3000\r\n]+)\d{4}(?![\s\u3000]*[‐‑‒–—―−﹣－-][\s\u3000\r\n]*\d)/g;
+// Keep paragraph/line breaks before a postal code intact. OCR line breaks are
+// still allowed inside the 3+4 digit code itself.
+const POSTAL_PATTERN = /(?<![\d-])〒?[ \t\u3000]*\d{3}[\s\u3000\r\n]*(?:[‐‑‒–—―−﹣－-][\s\u3000\r\n]*|[\s\u3000\r\n]+)\d{4}(?![\s\u3000]*[‐‑‒–—―−﹣－-][\s\u3000\r\n]*\d)/g;
 const DATE_PATTERN = /\d{4}[\s\u3000\r\n]*年[\s\u3000\r\n]*\d{1,2}[\s\u3000\r\n]*月[\s\u3000\r\n]*\d{1,2}[\s\u3000\r\n]*日/g;
 const TIME_PATTERN = /\d{1,2}[\s\u3000]*[:：][\s\u3000]*\d{2}(?:[\s\u3000]*[:：][\s\u3000]*\d{2})?/g;
 const ZERO_WIDTH_MARK_PATTERN = /\p{M}/u;
@@ -154,16 +156,29 @@ function applyInvisibleCharacterRule(input: WorkingText): WorkingText {
   const next = cloneWorkingText(input);
   let runStart: number | undefined;
   let runEnd = 0;
+  let runRuleId: DocumentNormalizationRuleId | undefined;
 
   const flush = () => {
     if (runStart !== undefined) {
       next.events.push({
-        ruleId: "invisible_character",
+        ruleId: runRuleId ?? "invisible_character",
         kind: "character",
         originalRange: originalRange(input.units.slice(runStart, runEnd)),
       });
       runStart = undefined;
+      runRuleId = undefined;
     }
+  };
+
+  const replaceUnit = (index: number, value: string, ruleId: DocumentNormalizationRuleId) => {
+    const unit = next.units[index];
+    if (runRuleId !== undefined && runRuleId !== ruleId) {
+      flush();
+    }
+    next.units[index] = { ...unit, value, changed: true, ruleIds: addRule(unit.ruleIds, ruleId) };
+    runStart ??= index;
+    runEnd = index + 1;
+    runRuleId = ruleId;
   };
 
   for (let index = 0; index < next.units.length; index += 1) {
@@ -173,21 +188,15 @@ function applyInvisibleCharacterRule(input: WorkingText): WorkingText {
       continue;
     }
     if (ZERO_WIDTH_CHARACTERS.has(unit.value)) {
-      next.units[index] = { ...unit, value: "", changed: true, ruleIds: addRule(unit.ruleIds, "invisible_character") };
-      runStart ??= index;
-      runEnd = index + 1;
+      replaceUnit(index, "", "invisible_character");
       continue;
     }
     if (SPACE_CHARACTERS.has(unit.value)) {
-      next.units[index] = { ...unit, value: " ", changed: true, ruleIds: addRule(unit.ruleIds, "invisible_character") };
-      runStart ??= index;
-      runEnd = index + 1;
+      replaceUnit(index, " ", "special_whitespace");
       continue;
     }
     if (isRemovableControl(unit.value)) {
-      next.units[index] = { ...unit, value: "", changed: true, ruleIds: addRule(unit.ruleIds, "invisible_character") };
-      runStart ??= index;
-      runEnd = index + 1;
+      replaceUnit(index, "", "invisible_character");
       continue;
     }
     flush();
@@ -527,7 +536,7 @@ function applyJapaneseInterCharacterSpaceRule(input: WorkingText): WorkingText {
     next = applyRegexEdits(
       next,
       pattern,
-      "person_inter_character_space",
+      "japanese_inter_character_space",
       "space",
       (match) => match.replace(/[ \u3000]/u, ""),
     );

@@ -142,6 +142,32 @@ describe("App", () => {
     );
   });
 
+  it("変更箇所の内訳をクリックで開閉し、Escapeで起点へ戻す", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), "氏名：\n山田 太郎");
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "テキストを正規化" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "テキスト正規化" });
+    const summaryButton = await within(dialog).findByRole("button", { name: "内訳を表示" });
+    expect(summaryButton).toHaveAttribute("aria-expanded", "false");
+    expect(within(dialog).queryByRole("region", { name: "内訳（ルール別・延べ件数）" })).not.toBeInTheDocument();
+
+    await user.click(summaryButton);
+    expect(summaryButton).toHaveAttribute("aria-expanded", "true");
+    expect(within(dialog).getByRole("region", { name: "内訳（ルール別・延べ件数）" })).toHaveTextContent("ラベルと値の結合");
+
+    await user.click(within(dialog).getByLabelText("正規化前"));
+    expect(within(dialog).queryByRole("region", { name: "内訳（ルール別・延べ件数）" })).not.toBeInTheDocument();
+
+    await user.click(summaryButton);
+    await user.keyboard("{Escape}");
+    expect(summaryButton).toHaveAttribute("aria-expanded", "false");
+    expect(summaryButton).toHaveFocus();
+  });
+
   it("正規化のキャンセルでは原文を変更しない", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -192,6 +218,20 @@ describe("App", () => {
     ).toHaveLength(2);
     expect(document.querySelector(".original-highlight-layer")).not.toBeInTheDocument();
 
+    const originalHighlight = screen
+      .getByLabelText("原文")
+      .querySelector<HTMLElement>(".original-highlight");
+    expect(originalHighlight).not.toBeNull();
+    scrollIntoViewMock.mockClear();
+    await user.click(originalHighlight as HTMLElement);
+    expect(
+      screen.getByRole("button", { name: "山田太郎の最初の出現箇所へ移動" }).closest("article"),
+    ).toHaveClass("is-selected");
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+    });
+
     await user.click(screen.getByRole("tab", { name: "マスク結果" }));
 
     const maskedTokens = screen.getAllByRole("button", { name: "[人名_1]" });
@@ -205,6 +245,45 @@ describe("App", () => {
     expect(scrollIntoViewMock).toHaveBeenCalledWith({
       behavior: "smooth",
       block: "nearest",
+    });
+  });
+
+  it("マスク対象カードのアイコンから本文内の最初の出現箇所へ移動する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const editor = screen.getByLabelText("原文");
+    setEditorText(editor, "前半。山田太郎。後半。山田太郎。");
+    selectEditorRange(editor, 3, 7);
+    await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "マスク対象に追加" })).getByRole(
+        "button",
+        { name: "追加してマスク" },
+      ),
+    );
+
+    const locateButton = screen.getByRole("button", {
+      name: "山田太郎の最初の出現箇所へ移動",
+    });
+    expect(locateButton).toHaveAttribute("title", "本文内の最初の出現箇所へ移動");
+
+    scrollIntoViewMock.mockClear();
+    await user.click(locateButton);
+    expect(screen.getByRole("tab", { name: "原文" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(locateButton.closest("article")).toHaveClass("is-selected");
+
+    await user.click(screen.getByRole("tab", { name: "マスク結果" }));
+    scrollIntoViewMock.mockClear();
+    await user.click(locateButton);
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
     });
   });
 
@@ -809,6 +888,9 @@ describe("App", () => {
     expect(screen.getByLabelText("現在の原文に存在しない: 0か所")).toHaveTextContent(
       "0か所",
     );
+    expect(
+      screen.getByRole("button", { name: "山田の最初の出現箇所へ移動" }),
+    ).toBeDisabled();
   });
 
   it("復元エリアはマスクを含む文章と復元後の文章として表示する", async () => {

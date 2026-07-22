@@ -131,6 +131,7 @@ export type DocumentNormalizationRuleId =
   | "unicode_nfc"
   | "line_ending"
   | "invisible_character"
+  | "special_whitespace"
   | "fullwidth_ascii"
   | "structured_hyphen"
   | "email_spacing"
@@ -144,7 +145,7 @@ export type DocumentNormalizationRuleId =
   | "label_value_line_break"
   | "list_item_wrap"
   | "excess_whitespace"
-  | "person_inter_character_space"
+  | "japanese_inter_character_space"
   | "person_line_break"
   | "kana_inter_character_space"
   | "address_line_break"
@@ -270,7 +271,7 @@ type RuleContext = {
 | ---: | --- |
 | 1 | `unicode_nfc` |
 | 2 | `line_ending` |
-| 3 | `invisible_character` |
+| 3 | `invisible_character`, `special_whitespace` |
 | 4 | `fullwidth_ascii` |
 | 5 | 構造化PIIのハイフン・空白・改行 |
 | 6 | 氏名・フリガナ・住所・組織・識別番号 |
@@ -315,7 +316,7 @@ type RuleContext = {
 | 処理 | 対象 |
 | --- | --- |
 | 除去 | U+200B ZERO WIDTH SPACE、U+2060 WORD JOINER、先頭または途中のU+FEFF |
-| ASCII空白へ変換 | U+00A0、U+2007、U+202F、通常テキスト中のU+3000 |
+| ASCII空白へ変換 | U+00A0、U+2007、U+202F、通常テキスト中のU+3000（`special_whitespace`） |
 | 除去 | C0/C1制御文字。ただしLFとTABを除く |
 | 保持 | U+200C、U+200D、Variation Selector、絵文字を構成する結合文字 |
 
@@ -356,6 +357,8 @@ TABは表・インデント構造を壊さないため全体では保持し、�
 | 郵便番号 | 16 | 2 | `3桁-4桁`または既存許容形式 |
 | 日付 | 32 | 2 | 西暦・和暦の構造と実在日 |
 | 時刻 | 16 | 2 | 0～23時、0～59分、任意の秒 |
+
+郵便番号候補の開始位置より前にある空白・改行は候補窓へ含めない。同一行の空白は先頭表記の一部として整理できるが、段落や前文との境界を示す改行・空行は保持する。一方、3桁と4桁の間にあるOCR由来の単一改行は候補内部として検証し、妥当な場合だけ除去する。
 
 検証関数は正規化エンジンと検出器から利用できる純粋関数として切り出し、`runRegexDetection`全体を正規化エンジンから呼ばない。これにより検出用正規化との循環依存を避ける。
 
@@ -623,11 +626,11 @@ type NormalizationAvailability =
 - 幅：`min(1200px, calc(100vw - 48px))`
 - 高さ：`min(820px, calc(100dvh - 48px))`
 - 本文領域だけをスクロール可能とし、ヘッダーとフッターを固定する。
-- モーダルヘッダーは52px、フッターは44pxを基準とし、通常画面のヘッダー・フッターに近い高さに抑える。
+- モーダルヘッダーは52pxを基準とし、フッターのボタンは主要操作ボタンと同じ32px、上下余白は通常画面の主要ボタン配置と同じ10pxを基準とする。
 - 警告、モード選択、変更サマリーは上下余白を抑えたコンパクトな情報帯とし、前後プレビューへ表示領域を優先配分する。
-- 1024px以上では正規化モードと変更サマリーを横並びにし、モード内の2選択肢も横並びにする。1024px未満ではこれらを上下配置に戻す。
+- 1024px以上では正規化モードと変更サマリーを横並びにし、モード内の2選択肢も横並びにする。各項目の列幅は内容幅に固定して余った幅を分配せず、モード名と最初の選択肢、選択肢同士の間隔は12px、ラジオアイコンと文字の間隔は6pxを基準とする。1024px未満ではこれらを上下配置に戻す。
 - 正規化モードと変更サマリーの2列は、前後プレビューの2列と同じ幅・間隔にする。
-- モード説明文は画面内には表示せず、各モード選択肢のホバー時に`title`属性で全文を確認できるようにする。変更内訳は1行の省略表示とし、ホバー時に全文を確認できるようにする。
+- モード説明文は画面内には表示せず、各モード選択肢のホバー時に`title`属性で全文を確認できるようにする。変更内訳は通常時に折りたたみ、「内訳を表示」ボタンのクリックまたはキーボード操作でポップオーバーへ表示する。ポップオーバーの見出しは「内訳（ルール別・延べ件数）」とし、ポップオーバーはEscapeまたは外側のクリックで閉じる。
 - 前後プレビューの表示領域はデスクトップで`clamp(360px, 56vh, 560px)`を目安とし、本文の文字サイズは15pxとする。
 - 1024px以上は前後2列とする。
 - 1024px未満は前後を上下に配置する。
