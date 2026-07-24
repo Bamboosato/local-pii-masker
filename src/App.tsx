@@ -35,6 +35,7 @@ import {
 } from "./app/normalizationAvailability";
 import {
   selectActiveEntries,
+  selectMaskableOccurrenceCount,
   selectMaskedText,
   selectRestoredResponse,
   selectSessionCounts,
@@ -48,6 +49,7 @@ import {
 import { TextNormalizationDialog } from "./components/TextNormalizationDialog";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
+import { extendHonorificCandidates } from "./domain/detection/extendHonorificCandidates";
 import { refineDetectionCandidates } from "./domain/detection/refineDetectionCandidates";
 import {
   NerDetectionCancelledError,
@@ -68,6 +70,7 @@ import {
   SOURCE_LABELS,
   type MaskCategory,
   type MaskEntry,
+  type OccurrenceMaskingMode,
 } from "./domain/types";
 
 const MAX_CHAR_COUNT = 10000;
@@ -205,12 +208,22 @@ export default function App() {
     );
   }, [manualCategory, selectedText, state.entries, state.originalText]);
   const maskedSegments = useMemo(
-    () => buildMaskSegments(state.originalText, state.entries),
-    [state.entries, state.originalText],
+    () =>
+      buildMaskSegments(
+        state.originalText,
+        state.entries,
+        state.occurrenceMaskingMode,
+      ),
+    [state.entries, state.occurrenceMaskingMode, state.originalText],
   );
   const originalHighlightSegments = useMemo(
-    () => buildHighlightSegments(state.originalText, state.entries),
-    [state.entries, state.originalText],
+    () =>
+      buildHighlightSegments(
+        state.originalText,
+        state.entries,
+        state.occurrenceMaskingMode,
+      ),
+    [state.entries, state.occurrenceMaskingMode, state.originalText],
   );
 
   useEffect(() => {
@@ -534,12 +547,16 @@ export default function App() {
         return;
       }
 
-      const candidates = refineDetectionCandidates(
+      const refinedCandidates = refineDetectionCandidates(
         detectionText,
         enrichPersonCandidates(detectionText, [
           ...regexCandidates,
           ...nerCandidates,
         ]),
+      );
+      const candidates = extendHonorificCandidates(
+        detectionText,
+        refinedCandidates,
       );
       const summary = summarizeDetectionMerge(latestContext.entries, candidates);
 
@@ -551,7 +568,7 @@ export default function App() {
       });
 
       if (candidates.length > 0) {
-        dispatch({ type: "setEntryFilter", value: "all" });
+        dispatch({ type: "setEntryFilter", value: "enabled" });
       }
 
       dispatch({
@@ -587,8 +604,13 @@ export default function App() {
     dispatch({ type: "setOriginalText", value });
   }
 
+  const isRestoreInputsMaximized = state.restoreExpanded && restoreInputsExpanded;
+
   return (
-    <div className="app-shell" ref={appShellRef}>
+    <div
+      className={`app-shell${isRestoreInputsMaximized ? " is-restore-maximized" : ""}`}
+      ref={appShellRef}
+    >
       <header className="app-header" ref={appHeaderRef}>
         <div className="brand-cluster">
           <h1>Local PII Masker</h1>
@@ -619,6 +641,7 @@ export default function App() {
               disabled={!hasSessionData}
               onClick={() => setHeaderMenuOpen((open) => !open)}
               ref={headerMenuButtonRef}
+              title="セッション操作メニューを開く"
               type="button"
             >
               <EllipsisVertical aria-hidden="true" size={20} />
@@ -641,6 +664,7 @@ export default function App() {
                   onClick={openNormalizationDialog}
                   ref={normalizationMenuItemRef}
                   role="menuitem"
+                  title="原文の空白・改行・表記を正規化します"
                   type="button"
                 >
                   <Eraser aria-hidden="true" size={16} />
@@ -660,6 +684,7 @@ export default function App() {
                   }}
                   ref={clearMenuItemRef}
                   role="menuitem"
+                  title="入力内容とマスク対象をすべて消去します"
                   type="button"
                 >
                   <Trash2 aria-hidden="true" size={16} />
@@ -681,6 +706,7 @@ export default function App() {
                 id="original-tab"
                 role="tab"
                 aria-selected={state.activeTextView === "original"}
+                title="原文を表示"
                 type="button"
                 onClick={() => dispatch({ type: "setActiveTextView", value: "original" })}
               >
@@ -692,6 +718,7 @@ export default function App() {
                 id="masked-tab"
                 role="tab"
                 aria-selected={state.activeTextView === "masked"}
+                title="マスク結果を表示"
                 type="button"
                 onClick={() => dispatch({ type: "setActiveTextView", value: "masked" })}
               >
@@ -712,6 +739,11 @@ export default function App() {
                       }
                     }}
                     ref={detectionButtonRef}
+                    title={
+                      isDetecting
+                        ? "自動検出を中止します"
+                        : getDetectionButtonLabel(detectionPhase, state.entries)
+                    }
                     type="button"
                   >
                     {isDetecting ? <X aria-hidden="true" size={16} /> : <Search size={16} />}
@@ -724,6 +756,7 @@ export default function App() {
                     disabled={selectedText.trim().length === 0}
                     onClick={openManualDialog}
                     ref={lastSelectionControlRef}
+                    title="選択した文字列をマスク対象に追加します"
                     type="button"
                   >
                     選択範囲を追加
@@ -734,6 +767,7 @@ export default function App() {
                   className="button button-primary"
                   disabled={state.originalText.length === 0}
                   onClick={() => void copyMaskedText()}
+                  title="マスク結果をクリップボードへコピーします"
                   type="button"
                 >
                   <Copy size={16} />
@@ -781,6 +815,7 @@ export default function App() {
                         className="inline-token"
                         key={`${segment.entryId}-${index}`}
                         onClick={() => selectEntryFromMaskedResult(segment.entryId)}
+                        title="対応するマスク対象カードへ移動します"
                         type="button"
                       >
                         {segment.value}
@@ -822,11 +857,21 @@ export default function App() {
             <strong>マスク対象</strong>
             <div className="panel-header-actions">
               <div className="filter-row" role="group" aria-label="候補フィルター">
-                <FilterButton filter="all" current={state.entryFilter} onClick={setFilter}>
-                  すべて ({counts.totalEntries})
+                <FilterButton
+                  filter="enabled"
+                  current={state.entryFilter}
+                  onClick={setFilter}
+                  title={`有効（${counts.activeEntries}）`}
+                >
+                  有効（{counts.activeEntries}）
                 </FilterButton>
-                <FilterButton filter="disabled" current={state.entryFilter} onClick={setFilter}>
-                  無効 ({counts.disabledEntries})
+                <FilterButton
+                  filter="disabled"
+                  current={state.entryFilter}
+                  onClick={setFilter}
+                  title={`無効（${counts.disabledEntries}）`}
+                >
+                  無効（{counts.disabledEntries}）
                 </FilterButton>
               </div>
               <button
@@ -880,14 +925,20 @@ export default function App() {
           >
             {visibleEntries.length === 0 ? (
               <div className="empty-state">
-                {state.entryFilter === "disabled"
+                {state.entries.length === 0
+                  ? "原文でマスク対象が検出、選択されると表示されます。"
+                  : state.entryFilter === "disabled"
                   ? "無効なマスク対象はありません。"
-                  : "原文でマスク対象が検出、選択されると表示されます。"}
+                  : state.entryFilter === "enabled"
+                    ? "有効なマスク対象はありません。"
+                    : "原文でマスク対象が検出、選択されると表示されます。"}
               </div>
             ) : (
               visibleEntries.map((entry) => (
                 <EntryCard
                   entry={entry}
+                  maskingMode={state.occurrenceMaskingMode}
+                  maskableOccurrenceCount={selectMaskableOccurrenceCount(state, entry)}
                   isSelected={state.selectedEntryId === entry.id}
                   key={entry.id}
                   onDelete={() => dispatch({ type: "deleteEntry", id: entry.id })}
@@ -904,27 +955,32 @@ export default function App() {
       </main>
 
       <section
-        className="restore-dock"
+        className={`restore-dock${
+          state.restoreExpanded && restoreInputsExpanded ? " is-maximized" : ""
+        }`}
         aria-label="マスクの復元"
         ref={restoreDockRef}
       >
-        <button
-          aria-expanded={state.restoreExpanded}
-          className="restore-toggle"
-          onClick={() =>
-            dispatch({
-              type: "setRestoreExpanded",
-              value: !state.restoreExpanded,
-            })
-          }
-          type="button"
-        >
-          <ChevronDown className={state.restoreExpanded ? "is-open" : ""} size={20} />
-          マスクを復元
-        </button>
-        <div className="restore-summary">
-          既知: {tokenInspection.knownPresent.length} / 未出現:{" "}
-          {tokenInspection.absent.length} / 不明: {tokenInspection.unknown.length}
+        <div className="restore-header">
+          <button
+            aria-expanded={state.restoreExpanded}
+            className="restore-toggle"
+            onClick={() =>
+              dispatch({
+                type: "setRestoreExpanded",
+                value: !state.restoreExpanded,
+              })
+            }
+            title={state.restoreExpanded ? "マスク復元欄を閉じる" : "マスク復元欄を開く"}
+            type="button"
+          >
+            <ChevronDown className={state.restoreExpanded ? "is-open" : ""} size={20} />
+            マスクを復元
+          </button>
+          <div className="restore-summary">
+            既知: {tokenInspection.knownPresent.length} / 未出現:{" "}
+            {tokenInspection.absent.length} / 不明: {tokenInspection.unknown.length}
+          </div>
         </div>
         {state.restoreExpanded ? (
           <div
@@ -1136,6 +1192,8 @@ export default function App() {
 function EntryCard(props: {
   entry: MaskEntry;
   isSelected: boolean;
+  maskingMode: OccurrenceMaskingMode;
+  maskableOccurrenceCount: number;
   onDelete: () => void;
   onNavigateToEntry: () => void;
   onSelect: () => void;
@@ -1153,21 +1211,25 @@ function EntryCard(props: {
       onMouseDown={props.onSelect}
       tabIndex={0}
     >
-      <div className="entry-card-topline">
-        <span className="entry-status">
-          {isActive ? (
-            <CheckCircle2 size={15} />
-          ) : (
-            <Info size={15} />
-          )}
-          {statusLabel}
-        </span>
-        {props.entry.confidence !== undefined ? (
+      {props.entry.confidence !== undefined ? (
+        <div className="entry-card-topline">
           <span>信頼度 {Math.round(props.entry.confidence * 100)}%</span>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <div className="entry-text">
-        <span>{props.entry.originalText}</span>
+        <span
+          aria-label={statusLabel}
+          className={`entry-state-icon ${isActive ? "is-enabled" : "is-disabled"}`}
+          role="img"
+          title={`${statusLabel}のマスク対象`}
+        >
+          {isActive ? (
+            <CheckCircle2 aria-hidden="true" size={20} />
+          ) : (
+            <Info aria-hidden="true" size={20} />
+          )}
+        </span>
+        <span className="entry-value">{props.entry.originalText}</span>
         <button
           aria-label={`${props.entry.originalText}の最初の出現箇所へ移動`}
           className="icon-button entry-locate-button"
@@ -1195,7 +1257,10 @@ function EntryCard(props: {
           className={`chip ${props.entry.occurrenceCount === 0 ? "chip-warning" : ""}`}
           title={props.entry.occurrenceCount === 0 ? "現在の原文に存在しません" : undefined}
         >
-          {props.entry.occurrenceCount}か所
+          {props.maskingMode === "contextual_ambiguous_surnames" &&
+          props.maskableOccurrenceCount !== props.entry.occurrenceCount
+            ? `${props.maskableOccurrenceCount}/${props.entry.occurrenceCount}か所`
+            : `${props.entry.occurrenceCount}か所`}
         </span>
         {props.entry.sources.map((source) => (
           <span className="chip" key={source}>
@@ -1209,13 +1274,19 @@ function EntryCard(props: {
         ))}
       </div>
       <div className="entry-card-actions">
-        <button className="button button-primary" onClick={props.onToggle} type="button">
+        <button
+          className="button button-primary"
+          onClick={props.onToggle}
+          title={props.entry.enabled ? "このマスク対象を無効化します" : "このマスク対象を有効化します"}
+          type="button"
+        >
           {props.entry.enabled ? "無効化" : "有効化"}
         </button>
         <button
           aria-label={`${props.entry.originalText}を削除`}
           className="icon-button"
           onClick={props.onDelete}
+          title={`${props.entry.originalText}を削除します`}
           type="button"
         >
           <Trash2 size={18} />
@@ -1248,6 +1319,7 @@ function ManualAddDialog(props: {
             aria-label="閉じる"
             className="icon-button"
             onClick={props.onClose}
+            title="ダイアログを閉じます"
             type="button"
           >
             <X size={22} />
@@ -1289,10 +1361,15 @@ function ManualAddDialog(props: {
           </div>
         </div>
         <div className="modal-footer">
-          <button className="button button-ghost large" onClick={props.onClose} type="button">
+          <button
+            className="button button-ghost large"
+            onClick={props.onClose}
+            title="追加をキャンセルします"
+            type="button"
+          >
             キャンセル
           </button>
-          <button className="button button-primary large" type="submit">
+          <button className="button button-primary large" title="選択した文字列をマスク対象に追加します" type="submit">
             <ShieldCheck size={18} />
             追加してマスク
           </button>
@@ -1319,6 +1396,7 @@ function ConfirmDialog(props: {
             aria-label="閉じる"
             className="icon-button"
             onClick={props.onCancel}
+            title="ダイアログを閉じます"
             type="button"
           >
             <X size={22} />
@@ -1328,12 +1406,18 @@ function ConfirmDialog(props: {
           <p>{props.children}</p>
         </div>
         <div className="modal-footer">
-          <button className="button button-ghost large" onClick={props.onCancel} type="button">
+          <button
+            className="button button-ghost large"
+            onClick={props.onCancel}
+            title="操作をキャンセルします"
+            type="button"
+          >
             キャンセル
           </button>
           <button
             className={props.danger ? "button button-danger large" : "button button-primary large"}
             onClick={props.onConfirm}
+            title={props.danger ? "セッションデータをすべて消去します" : props.confirmLabel}
             type="button"
           >
             {props.danger ? <Eraser size={18} /> : <Copy size={18} />}
@@ -1350,11 +1434,13 @@ function FilterButton(props: {
   current: EntryFilter;
   filter: EntryFilter;
   onClick: (filter: EntryFilter) => void;
+  title: string;
 }) {
   return (
     <button
       className={props.current === props.filter ? "filter-button is-active" : "filter-button"}
       onClick={() => props.onClick(props.filter)}
+      title={props.title}
       type="button"
     >
       {props.children}

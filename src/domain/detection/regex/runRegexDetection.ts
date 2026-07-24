@@ -3,6 +3,7 @@ import { detectBirthDates } from "./detectBirthDates";
 import { detectCredentials } from "./detectCredentials";
 import { detectEmails } from "./detectEmails";
 import { detectEmailsWithNormalization } from "./detectEmailsWithNormalization";
+import { detectHonorificPersonNames } from "./detectHonorificPersonNames";
 import { detectIpAddresses } from "./detectIpAddresses";
 import { detectJapaneseAddresses } from "./detectJapaneseAddresses";
 import { detectJapaneseAddressesWithNormalization } from "./detectJapaneseAddressesWithNormalization";
@@ -50,6 +51,7 @@ export function runRegexDetection(sourceText: string): DetectionCandidate[] {
     ...ipAddressCandidates,
     ...detectOrganizationsWithNormalization(sourceText),
     ...addressCandidates,
+    ...detectHonorificPersonNames(sourceText),
     ...detectPersonNames(sourceText),
     ...detectPersonNamesWithNormalization(sourceText),
   ]);

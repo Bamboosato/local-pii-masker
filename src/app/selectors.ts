@@ -1,6 +1,7 @@
 import type { AppState, EntryFilter } from "./reducer";
 import { inspectTokens } from "../domain/mask/inspectTokens";
 import { maskText } from "../domain/mask/maskText";
+import { countMaskableOccurrences } from "../domain/mask/contextualMasking";
 import { restoreText } from "../domain/mask/restoreText";
 import type { MaskEntry } from "../domain/types";
 
@@ -11,7 +12,22 @@ export function selectActiveEntries(entries: MaskEntry[]): MaskEntry[] {
 }
 
 export function selectMaskedText(state: AppState): string {
-  return maskText(state.originalText, state.entries);
+  return maskText(state.originalText, state.entries, state.occurrenceMaskingMode);
+}
+
+export function selectMaskableOccurrenceCount(
+  state: AppState,
+  entry: MaskEntry,
+): number {
+  if (!entry.enabled || entry.reviewStatus !== "approved") {
+    return 0;
+  }
+
+  return countMaskableOccurrences(
+    state.originalText,
+    entry,
+    state.occurrenceMaskingMode,
+  );
 }
 
 export function selectRestoredResponse(state: AppState): string {
@@ -47,7 +63,13 @@ export function selectVisibleEntries(state: AppState): MaskEntry[] {
 
 export function selectReplacementCount(state: AppState): number {
   return selectActiveEntries(state.entries).reduce(
-    (sum, entry) => sum + entry.occurrenceCount,
+    (sum, entry) =>
+      sum +
+      countMaskableOccurrences(
+        state.originalText,
+        entry,
+        state.occurrenceMaskingMode,
+      ),
     0,
   );
 }
@@ -62,7 +84,13 @@ export function selectSessionCounts(state: AppState) {
   return {
     activeEntries: activeEntries.length,
     replacements: activeEntries.reduce(
-      (sum, entry) => sum + entry.occurrenceCount,
+      (sum, entry) =>
+        sum +
+        countMaskableOccurrences(
+          state.originalText,
+          entry,
+          state.occurrenceMaskingMode,
+        ),
       0,
     ),
     totalEntries: state.entries.length,
@@ -73,8 +101,8 @@ export function selectSessionCounts(state: AppState) {
 
 function matchesFilter(entry: MaskEntry, filter: EntryFilter): boolean {
   switch (filter) {
-    case "all":
-      return true;
+    case "enabled":
+      return entry.enabled;
     case "disabled":
       return !entry.enabled;
     default:

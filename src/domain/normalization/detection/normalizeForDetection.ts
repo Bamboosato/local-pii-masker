@@ -4,7 +4,10 @@ import type {
   NormalizedTextResult,
 } from "./types";
 import { createJapaneseAddressPattern } from "../../reference/japaneseAddresses";
-import { COMMON_JAPANESE_SURNAMES } from "../../reference/japanesePersonNames";
+import {
+  COMMON_JAPANESE_SURNAMES,
+  createSurnamePatternWithOptionalSpacing,
+} from "../../reference/japanesePersonNames";
 
 type MappedCodeUnit = {
   value: string;
@@ -72,6 +75,8 @@ const PERSON_NAME_LEFT_PATTERN =
 const PERSON_NAME_RIGHT_PATTERN = /^([一-龥々]{1,3})(?=$|[^一-龥々])/u;
 const MARKDOWN_HEADING_PATTERN = /^\s{0,3}#{1,6}(?:\s|$)/u;
 const MARKDOWN_FENCE_PATTERN = /^\s{0,3}(`{3,}|~{3,})/u;
+const PERSON_FIELD_LABEL_LINE_PATTERN =
+  /^\s*(?:氏名|名前|姓|名字|苗字|名義人|担当者?|責任者|患者氏名|申請者)[ \u3000]*(?:[:：=]|$)/u;
 const JAPANESE_NAME_CHARACTER_CLASS = "一-龥々ァ-ヶー";
 const JAPANESE_INTER_CHARACTER_SPACING_PATTERN = new RegExp(
   `(^|[^${JAPANESE_NAME_CHARACTER_CLASS}])` +
@@ -80,10 +85,12 @@ const JAPANESE_INTER_CHARACTER_SPACING_PATTERN = new RegExp(
     `(?=$|[^${JAPANESE_NAME_CHARACTER_CLASS}])`,
   "gu",
 );
-const COMMON_SURNAME_WITH_OPTIONAL_SPACING = COMMON_JAPANESE_SURNAMES.split("|")
-  .sort((left, right) => right.length - left.length)
-  .map((surname) => Array.from(surname).join("[ \\u3000]?"))
-  .join("|");
+const COMMON_SURNAME_WITH_OPTIONAL_SPACING =
+  createSurnamePatternWithOptionalSpacing(COMMON_JAPANESE_SURNAMES);
+const COMPLETED_PERSON_NAME_LINE_PATTERN = new RegExp(
+  `(?:${COMMON_SURNAME_WITH_OPTIONAL_SPACING})[一-龥々]{2,4}$`,
+  "u",
+);
 const PERSON_NAME_STRONG_LEFT_PATTERN = new RegExp(
   `((?:${COMMON_SURNAME_WITH_OPTIONAL_SPACING})[一-龥々]{1,2})$`,
   "u",
@@ -692,7 +699,8 @@ function removePersonNameLineBreaks(units: MappedCodeUnit[]): {
       isInsideRange(protectedRanges, start) ||
       isInsideRange(protectedRanges, end) ||
       MARKDOWN_HEADING_PATTERN.test(leftLine) ||
-      MARKDOWN_HEADING_PATTERN.test(rightLine)
+      MARKDOWN_HEADING_PATTERN.test(rightLine) ||
+      PERSON_FIELD_LABEL_LINE_PATTERN.test(rightLine)
     ) {
       continue;
     }
@@ -703,6 +711,13 @@ function removePersonNameLineBreaks(units: MappedCodeUnit[]): {
     const rightName = rightLine.match(PERSON_NAME_RIGHT_PATTERN)?.[1];
 
     if (!leftName || !rightName) {
+      continue;
+    }
+
+    // A complete name at the end of the left line is already a valid
+    // candidate. Do not join the next line into it (for example,
+    // "佐藤 太郎\\n佐藤"), which would turn two adjacent names into one.
+    if (COMPLETED_PERSON_NAME_LINE_PATTERN.test(leftLine.trimEnd())) {
       continue;
     }
 

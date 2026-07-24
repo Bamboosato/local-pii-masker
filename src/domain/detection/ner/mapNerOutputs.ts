@@ -4,7 +4,12 @@ import { detectEmails } from "../regex/detectEmails";
 import { detectJapaneseAddresses } from "../regex/detectJapaneseAddresses";
 import { detectPersonNames } from "../regex/detectPersonNames";
 import { detectUrls } from "../regex/detectUrls";
-import { COMMON_JAPANESE_SURNAME_SET } from "../regex/personNamePatterns";
+import {
+  AMBIGUOUS_JAPANESE_SURNAMES,
+  COMMON_JAPANESE_SURNAME_SET,
+} from "../regex/personNamePatterns";
+import { JAPANESE_HONORIFIC_SUFFIXES } from "../extendHonorificCandidates";
+import { normalizeJapaneseName } from "../../reference/japanesePersonNames";
 import type { NerModelLabel, NerTokenClassificationOutput } from "./types";
 
 const BIO_PREFIX_PATTERN = /^[BI]-/u;
@@ -16,6 +21,12 @@ const SHORT_KANJI_PATTERN = /^[一-龥々]{2}$/u;
 const JAPANESE_LETTER_PATTERN = /[一-龥々ぁ-んァ-ヶー]/u;
 const ADDRESS_LABEL_CONTEXT_PATTERN =
   /(?:住所|所在地|居住地|出身地|町域|地名)\s*(?:は|[:：])?\s*$/u;
+const PERSON_LABEL_CONTEXT_PATTERN =
+  /(?:氏名|名前|名義人|担当者?|責任者|患者氏名|申請者|代表者|作成者|承認者|確認者|所有者|利用者|顧客)[ \u3000]*(?:[:：=]|は|が)?[ \u3000]*$/u;
+const HONORIFIC_CONTEXT_PATTERN = new RegExp(
+  `^[ \\u3000]*(?:${[...JAPANESE_HONORIFIC_SUFFIXES].sort((left, right) => right.length - left.length).join("|")})`,
+  "u",
+);
 
 const LABEL_CATEGORY_MAP: Record<NerModelLabel, MaskCategory | undefined> = {
   PER: "PERSON",
@@ -152,8 +163,26 @@ function shouldDropNerCandidate(params: {
     sourceText,
     structuredCandidates,
   } = params;
+  const isAmbiguousSurname = AMBIGUOUS_JAPANESE_SURNAMES.has(
+    normalizeJapaneseName(candidateText),
+  );
 
-  if (Array.from(candidateText).length <= 1) {
+  if (
+    normalizedLabel === "PER" &&
+    isAmbiguousSurname &&
+    isAmbiguousSurnameWithoutPersonContext({
+      candidateText,
+      output,
+      sourceText,
+    })
+  ) {
+    return true;
+  }
+
+  if (
+    Array.from(candidateText).length <= 1 &&
+    !(normalizedLabel === "PER" && isAmbiguousSurname)
+  ) {
     return true;
   }
 
@@ -190,6 +219,76 @@ function shouldDropNerCandidate(params: {
   }
 
   return false;
+}
+
+function isAmbiguousSurnameWithoutPersonContext(params: {
+  candidateText: string;
+  output: NerTokenClassificationOutput;
+  sourceText: string;
+}): boolean {
+  if (
+    !AMBIGUOUS_JAPANESE_SURNAMES.has(
+      normalizeJapaneseName(params.candidateText),
+    )
+  ) {
+    return false;
+  }
+
+  const range = resolveUniqueCandidateRange(
+    params.sourceText,
+    params.candidateText,
+    params.output,
+  );
+
+  if (!range) {
+    return true;
+  }
+
+  const before = params.sourceText.slice(
+    Math.max(0, range.start - 24),
+    range.start,
+  );
+  const after = params.sourceText.slice(range.end, range.end + 24);
+
+  return !(
+    PERSON_LABEL_CONTEXT_PATTERN.test(before) ||
+    HONORIFIC_CONTEXT_PATTERN.test(after) ||
+    /^[ \u3000]+[一-龥々]/u.test(after)
+  );
+}
+
+function resolveUniqueCandidateRange(
+  sourceText: string,
+  candidateText: string,
+  output: NerTokenClassificationOutput,
+): { start: number; end: number } | undefined {
+  if (
+    Number.isInteger(output.start) &&
+    Number.isInteger(output.end) &&
+    output.start !== undefined &&
+    output.end !== undefined &&
+    output.start >= 0 &&
+    output.end > output.start &&
+    output.end <= sourceText.length &&
+    sourceText.slice(output.start, output.end) === candidateText
+  ) {
+    return { start: output.start, end: output.end };
+  }
+
+  const firstStart = sourceText.indexOf(candidateText);
+
+  if (firstStart < 0) {
+    return undefined;
+  }
+
+  const nextStart = sourceText.indexOf(
+    candidateText,
+    firstStart + Math.max(1, candidateText.length),
+  );
+
+  return nextStart < 0
+    ? { start: firstStart, end: firstStart + candidateText.length }
+    : undefined;
 }
 
 function hasStandaloneOccurrence(sourceText: string, value: string): boolean {

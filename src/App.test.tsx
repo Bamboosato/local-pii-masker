@@ -67,6 +67,13 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("表示中の操作ボタンにホバー説明を持つ", () => {
+    render(<App />);
+
+    const buttons = Array.from(document.querySelectorAll("button"));
+    expect(buttons.filter((button) => !button.title.trim())).toHaveLength(0);
+  });
+
   it("マスク対象の見出し・フィルター・検索を1行にまとめ、検索欄を必要時だけ表示する", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -74,8 +81,8 @@ describe("App", () => {
     const panelTitle = screen.getByText("マスク対象", { selector: "strong" });
     const panelHeader = panelTitle.parentElement as HTMLElement;
 
-    expect(within(panelHeader).getByRole("button", { name: "すべて (0)" })).toBeInTheDocument();
-    expect(within(panelHeader).getByRole("button", { name: "無効 (0)" })).toBeInTheDocument();
+    expect(within(panelHeader).getByRole("button", { name: "有効（0）" })).toBeInTheDocument();
+    expect(within(panelHeader).getByRole("button", { name: "無効（0）" })).toBeInTheDocument();
     expect(
       within(panelHeader).getByRole("button", { name: "マスク対象を検索" }),
     ).toBeInTheDocument();
@@ -100,6 +107,14 @@ describe("App", () => {
 
     await user.click(within(panelHeader).getByRole("button", { name: "マスク対象を検索" }));
     expect(screen.getByRole("searchbox", { name: "候補を検索" })).toHaveValue("");
+  });
+
+  it("出現箇所マスク方式の切替UIを表示しない", () => {
+    render(<App />);
+
+    expect(screen.queryByRole("combobox", { name: "出現箇所マスク方式" })).not.toBeInTheDocument();
+    expect(screen.queryByText("一括（従来）")).not.toBeInTheDocument();
+    expect(screen.queryByText("文脈付き（曖昧姓のみ）")).not.toBeInTheDocument();
   });
 
   it("ヘッダーメニューはEscで閉じて起点へフォーカスを戻す", async () => {
@@ -310,7 +325,7 @@ describe("App", () => {
 
     const maskedToken = screen.getByRole("button", { name: "[人名_1]" });
     const managementPanel = screen.getByLabelText("マスク対象管理");
-    const disabledFilter = screen.getByRole("button", { name: "無効 (0)" });
+    const disabledFilter = screen.getByRole("button", { name: "無効（0）" });
     await user.click(disabledFilter);
     scrollIntoViewMock.mockClear();
     await user.click(maskedToken);
@@ -319,7 +334,7 @@ describe("App", () => {
     expect(within(managementPanel).queryByText("山田")).not.toBeInTheDocument();
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "すべて (1)" }));
+    await user.click(screen.getByRole("button", { name: "有効（1）" }));
     await user.click(screen.getByRole("button", { name: "マスク対象を検索" }));
     const searchInput = screen.getByRole("searchbox", { name: "候補を検索" });
     await user.type(searchInput, "佐藤");
@@ -366,7 +381,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(within(managementPanel).getByText("090-1234-5678")).toBeInTheDocument();
     expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
-    expect(within(managementPanel).getAllByText("有効")).toHaveLength(2);
+    expect(within(managementPanel).getAllByRole("img", { name: "有効" })).toHaveLength(2);
     expect(screen.queryByText("AI検出中")).not.toBeInTheDocument();
     expect(
       Array.from(container.querySelectorAll(".original-highlight.is-approved")).map(
@@ -374,8 +389,8 @@ describe("App", () => {
       ),
     ).toEqual(["yamada@example.com", "090-1234-5678"]);
     expect(screen.getByText("マスク対象")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "すべて (2)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "無効 (0)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "有効（2）" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "無効（0）" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "マスク結果" }));
 
@@ -510,14 +525,15 @@ describe("App", () => {
     );
     await user.click(screen.getByRole("button", { name: "無効化" }));
 
-    expect(screen.getByRole("button", { name: "無効 (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "無効（1）" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "再検出" }));
     await screen.findByText("自動検出完了：追加0件、更新1件。");
 
-    expect(screen.getByText("無効")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "無効（1）" }));
+    expect(screen.getByRole("img", { name: "無効" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "有効化" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "無効 (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "無効（1）" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "マスク結果" }));
     expect(screen.getByLabelText("マスク結果")).toHaveTextContent("yamada@example.com");
@@ -540,16 +556,42 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "自動検出" }));
 
     const managementPanel = screen.getByLabelText("マスク対象管理");
-    expect(await within(managementPanel).findByText("山田太郎")).toBeInTheDocument();
+    expect(
+      await within(managementPanel).findByText("山田太郎さん"),
+    ).toBeInTheDocument();
     expect(within(managementPanel).getByText("AI検出")).toBeInTheDocument();
     expect(within(managementPanel).getByText("信頼度 91%")).toBeInTheDocument();
-    expect(within(managementPanel).getByText("有効")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "すべて (1)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "無効 (0)" })).toBeInTheDocument();
+    expect(within(managementPanel).getByRole("img", { name: "有効" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "有効（1）" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "無効（0）" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "マスク結果" }));
 
     expect(screen.getByRole("button", { name: "[人名_1]" })).toBeInTheDocument();
+    expect(screen.getByLabelText("マスク結果")).toHaveTextContent(
+      "[人名_1]に連絡する。",
+    );
+  });
+
+  it("姓リスト外の敬称付き氏名を文脈に関わらず抽出する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    setEditorText(
+      screen.getByLabelText("原文"),
+      "担当者は田中さん、鬼頭さん、鬼頭君で伊藤さんが責任者です。",
+    );
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+
+    const managementPanel = screen.getByLabelText("マスク対象管理");
+    for (const name of ["田中さん", "鬼頭さん", "鬼頭君", "伊藤さん"]) {
+      expect(await within(managementPanel).findByText(name)).toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole("tab", { name: "マスク結果" }));
+    const maskedResult = screen.getByLabelText("マスク結果");
+    expect(maskedResult).not.toHaveTextContent("鬼頭さん");
+    expect(maskedResult).not.toHaveTextContent("鬼頭君");
   });
 
   it("読み仮名付き氏名を補完し、読み仮名内のNER断片を表示しない", async () => {
@@ -590,7 +632,7 @@ describe("App", () => {
     expect(within(managementPanel).getByText("鈴木一郎")).toBeInTheDocument();
     expect(within(managementPanel).queryByText("まだ")).not.toBeInTheDocument();
     expect(within(managementPanel).queryByText("ろう")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "すべて (2)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "有効（2）" })).toBeInTheDocument();
   });
 
   it("1秒を超える検出だけ進捗を表示し、候補反映後に完了表示へ切り替える", async () => {
@@ -653,7 +695,7 @@ describe("App", () => {
     expect(within(managementPanel).getByText("住所")).toBeInTheDocument();
     expect(within(managementPanel).getByText("その他")).toBeInTheDocument();
     expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
-    expect(within(managementPanel).getAllByText("有効")).toHaveLength(2);
+    expect(within(managementPanel).getAllByRole("img", { name: "有効" })).toHaveLength(2);
   });
 
   it("AI検出に失敗しても形式候補は統合される", async () => {
@@ -835,7 +877,7 @@ describe("App", () => {
     await waitFor(() => expect(receivedSignal?.aborted).toBe(true));
     expect(receivedSignal?.reason).toBe("session-cleared");
     expect(getEditorText(screen.getByLabelText("原文"))).toBe("");
-    expect(screen.getByRole("button", { name: "すべて (0)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "有効（0）" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
@@ -858,19 +900,19 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "無効化" }));
 
-    expect(screen.getByText("無効")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "無効（1）" }));
+    expect(screen.getByRole("img", { name: "無効" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "有効化" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "無効 (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "無効（1）" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "除外" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "無効 (1)" }));
     await user.click(screen.getByRole("button", { name: "有効化" }));
 
     expect(screen.getByText("無効なマスク対象はありません。")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "無効 (0)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "無効（0）" })).toBeInTheDocument();
   });
 
-  it("原文に未出現になった有効項目はすべてフィルターに残る", async () => {
+  it("原文に未出現になった有効項目は有効フィルターに残る", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -886,7 +928,7 @@ describe("App", () => {
     );
 
     setEditorText(editor, "佐藤です。");
-    await user.click(screen.getByRole("button", { name: /^すべて/ }));
+    await user.click(screen.getByRole("button", { name: "有効（1）" }));
 
     expect(screen.queryByRole("button", { name: "0件" })).not.toBeInTheDocument();
     expect(screen.getByText("山田")).toBeInTheDocument();
@@ -919,11 +961,15 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "入力欄を拡大" }));
     expect(screen.getByRole("button", { name: "入力欄を縮小" })).toBeInTheDocument();
     expect(document.querySelector(".restore-content")).toHaveClass("is-expanded");
+    expect(document.querySelector(".restore-dock")).toHaveClass("is-maximized");
+    expect(document.querySelector(".app-shell")).toHaveClass("is-restore-maximized");
     expect((restoreInput as HTMLTextAreaElement).style.height).toMatch(/px$/);
 
     await user.click(screen.getByRole("button", { name: "入力欄を縮小" }));
     expect(screen.getByRole("button", { name: "入力欄を拡大" })).toBeInTheDocument();
     expect(document.querySelector(".restore-content")).not.toHaveClass("is-expanded");
+    expect(document.querySelector(".restore-dock")).not.toHaveClass("is-maximized");
+    expect(document.querySelector(".app-shell")).not.toHaveClass("is-restore-maximized");
     expect(restoreInput).toHaveStyle({ height: "160px" });
 
     expect(

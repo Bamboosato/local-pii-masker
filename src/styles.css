@@ -73,6 +73,11 @@ button:disabled {
   flex-direction: column;
   background: #f7f9fb;
   overflow: hidden;
+  position: relative;
+}
+
+.app-shell.is-restore-maximized .main-grid {
+  visibility: hidden;
 }
 
 .app-header {
@@ -284,7 +289,7 @@ button:disabled {
   flex: 0 0 var(--section-header-height);
   height: var(--section-header-height);
   min-height: var(--section-header-height);
-  align-items: flex-end;
+  align-items: center;
   gap: 22px;
   background: var(--surface);
   box-shadow: inset 0 -1px var(--line);
@@ -293,7 +298,7 @@ button:disabled {
 
 .tab-list {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 22px;
   height: 100%;
 }
@@ -317,9 +322,9 @@ button:disabled {
 .tab-actions {
   display: flex;
   flex: 1;
+  align-items: center;
   gap: 8px;
   justify-content: flex-end;
-  padding-bottom: 10px;
 }
 
 .tab-actions .button {
@@ -481,6 +486,8 @@ button:disabled {
   background: #f8fafc;
   color: var(--text-muted);
   padding: 6px 24px;
+  position: relative;
+  z-index: 1;
 }
 
 .workspace-footer.is-compact {
@@ -521,6 +528,7 @@ button:disabled {
   color: #334155;
   font-size: 16px;
   padding: 0 20px;
+  box-shadow: inset 0 -1px var(--line);
 }
 
 .panel-header strong {
@@ -600,14 +608,12 @@ button:disabled {
   flex-direction: column;
   gap: 16px;
   overflow: auto;
-  border-top: 1px solid var(--line);
-  padding: 20px;
+  padding: 21px 20px 20px;
 }
 
-/* Keep the initial empty panel aligned with the original editor frame. The
-   1px top border is already part of the list, so the top inset is 23px. */
+/* Keep the initial empty panel aligned with the original editor frame. */
 .entry-list.is-empty {
-  padding: 23px 24px calc(var(--workspace-footer-height) + 24px);
+  padding: 24px 24px calc(var(--workspace-footer-height) + 24px);
 }
 
 .entry-list.is-empty .empty-state {
@@ -622,7 +628,7 @@ button:disabled {
   border-radius: 6px;
   background: var(--surface);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-  padding: 18px;
+  padding: 16px;
 }
 
 .entry-card.is-selected {
@@ -642,41 +648,62 @@ button:disabled {
 }
 
 .entry-card-topline {
+  margin-bottom: 8px;
   justify-content: space-between;
   color: var(--text-muted);
   font-size: 12px;
+  line-height: 1.4;
 }
 
-.entry-status {
+.entry-state-icon {
   display: inline-flex;
+  flex: 0 0 var(--compact-control-height);
+  width: var(--compact-control-height);
+  height: var(--compact-control-height);
   align-items: center;
-  gap: 5px;
-  color: var(--blue);
-  font-weight: 800;
+  justify-content: center;
 }
 
-.entry-card.is-pending .entry-status {
+.entry-state-icon.is-enabled {
+  color: var(--blue);
+}
+
+.entry-state-icon.is-disabled,
+.entry-card.is-pending .entry-state-icon {
   color: var(--pending);
 }
 
-.entry-card.is-disabled .entry-status {
+.entry-card.is-disabled .entry-state-icon {
   color: #475569;
 }
 
 .entry-text {
-  margin: 18px 0 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
   color: #000;
   font-size: 20px;
   font-weight: 800;
+  line-height: 1.6;
   word-break: break-word;
 }
 
+.entry-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-decoration-line: underline;
+  text-decoration-color: #e5e7eb;
+  text-decoration-style: solid;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .entry-locate-button {
-  width: 28px;
-  height: 28px;
-  margin-left: 6px;
+  width: var(--compact-control-height);
+  height: var(--compact-control-height);
+  flex: 0 0 var(--compact-control-height);
   color: var(--blue);
-  vertical-align: middle;
 }
 
 .entry-locate-button:hover:not(:disabled) {
@@ -686,12 +713,32 @@ button:disabled {
 
 .chip-row {
   flex-wrap: wrap;
-  gap: 6px;
+  column-gap: 6px;
+  row-gap: 4px;
 }
 
 .entry-card-actions {
-  gap: 10px;
-  margin-top: 18px;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.entry-card-actions .button,
+.entry-card-actions .icon-button {
+  min-height: var(--compact-control-height);
+  height: var(--compact-control-height);
+}
+
+.entry-card-actions .button {
+  padding-inline: 12px;
+}
+
+.entry-card-actions .icon-button {
+  width: var(--compact-control-height);
+}
+
+.entry-card .icon-button {
+  min-height: var(--compact-control-height);
 }
 
 .button,
@@ -780,14 +827,36 @@ button:disabled {
 }
 
 .restore-dock {
+  position: relative;
+  z-index: 2;
   flex: 0 0 auto;
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
 
+.restore-dock.is-maximized {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: auto;
+}
+
+.restore-header {
+  display: flex;
+  min-height: var(--section-header-height);
+  height: var(--section-header-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: inset 0 -1px var(--line);
+}
+
 .restore-toggle {
   display: inline-flex;
-  min-height: 56px;
+  height: 100%;
+  min-height: 0;
   align-items: center;
   gap: 16px;
   border: 0;
@@ -807,20 +876,22 @@ button:disabled {
 }
 
 .restore-summary {
-  float: right;
-  min-height: 56px;
-  gap: 10px;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+  flex: 0 0 auto;
   color: #64748b;
   font-weight: 700;
-  padding-right: 24px;
+  padding: 0 24px;
 }
 
 .restore-content {
   display: grid;
   gap: 16px;
   grid-template-columns: 1fr 1fr;
-  border-top: 1px solid var(--line-soft);
-  padding: 16px 24px 24px;
+  background: var(--surface);
+  padding: 17px 24px 24px;
 }
 
 .restore-content label {
@@ -1365,13 +1436,8 @@ button:disabled {
     border-top: 1px solid var(--line);
   }
 
-  .restore-summary {
-    float: none;
-    padding: 0 24px 12px;
-  }
-
   .entry-list.is-empty {
-    padding: 20px;
+    padding: 21px;
   }
 
   .entry-list.is-empty .empty-state {

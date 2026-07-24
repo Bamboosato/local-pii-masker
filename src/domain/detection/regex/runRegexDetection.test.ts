@@ -365,6 +365,180 @@ describe("runRegexDetection", () => {
     );
   });
 
+  it("姓リストにない名称でも担当者・責任者の文脈と敬称から検出する", () => {
+    const sourceText =
+      "担当者は田中さん、鬼頭さん、鬼頭君で伊藤さんが責任者です。";
+    const candidates = runRegexDetection(sourceText)
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(candidates).toHaveLength(4);
+    expect(candidates).toEqual(
+      expect.arrayContaining(["田中さん", "鬼頭さん", "鬼頭君", "伊藤さん"]),
+    );
+  });
+
+  it("名称の後ろに担当者・責任者が続く文脈でも敬称込みで検出する", () => {
+    const candidates = runRegexDetection("鬼頭さんが責任者です。").filter(
+      (candidate) => candidate.category === "PERSON",
+    );
+
+    expect(candidates.map((candidate) => candidate.originalText)).toEqual([
+      "鬼頭さん",
+    ]);
+  });
+
+  it("文脈のない姓リスト外の漢字列も敬称込みで検出する", () => {
+    const candidates = runRegexDetection("鬼頭さんです。鬼頭君も参加します。")
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(candidates).toEqual(["鬼頭さん", "鬼頭君"]);
+  });
+
+  it("異体字の姓名を原文表記のまま検出する", () => {
+    const sourceText =
+      "氏名：髙橋 一郎、山﨑直子、渡邉美咲、渡邊健、齋藤太郎、齊藤花子、濱田次郎、濵田三郎、𠮷田健。";
+    const candidates = runRegexDetection(sourceText)
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(candidates).toHaveLength(9);
+    expect(candidates).toEqual(
+      expect.arrayContaining([
+      "髙橋 一郎",
+      "山﨑直子",
+      "渡邉美咲",
+      "渡邊健",
+      "齋藤太郎",
+      "齊藤花子",
+      "濱田次郎",
+      "濵田三郎",
+      "𠮷田健",
+      ]),
+    );
+  });
+
+  it("区切りのある姓名を姓辞書と名の形式で検出する", () => {
+    const sourceText = [
+      "1. 鈴木花子",
+      "2. 髙橋健一",
+      "3. 渡邉美咲",
+      "4. 齋藤直樹",
+      "5. 濵田由美",
+      "6. 𠮷田誠",
+      "7. 久保田一郎",
+      "8. 大久保花子",
+      "9. 五十嵐健一",
+    ].join("\n");
+
+    const candidates = runRegexDetection(sourceText)
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(candidates).toEqual([
+      "鈴木花子",
+      "髙橋健一",
+      "渡邉美咲",
+      "齋藤直樹",
+      "濵田由美",
+      "𠮷田誠",
+      "久保田一郎",
+      "大久保花子",
+      "五十嵐健一",
+    ]);
+  });
+
+  it("曖昧姓でも番号付き名簿の姓名全体は検出する", () => {
+    const sourceText = [
+      "1. 森太郎",
+      "2. 原一郎",
+      "3. 関美咲",
+      "4. 東花子",
+    ].join("\n");
+
+    expect(
+      runRegexDetection(sourceText)
+        .filter((candidate) => candidate.category === "PERSON")
+        .map((candidate) => candidate.originalText),
+    ).toEqual(["森太郎", "原一郎", "関美咲", "東花子"]);
+  });
+
+  it("曖昧姓でも区切られた連続姓名は検出する", () => {
+    const candidates = runRegexDetection("森太郎、原一郎、関美咲、東花子")
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(candidates).toEqual(["森太郎", "原一郎", "関美咲", "東花子"]);
+  });
+
+  it("姓・名字・苗字ラベルの単独姓を検出する", () => {
+    const candidates = runRegexDetection(
+      "姓：鈴木\n名字：高橋\n苗字：田中",
+    )
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(candidates).toEqual(["鈴木", "高橋", "田中"]);
+  });
+
+  it("敬称に見える仕様語を人名として検出しない", () => {
+    const personTexts = runRegexDetection("仕様、既存仕様、検出仕様。")
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(personTexts).not.toEqual(
+      expect.arrayContaining(["仕様", "既存仕様", "検出仕様"]),
+    );
+  });
+
+  it("番号付き名簿の一文字姓を検出する", () => {
+    const sourceText = [
+      "1. 森",
+      "2. 原",
+      "3. 関",
+      "4. 東",
+      "5. 南",
+      "6. 岡",
+      "7. 堀",
+      "8. 辻",
+    ].join("\n");
+
+    expect(
+      runRegexDetection(sourceText)
+        .filter((candidate) => candidate.category === "PERSON")
+        .map((candidate) => candidate.originalText),
+    ).toEqual(["森", "原", "関", "東", "南", "岡", "堀", "辻"]);
+  });
+
+  it("曖昧姓は敬称または明示的な人名ラベルがある場合だけ検出する", () => {
+    const sourceText = [
+      "森様、原さん、関先生。",
+      "担当者：森。",
+      "氏名：森 太郎。",
+      "患者氏名　原 一郎。",
+      "申請者　関 美咲。",
+      "森林を保護する。原材料を確認する。関係部署に連絡する。",
+      "南側の入口を使用する。東海地方で開催する。森の中を散策する。",
+    ].join(" ");
+    const personTexts = runRegexDetection(sourceText)
+      .filter((candidate) => candidate.category === "PERSON")
+      .map((candidate) => candidate.originalText);
+
+    expect(personTexts).toHaveLength(7);
+    expect(personTexts).toEqual(
+      expect.arrayContaining([
+        "森様",
+        "原さん",
+        "関先生",
+        "森",
+        "森 太郎",
+        "原 一郎",
+        "関 美咲",
+      ]),
+    );
+  });
+
   it("明示ラベル付きのTitle Case・全大文字英語氏名だけを補助検出する", () => {
     const candidates = runRegexDetection(
       [
@@ -395,6 +569,20 @@ describe("runRegexDetection", () => {
         .filter((candidate) => candidate.category === "PERSON")
         .map(({ start, end }) => sourceText.slice(start, end)),
     ).toEqual(["田中 美咲", "田中　美咲"]);
+  });
+
+  it("完成した姓名と次行の別姓を1つの候補に結合しない", () => {
+    const sourceText = "氏名：佐藤 太郎\n佐藤";
+    const personCandidates = runRegexDetection(sourceText).filter(
+      (candidate) => candidate.category === "PERSON",
+    );
+
+    expect(personCandidates.map((candidate) => candidate.originalText)).toEqual([
+      "佐藤 太郎",
+    ]);
+    expect(
+      personCandidates.some((candidate) => candidate.originalText.includes("\n")),
+    ).toBe(false);
   });
 
   it("一覧中の空白区切り姓名を文脈語がなくても補助検出する", () => {

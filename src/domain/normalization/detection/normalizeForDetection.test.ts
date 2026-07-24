@@ -184,6 +184,16 @@ describe("normalizeForDetection", () => {
     expect(sourceText).toBe("担当：佐藤 \r\n　健一さん");
   });
 
+  it("完成した姓名の次行にある別の姓を姓名として結合しない", () => {
+    const sourceText = "氏名：佐藤 太郎\n佐藤";
+    const result = normalizeForDetection(sourceText, [
+      "person_name_line_break",
+    ]);
+
+    expect(result.text).toBe(sourceText);
+    expect(result.appliedRules).toEqual([]);
+  });
+
   it.each([
     ["担当者は山田太\n郎です。", "担当者は山田太郎です。"],
     ["品質確認は佐藤健\n一が担当します。", "品質確認は佐藤健一が担当します。"],

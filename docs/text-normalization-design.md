@@ -531,7 +531,7 @@ Reducerは次をすべて満たす場合だけ適用する。
 - `originalRevision`を1増加
 - `activeTextView`を`original`へ変更
 - `selectedEntryId`を解除
-- `entryFilter`を`all`へ戻す
+- `entryFilter`を`enabled`へ戻す
 - `entrySearch`を空にする
 - 完了通知を設定
 
