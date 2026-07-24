@@ -281,4 +281,73 @@ describe("mapNerOutputsToCandidates", () => {
       ),
     ).toEqual([]);
   });
+
+  it("曖昧姓のPER候補は敬称・人名ラベルがある場合だけ維持する", () => {
+    const generalText = "森の中を歩く。";
+    expect(
+      mapNerOutputsToCandidates(
+        [
+          {
+            entity_group: "PER",
+            word: "森",
+            score: 0.91,
+            start: 0,
+            end: 1,
+          },
+        ],
+        generalText,
+      ),
+    ).toEqual([]);
+
+    const honorificText = "森さんが参加した。";
+    expect(
+      mapNerOutputsToCandidates(
+        [
+          {
+            entity_group: "PER",
+            word: "森さん",
+            score: 0.91,
+            start: 0,
+            end: 3,
+          },
+        ],
+        honorificText,
+      ),
+    ).toEqual([
+      {
+        originalText: "森さん",
+        category: "PERSON",
+        source: "ner",
+        confidence: 0.91,
+        start: 0,
+        end: 3,
+      },
+    ]);
+
+    const labelText = "担当者：森";
+    const labelStart = labelText.indexOf("森");
+    expect(
+      mapNerOutputsToCandidates(
+        [
+          {
+            entity_group: "PER",
+            word: "森",
+            score: 0.91,
+            start: labelStart,
+            end: labelStart + 1,
+          },
+        ],
+        labelText,
+      ),
+    ).toEqual([
+      {
+        originalText: "森",
+        category: "PERSON",
+        source: "ner",
+        confidence: 0.91,
+        start: labelStart,
+        end: labelStart + 1,
+      },
+    ]);
+  });
 });

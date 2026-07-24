@@ -1,7 +1,7 @@
 import type { DetectionCandidate } from "../mergeCandidates";
 import { createRegexCandidate, uniqueCandidates } from "./common";
 import {
-  COMMON_JAPANESE_SURNAMES,
+  COMMON_JAPANESE_SURNAMES_PATTERN,
   extendOcrSpacedGivenNameEnd,
 } from "./personNamePatterns";
 
@@ -28,7 +28,7 @@ const PERSON_FIELD_NAMES = new Set([
   "author",
 ]);
 const JAPANESE_NAME_PATTERN = new RegExp(
-  `(?:${COMMON_JAPANESE_SURNAMES})[ \u3000]*[一-龥々]{1,4}`,
+  `(?:${COMMON_JAPANESE_SURNAMES_PATTERN})[ \u3000]*[一-龥々]{1,4}`,
   "gu",
 );
 const ENGLISH_NAME_PATTERN =

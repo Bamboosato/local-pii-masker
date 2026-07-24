@@ -4,6 +4,7 @@ import type {
   MaskSession,
   ReviewStatus,
 } from "../domain/types";
+import { FIXED_OCCURRENCE_MASKING_MODE } from "../domain/types";
 import type { DetectionCandidate } from "../domain/detection/mergeCandidates";
 import { mergeCandidates } from "../domain/detection/mergeCandidates";
 import { normalizeText } from "../domain/normalization/normalizeText";
@@ -11,7 +12,7 @@ import { countOccurrences } from "../domain/mask/findOccurrences";
 import { createMaskToken } from "../domain/mask/tokenFactory";
 
 export type TextView = "original" | "masked";
-export type EntryFilter = "all" | "disabled";
+export type EntryFilter = "enabled" | "disabled";
 export type NormalizationLockReason =
   | "detection_completed"
   | "candidate_registered";
@@ -31,8 +32,9 @@ export const initialAppState: AppState = {
   originalText: "",
   entries: [],
   externalResponse: "",
+  occurrenceMaskingMode: FIXED_OCCURRENCE_MASKING_MODE,
   activeTextView: "original",
-  entryFilter: "all",
+  entryFilter: "enabled",
   entrySearch: "",
   restoreExpanded: false,
   originalRevision: 0,
@@ -117,7 +119,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         entries: [],
         activeTextView: "original",
         selectedEntryId: undefined,
-        entryFilter: "all",
+        entryFilter: "enabled",
         entrySearch: "",
         notice: "原文を正規化しました。マスク対象を検出してください。",
       };
@@ -266,7 +268,7 @@ function addManualEntry(
           : entry,
       ),
       selectedEntryId: existing.id,
-      entryFilter: "all",
+      entryFilter: "enabled",
       normalizationLockReason: "candidate_registered",
       notice: "同じ文字列は既存の項目を更新しました。",
     };
@@ -293,7 +295,7 @@ function addManualEntry(
     ...state,
     entries: [entry, ...state.entries],
     selectedEntryId: entry.id,
-    entryFilter: "all",
+    entryFilter: "enabled",
     normalizationLockReason: "candidate_registered",
     notice: "マスク対象に追加しました。",
   };

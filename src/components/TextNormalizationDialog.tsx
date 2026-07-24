@@ -117,7 +117,13 @@ export function TextNormalizationDialog(props: {
           <h2 id="text-normalization-title" ref={titleRef} tabIndex={-1}>
             テキスト正規化
           </h2>
-          <button aria-label="正規化画面を閉じる" className="icon-button" onClick={props.onCancel} type="button">
+          <button
+            aria-label="正規化画面を閉じる"
+            className="icon-button"
+            onClick={props.onCancel}
+            title="正規化画面を閉じます"
+            type="button"
+          >
             <X size={22} />
           </button>
         </div>
@@ -165,7 +171,14 @@ export function TextNormalizationDialog(props: {
             <div className="normalization-error" role="alert">
               <AlertTriangle aria-hidden="true" size={18} />
               <span>テキストを正規化できませんでした。原文は変更されていません。</span>
-              <button className="button button-secondary" onClick={props.onRetry} type="button">再試行</button>
+              <button
+                className="button button-secondary"
+                onClick={props.onRetry}
+                title="正規化を再試行します"
+                type="button"
+              >
+                再試行
+              </button>
             </div>
           ) : null}
           {props.state.status === "ready" && props.state.result && preview ? (
@@ -178,7 +191,12 @@ export function TextNormalizationDialog(props: {
           ) : null}
         </div>
         <div className="modal-footer">
-          <button className="button button-ghost normalization-cancel-button" onClick={props.onCancel} type="button">
+          <button
+            className="button button-ghost normalization-cancel-button"
+            onClick={props.onCancel}
+            title="正規化をキャンセルして画面を閉じます"
+            type="button"
+          >
             キャンセル
           </button>
           <button

@@ -12,6 +12,14 @@ export type MaskCategory =
 
 export type DetectionSource = "regex" | "ner" | "manual";
 
+export type OccurrenceMaskingMode =
+  | "global"
+  | "contextual_ambiguous_surnames";
+
+/** The application uses contextual occurrence masking for every session. */
+export const FIXED_OCCURRENCE_MASKING_MODE: OccurrenceMaskingMode =
+  "contextual_ambiguous_surnames";
+
 export type ReviewStatus = "unreviewed" | "approved" | "excluded";
 
 export type MaskEntry = {
@@ -34,6 +42,7 @@ export type MaskSession = {
   originalText: string;
   entries: MaskEntry[];
   externalResponse: string;
+  occurrenceMaskingMode: OccurrenceMaskingMode;
 };
 
 export const MASK_CATEGORIES: MaskCategory[] = [

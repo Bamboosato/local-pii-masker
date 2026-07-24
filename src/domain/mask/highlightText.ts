@@ -1,9 +1,15 @@
-import type { MaskEntry, ReviewStatus } from "../types";
+import type {
+  MaskEntry,
+  OccurrenceMaskingMode,
+  ReviewStatus,
+} from "../types";
 import { normalizeText } from "../normalization/normalizeText";
+import { shouldMaskOccurrence } from "./contextualMasking";
 
 type HighlightEntry = Pick<
   MaskEntry,
   "enabled" | "id" | "normalizedText" | "reviewStatus"
+  | "category" | "originalText" | "sources"
 >;
 
 export type HighlightSegment =
@@ -21,6 +27,7 @@ export type HighlightSegment =
 export function buildHighlightSegments(
   text: string,
   entries: HighlightEntry[],
+  mode: OccurrenceMaskingMode = "global",
 ): HighlightSegment[] {
   const normalizedText = normalizeText(text);
   const sortedEntries = [...entries]
@@ -39,7 +46,14 @@ export function buildHighlightSegments(
 
   while (position < normalizedText.length) {
     const matched = sortedEntries.find((entry) =>
-      normalizedText.startsWith(entry.normalizedText, position),
+      normalizedText.startsWith(entry.normalizedText, position) &&
+      shouldMaskOccurrence({
+        text: normalizedText,
+        entry,
+        start: position,
+        end: position + entry.normalizedText.length,
+        mode,
+      }),
     );
 
     if (matched) {

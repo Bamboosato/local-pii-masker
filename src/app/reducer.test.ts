@@ -150,7 +150,7 @@ describe("appReducer", () => {
       "山田",
       "佐藤",
     ]);
-    expect(second.entryFilter).toBe("all");
+    expect(second.entryFilter).toBe("enabled");
   });
 
   it("形式検出した対象を有効なマスク対象として統合する", () => {
@@ -179,6 +179,27 @@ describe("appReducer", () => {
       occurrenceCount: 1,
     });
     expect(selectMaskedText(detected)).toBe("連絡先は [メール_1] です。");
+  });
+
+  it("文脈付き出現箇所マスクを固定し、全消去でも維持する", () => {
+    const state = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "森さん。森林。",
+    });
+    const detected = appReducer(state, {
+      type: "mergeDetectedCandidates",
+      candidates: [
+        { originalText: "森", category: "PERSON", source: "regex" },
+      ],
+      createId: () => "entry-1",
+    });
+
+    expect(detected.occurrenceMaskingMode).toBe("contextual_ambiguous_surnames");
+    expect(selectMaskedText(detected)).toBe("[人名_1]さん。森林。");
+    expect(selectSessionCounts(detected).replacements).toBe(1);
+    expect(
+      appReducer(detected, { type: "clearSession" }).occurrenceMaskingMode,
+    ).toBe("contextual_ambiguous_surnames");
   });
 
   it("形式検出の再実行では重複作成せず、手動項目の設定を維持して検出元だけ追加する", () => {
@@ -296,7 +317,6 @@ describe("appReducer", () => {
     expect(selectVisibleEntries(state).map((entry) => entry.originalText)).toEqual([
       "佐藤",
       "山田太郎",
-      "052-351-5006",
     ]);
   });
 

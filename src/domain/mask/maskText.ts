@@ -1,9 +1,17 @@
-import type { MaskEntry } from "../types";
+import type { MaskEntry, OccurrenceMaskingMode } from "../types";
 import { normalizeText } from "../normalization/normalizeText";
+import { shouldMaskOccurrence } from "./contextualMasking";
 
 type ActiveMask = Pick<
   MaskEntry,
-  "id" | "originalText" | "normalizedText" | "token" | "enabled" | "reviewStatus"
+  | "id"
+  | "originalText"
+  | "normalizedText"
+  | "token"
+  | "enabled"
+  | "reviewStatus"
+  | "category"
+  | "sources"
 >;
 
 export type MaskSegment =
@@ -32,6 +40,7 @@ function getActiveMasks(entries: ActiveMask[]): ActiveMask[] {
 export function buildMaskSegments(
   text: string,
   entries: ActiveMask[],
+  mode: OccurrenceMaskingMode = "global",
 ): MaskSegment[] {
   const normalizedText = normalizeText(text);
   const sortedEntries = getActiveMasks(entries);
@@ -40,7 +49,14 @@ export function buildMaskSegments(
 
   while (position < normalizedText.length) {
     const matched = sortedEntries.find((entry) =>
-      normalizedText.startsWith(entry.normalizedText, position),
+      normalizedText.startsWith(entry.normalizedText, position) &&
+      shouldMaskOccurrence({
+        text: normalizedText,
+        entry,
+        start: position,
+        end: position + entry.normalizedText.length,
+        mode,
+      }),
     );
 
     if (matched) {
@@ -67,8 +83,12 @@ export function buildMaskSegments(
   return coalesceTextSegments(segments);
 }
 
-export function maskText(text: string, entries: ActiveMask[]): string {
-  return buildMaskSegments(text, entries)
+export function maskText(
+  text: string,
+  entries: ActiveMask[],
+  mode: OccurrenceMaskingMode = "global",
+): string {
+  return buildMaskSegments(text, entries, mode)
     .map((segment) => segment.value)
     .join("");
 }

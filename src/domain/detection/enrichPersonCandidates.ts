@@ -1,8 +1,9 @@
 import type { DetectionCandidate } from "./mergeCandidates";
 import { uniqueCandidates } from "./regex/common";
 import { COMMON_JAPANESE_SURNAMES } from "./regex/personNamePatterns";
+import { normalizeJapaneseName } from "../reference/japanesePersonNames";
 
-const SORTED_SURNAMES = COMMON_JAPANESE_SURNAMES.split("|").sort(
+const SORTED_SURNAMES = [...COMMON_JAPANESE_SURNAMES].sort(
   (left, right) => right.length - left.length,
 );
 const RUBY_ADJACENT_FULL_NAME_PATTERN = new RegExp(
@@ -261,16 +262,17 @@ function splitCommonJapaneseName(
   value: string,
 ): { surname: string; compactName: string } | undefined {
   const compactName = value.replace(/[ \u3000]+/gu, "");
+  const normalizedCompactName = normalizeJapaneseName(compactName);
 
-  if (!COMPACT_JAPANESE_NAME_PATTERN.test(compactName)) {
+  if (!COMPACT_JAPANESE_NAME_PATTERN.test(normalizedCompactName)) {
     return undefined;
   }
 
   const surname = SORTED_SURNAMES.find(
     (item) =>
-      compactName.startsWith(item) &&
-      compactName.length > item.length &&
-      compactName.length - item.length <= 4,
+      normalizedCompactName.startsWith(normalizeJapaneseName(item)) &&
+      normalizedCompactName.length > normalizeJapaneseName(item).length &&
+      normalizedCompactName.length - normalizeJapaneseName(item).length <= 4,
   );
 
   return surname ? { surname, compactName } : undefined;
