@@ -15,6 +15,7 @@ describe("detectPhoneNumbersWithNormalization", () => {
 
     expect(candidate).toMatchObject({
       originalText: phone,
+      restorationText: phone.replace(/\r?\n/gu, ""),
       category: "PHONE",
       source: "regex",
       normalizationRules: ["phone_line_break"],
@@ -29,6 +30,7 @@ describe("detectPhoneNumbersWithNormalization", () => {
 
     expect(candidate).toMatchObject({
       originalText: phone,
+      restorationText: "090-1234-5678",
       category: "PHONE",
       normalizationRules: expect.arrayContaining([
         "fullwidth_ascii",

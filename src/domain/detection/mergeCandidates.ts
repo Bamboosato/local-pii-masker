@@ -10,6 +10,7 @@ import { createMaskToken } from "../mask/tokenFactory";
 
 export type DetectionCandidate = {
   originalText: string;
+  restorationText?: string;
   category: MaskCategory;
   source: DetectionSource;
   start?: number;
@@ -47,6 +48,7 @@ export function mergeCandidates(params: {
     );
 
     if (existing) {
+      const existingSources = [...existing.sources];
       existing.sources = mergeSources(existing.sources, candidate.source);
       existing.confidence = maxConfidence(existing.confidence, candidate.confidence);
       existing.occurrenceCount = occurrenceCount;
@@ -56,6 +58,13 @@ export function mergeCandidates(params: {
           existing.normalizationRules,
           candidate.normalizationRules,
         );
+      }
+
+      if (
+        candidate.restorationText !== undefined &&
+        shouldReplaceRestorationText(existing, existingSources, candidate)
+      ) {
+        existing.restorationText = normalizeText(candidate.restorationText);
       }
 
       if (existing.reviewStatus === "unreviewed") {
@@ -70,6 +79,9 @@ export function mergeCandidates(params: {
       id: params.createId(),
       originalText: normalizedText,
       normalizedText,
+      restorationText: normalizeText(
+        candidate.restorationText ?? candidate.originalText,
+      ),
       token: createMaskToken(candidate.category, {
         originalText: params.originalText,
         entries: nextEntries,
@@ -88,6 +100,32 @@ export function mergeCandidates(params: {
   }
 
   return nextEntries;
+}
+
+function shouldReplaceRestorationText(
+  existing: MaskEntry,
+  existingSources: DetectionSource[],
+  candidate: DetectionCandidate,
+): boolean {
+  if (existing.restorationText === existing.originalText) {
+    return true;
+  }
+
+  return (
+    sourcePriority(candidate.source) >
+    Math.max(...existingSources.map(sourcePriority))
+  );
+}
+
+function sourcePriority(source: DetectionSource): number {
+  switch (source) {
+    case "regex":
+      return 3;
+    case "ner":
+      return 2;
+    case "manual":
+      return 1;
+  }
 }
 
 function mergeSources(

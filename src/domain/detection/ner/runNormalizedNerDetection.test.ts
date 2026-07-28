@@ -25,6 +25,7 @@ describe("runNormalizedNerDetection", () => {
     expect(candidates).toEqual([
       expect.objectContaining({
         originalText: "山田\n太郎",
+        restorationText: "山田太郎",
         category: "PERSON",
         source: "ner",
         start: 3,
@@ -43,6 +44,7 @@ describe("runNormalizedNerDetection", () => {
 
     expect(entries[0]).toMatchObject({
       originalText: "山田\n太郎",
+      restorationText: "山田太郎",
       occurrenceCount: 1,
       enabled: true,
     });
@@ -121,6 +123,7 @@ describe("runNormalizedNerDetection", () => {
       }),
       expect.objectContaining({
         originalText: brokenOrganization,
+        restorationText: organization,
         start: organization.length + 1,
         end: sourceText.length,
         normalizationRules: ["organization_line_break"],
@@ -159,6 +162,7 @@ describe("runNormalizedNerDetection", () => {
     ).resolves.toEqual([
       expect.objectContaining({
         originalText: sourceText,
+        restorationText: normalizedOrganization,
         category: "ORGANIZATION",
         source: "ner",
         start: 0,
@@ -210,6 +214,7 @@ describe("runNormalizedNerDetection", () => {
     expect(candidates).toEqual([
       expect.objectContaining({
         originalText: "山 田　太郎",
+        restorationText: "山田太郎",
         start: 3,
         end: 9,
         normalizationRules: ["japanese_inter_character_space"],

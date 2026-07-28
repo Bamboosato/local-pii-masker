@@ -13,6 +13,7 @@ describe("detectOrganizationsWithNormalization", () => {
     expect(candidates).toEqual([
       {
         originalText: sourceText,
+        restorationText: sourceText.replace(/\r?\n/gu, ""),
         category: "ORGANIZATION",
         source: "regex",
         start: 0,

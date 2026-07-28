@@ -43,6 +43,7 @@ export function detectOrganizationsWithNormalization(
       return [
         {
           originalText: sourceText.slice(originalRange.start, originalRange.end),
+          restorationText: trimmedCandidate,
           category: "ORGANIZATION",
           source: "regex",
           start: originalRange.start,

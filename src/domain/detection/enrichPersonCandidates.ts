@@ -168,10 +168,12 @@ function deriveAiSpacedFullNameCandidates(
 
       const candidate: DetectionCandidate = {
         originalText,
+        restorationText: compactName,
         category: "PERSON",
         source: "regex",
         start: range.start,
         end: range.end,
+        normalizationRules: ["japanese_inter_character_space"],
       };
       const candidateKey = toCandidateRangeKey(candidate);
 

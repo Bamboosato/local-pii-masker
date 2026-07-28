@@ -7,7 +7,10 @@ describe("OCR structured detection", () => {
     const candidates = runRegexDetection(`連絡先は${email}です。`);
     const candidate = candidates.find((item) => item.originalText === email);
 
-    expect(candidate).toMatchObject({ category: "EMAIL" });
+    expect(candidate).toMatchObject({
+      category: "EMAIL",
+      restorationText: "taro.yamada@example.co.jp",
+    });
     expect(candidate?.normalizationRules).toContain("fullwidth_ascii");
   });
 
@@ -24,6 +27,7 @@ describe("OCR structured detection", () => {
           expect.objectContaining({
             category: "EMAIL",
             originalText: email,
+            restorationText: email.replace(/\r?\n/gu, ""),
             normalizationRules: expect.arrayContaining(["email_line_break"]),
           }),
         ]),
@@ -36,7 +40,10 @@ describe("OCR structured detection", () => {
     const candidates = runRegexDetection(`参照先は${url}です。`);
     const candidate = candidates.find((item) => item.originalText === url);
 
-    expect(candidate).toMatchObject({ category: "OTHER" });
+    expect(candidate).toMatchObject({
+      category: "OTHER",
+      restorationText: "https://dev.example.jp/login",
+    });
     expect(candidate?.normalizationRules).toContain("fullwidth_ascii");
   });
 
@@ -53,6 +60,7 @@ describe("OCR structured detection", () => {
           expect.objectContaining({
             category: "OTHER",
             originalText: url,
+            restorationText: url.replace(/\r?\n/gu, ""),
             normalizationRules: expect.arrayContaining(["url_line_break"]),
           }),
         ]),
@@ -85,7 +93,10 @@ describe("OCR structured detection", () => {
       (item) => item.category === "EMAIL",
     );
 
-    expect(candidate).toMatchObject({ originalText: email });
+    expect(candidate).toMatchObject({
+      originalText: email,
+      restorationText: "taro-yamada@example.co.jp",
+    });
     expect(candidate?.normalizationRules).toEqual(
       expect.arrayContaining(["email_line_break", "line_end_hyphen"]),
     );
@@ -97,7 +108,10 @@ describe("OCR structured detection", () => {
       (item) => item.originalText === url,
     );
 
-    expect(candidate).toMatchObject({ category: "OTHER" });
+    expect(candidate).toMatchObject({
+      category: "OTHER",
+      restorationText: "https://dev.example.jp/long-path",
+    });
     expect(candidate?.normalizationRules).toEqual(
       expect.arrayContaining(["url_line_break", "line_end_hyphen"]),
     );
@@ -115,6 +129,7 @@ describe("OCR structured detection", () => {
     expect(addressCandidates).toHaveLength(1);
     expect(candidate).toMatchObject({
       originalText: address,
+      restorationText: "愛知県豊田市若宮町二丁目15番地",
       normalizationRules: ["address_line_break"],
     });
   });
@@ -128,6 +143,7 @@ describe("OCR structured detection", () => {
     expect(addressCandidates).toEqual([
       expect.objectContaining({
         originalText: address,
+        restorationText: "東京都新宿区西新宿二丁目8番1号",
         normalizationRules: ["address_line_break"],
       }),
     ]);

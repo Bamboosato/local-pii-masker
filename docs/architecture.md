@@ -98,7 +98,7 @@ flowchart LR
 ### 3.4 変換層
 
 - Mask Engine：原文と有効な対象からマスク結果を生成
-- Restore Engine：マスクを含む文章内の既知トークンを元文字列へ置換
+- Restore Engine：マスクを含む文章内の既知トークンを対応する`restorationText`へ置換
 - Token Inspector：既知、不明、未出現トークンを分類
 
 ### 3.5 マスキング前正規化層
@@ -153,6 +153,8 @@ Candidate Refinerは文字列全体を一律に除外せず、候補ごとの原
 ## 5. 状態モデル
 
 ```ts
+import type { DetectionNormalizationRule } from "./normalization/detection/types";
+
 export type MaskCategory =
   | "PERSON"
   | "ADDRESS"
@@ -175,10 +177,12 @@ export type MaskEntry = {
   id: string;
   originalText: string;
   normalizedText: string;
+  restorationText: string;
   token: string;
   category: MaskCategory;
   sources: DetectionSource[];
   confidence?: number;
+  normalizationRules?: DetectionNormalizationRule[];
   enabled: boolean;
   occurrenceCount: number;
   reviewStatus: ReviewStatus;
@@ -212,6 +216,14 @@ export type MaskSessionState = {
 - 総置換箇所数
 - 出現数0のマスク対象
 - 既知・不明・未出現トークンの検査結果
+
+`restorationText`は復元専用の項目データとする。検出用正規化を経た候補では、検出器が一致した正規化後テキストの範囲を候補へ引き継ぎ、候補統合時に`MaskEntry`へ保存する。これにより、全角ASCII、ハイフン種類、空白、改行等の複数補正について、適用順序や対象範囲をRestore Engineで推測・再実行しない。補正のない候補と手動追加候補では`originalText`と同じ値を設定する。
+
+`normalizedText`はNFC正規化した候補集約・照合キーであり、検出補正後の値を表すものではないため、`restorationText`として流用しない。`originalText`は原文照合、候補表示、ハイライト、出現数計算、マスク範囲にだけ使用する。Restore Engineは既知トークンを`originalText`へ直接置換せず、対応する`restorationText`へ置換する。
+
+同じ`originalText`の候補が複数経路から検出された場合、補正後候補を未補正候補より優先する。異なる補正後文字列が競合した場合は、形式検出、NERの順で決定し、同じ優先度では先に確定した値を維持する。再検出によって既存項目の`restorationText`を不安定に変更しない。競合規則は純粋関数として一元化し、テストで固定する。
+
+テキスト正規化画面でユーザーが正規化後テキストを原文へ適用した場合は、適用後の`originalText`自体が正本であり、過去の正規化イベントを復元時に再適用しない。その後の検出で追加の検出補正が適用された場合だけ、その検出結果から`restorationText`を確定する。
 
 ## 6. 文字列の同一性
 

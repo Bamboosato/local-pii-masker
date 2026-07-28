@@ -100,6 +100,9 @@ export function extendHonorificCandidates(
     return {
       ...candidate,
       originalText: sourceText.slice(range.start, end),
+      ...(candidate.restorationText !== undefined
+        ? { restorationText: candidate.restorationText + suffix }
+        : {}),
       start: range.start,
       end,
     };
