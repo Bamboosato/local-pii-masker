@@ -1,9 +1,9 @@
 import {
-  CheckCircle2,
   ChevronDown,
   Copy,
   Eraser,
   Eye,
+  EyeOff,
   EllipsisVertical,
   Info,
   Link2,
@@ -24,6 +24,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   appReducer,
   type EntryFilter,
@@ -432,41 +433,43 @@ export default function App() {
   }
 
   function toggleRestoreInputsExpanded() {
-    const nextExpanded = !restoreInputsExpanded;
+    runWithOptionalViewTransition(() => {
+      const nextExpanded = !restoreInputsExpanded;
 
-    if (nextExpanded) {
-      const content = restoreContentRef.current;
-      const dock = restoreDockRef.current;
-      const appHeader = appHeaderRef.current;
-      const appShell = appShellRef.current;
+      if (nextExpanded) {
+        const content = restoreContentRef.current;
+        const dock = restoreDockRef.current;
+        const appHeader = appHeaderRef.current;
+        const appShell = appShellRef.current;
 
-      const currentTextarea = content?.querySelector<HTMLTextAreaElement>("textarea");
-      const currentHeight = currentTextarea?.getBoundingClientRect().height;
+        const currentTextarea = content?.querySelector<HTMLTextAreaElement>("textarea");
+        const currentHeight = currentTextarea?.getBoundingClientRect().height;
 
-      restoreTextareaHeightBeforeExpandRef.current =
-        restoreTextareaHeight ??
-        (currentHeight && currentHeight >= RESTORE_TEXTAREA_MIN_HEIGHT
-          ? Math.round(currentHeight)
-          : RESTORE_TEXTAREA_MIN_HEIGHT);
+        restoreTextareaHeightBeforeExpandRef.current =
+          restoreTextareaHeight ??
+          (currentHeight && currentHeight >= RESTORE_TEXTAREA_MIN_HEIGHT
+            ? Math.round(currentHeight)
+            : RESTORE_TEXTAREA_MIN_HEIGHT);
 
-      if (content && dock && appHeader && appShell) {
-        const nextHeight = calculateRestoreTextareaHeight(
-          content,
-          dock,
-          appHeader,
-          appShell,
-        );
+        if (content && dock && appHeader && appShell) {
+          const nextHeight = calculateRestoreTextareaHeight(
+            content,
+            dock,
+            appHeader,
+            appShell,
+          );
 
-        if (nextHeight !== undefined) {
-          setRestoreTextareaHeight(nextHeight);
+          if (nextHeight !== undefined) {
+            setRestoreTextareaHeight(nextHeight);
+          }
         }
+      } else {
+        setRestoreTextareaHeight(restoreTextareaHeightBeforeExpandRef.current);
+        restoreTextareaHeightBeforeExpandRef.current = undefined;
       }
-    } else {
-      setRestoreTextareaHeight(restoreTextareaHeightBeforeExpandRef.current);
-      restoreTextareaHeightBeforeExpandRef.current = undefined;
-    }
 
-    setRestoreInputsExpanded(nextExpanded);
+      setRestoreInputsExpanded(nextExpanded);
+    });
   }
 
   async function copyMaskedText(force = false) {
@@ -605,6 +608,26 @@ export default function App() {
   }
 
   const isRestoreInputsMaximized = state.restoreExpanded && restoreInputsExpanded;
+
+  function runWithOptionalViewTransition(update: () => void) {
+    const applyUpdate = () => flushSync(update);
+
+    if (!document.startViewTransition || prefersReducedMotion()) {
+      applyUpdate();
+      return;
+    }
+
+    document.startViewTransition(applyUpdate);
+  }
+
+  function toggleRestoreExpanded() {
+    runWithOptionalViewTransition(() => {
+      dispatch({
+        type: "setRestoreExpanded",
+        value: !state.restoreExpanded,
+      });
+    });
+  }
 
   return (
     <div
@@ -965,12 +988,7 @@ export default function App() {
           <button
             aria-expanded={state.restoreExpanded}
             className="restore-toggle"
-            onClick={() =>
-              dispatch({
-                type: "setRestoreExpanded",
-                value: !state.restoreExpanded,
-              })
-            }
+            onClick={toggleRestoreExpanded}
             title={state.restoreExpanded ? "マスク復元欄を閉じる" : "マスク復元欄を開く"}
             type="button"
           >
@@ -1199,37 +1217,139 @@ function EntryCard(props: {
   onSelect: () => void;
   onToggle: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRootRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const firstMenuItemRef = useRef<HTMLButtonElement>(null);
   const isActive = props.entry.enabled;
   const statusLabel = isActive ? "有効" : "無効";
   const statusClass = isActive ? "is-approved" : "is-disabled";
+  const confidenceLabel =
+    props.entry.confidence !== undefined
+      ? `AI検出の信頼度：${Math.round(props.entry.confidence * 100)}%`
+      : undefined;
+  const confidenceTooltipId = `confidence-tooltip-${props.entry.id}`;
+  const normalizationLabels = [
+    ...new Set(
+      props.entry.normalizationRules?.map(
+        (rule) => NORMALIZATION_RULE_LABELS[rule],
+      ) ?? [],
+    ),
+  ];
+  const menuId = `entry-menu-${props.entry.id}`;
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    firstMenuItemRef.current?.focus();
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !menuRootRef.current?.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
 
   return (
     <article
+      aria-label={`${props.entry.originalText}、${statusLabel}`}
       className={`entry-card ${statusClass} ${props.isSelected ? "is-selected" : ""}`}
       data-entry-id={props.entry.id}
       onFocus={props.onSelect}
       onMouseDown={props.onSelect}
       tabIndex={0}
     >
-      {props.entry.confidence !== undefined ? (
-        <div className="entry-card-topline">
-          <span>信頼度 {Math.round(props.entry.confidence * 100)}%</span>
-        </div>
-      ) : null}
-      <div className="entry-text">
-        <span
-          aria-label={statusLabel}
-          className={`entry-state-icon ${isActive ? "is-enabled" : "is-disabled"}`}
-          role="img"
-          title={`${statusLabel}のマスク対象`}
+      <div className="entry-card-menu" ref={menuRootRef}>
+        <button
+          aria-controls={menuId}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          aria-label={`${props.entry.originalText}の操作メニュー`}
+          className="icon-button entry-card-menu-trigger"
+          onClick={() => setMenuOpen((open) => !open)}
+          ref={menuButtonRef}
+          title="マスク対象の操作メニューを開く"
+          type="button"
         >
-          {isActive ? (
-            <CheckCircle2 aria-hidden="true" size={20} />
-          ) : (
-            <Info aria-hidden="true" size={20} />
-          )}
-        </span>
-        <span className="entry-value">{props.entry.originalText}</span>
+          <EllipsisVertical aria-hidden="true" size={20} />
+        </button>
+        {menuOpen ? (
+          <div
+            aria-label={`${props.entry.originalText}の操作`}
+            className="entry-card-menu-popover"
+            id={menuId}
+            role="menu"
+          >
+            <button
+              className="entry-card-menu-item"
+              onClick={() => {
+                setMenuOpen(false);
+                props.onToggle();
+              }}
+              ref={firstMenuItemRef}
+              role="menuitem"
+              type="button"
+            >
+              {props.entry.enabled ? (
+                <EyeOff aria-hidden="true" size={16} />
+              ) : (
+                <Eye aria-hidden="true" size={16} />
+              )}
+              {props.entry.enabled ? "無効化" : "有効化"}
+            </button>
+            <button
+              className="entry-card-menu-item is-danger"
+              onClick={() => {
+                setMenuOpen(false);
+                props.onDelete();
+              }}
+              role="menuitem"
+              type="button"
+            >
+              <Trash2 aria-hidden="true" size={16} />
+              削除
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <div className="entry-text">
+        {confidenceLabel ? (
+          <span
+            aria-describedby={confidenceTooltipId}
+            className="entry-value entry-value-with-tooltip"
+            tabIndex={0}
+          >
+            {props.entry.originalText}
+            <span
+              className="entry-confidence-tooltip"
+              id={confidenceTooltipId}
+              role="tooltip"
+            >
+              {confidenceLabel}
+            </span>
+          </span>
+        ) : (
+          <span className="entry-value">{props.entry.originalText}</span>
+        )}
         <button
           aria-label={`${props.entry.originalText}の最初の出現箇所へ移動`}
           className="icon-button entry-locate-button"
@@ -1247,7 +1367,6 @@ function EntryCard(props: {
       </div>
       <div className="chip-row">
         <span className="chip mono">{props.entry.token}</span>
-        <span className="chip">{CATEGORY_LABELS[props.entry.category]}</span>
         <span
           aria-label={
             props.entry.occurrenceCount === 0
@@ -1267,30 +1386,11 @@ function EntryCard(props: {
             {SOURCE_LABELS[source]}
           </span>
         ))}
-        {props.entry.normalizationRules?.map((rule) => (
-          <span className="chip chip-normalization" key={rule}>
-            {NORMALIZATION_RULE_LABELS[rule]}
+        {normalizationLabels.map((label) => (
+          <span className="chip chip-normalization" key={label}>
+            {label}
           </span>
         ))}
-      </div>
-      <div className="entry-card-actions">
-        <button
-          className="button button-primary"
-          onClick={props.onToggle}
-          title={props.entry.enabled ? "このマスク対象を無効化します" : "このマスク対象を有効化します"}
-          type="button"
-        >
-          {props.entry.enabled ? "無効化" : "有効化"}
-        </button>
-        <button
-          aria-label={`${props.entry.originalText}を削除`}
-          className="icon-button"
-          onClick={props.onDelete}
-          title={`${props.entry.originalText}を削除します`}
-          type="button"
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
     </article>
   );

@@ -94,8 +94,6 @@ button:disabled {
 .header-actions,
 .filter-row,
 .chip-row,
-.entry-card-actions,
-.entry-card-topline,
 .restore-summary,
 .result-summary p {
   display: flex;
@@ -135,8 +133,7 @@ button:disabled {
 }
 
 .chip-normalization {
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
+  background: #dcfce7;
   color: #166534;
 }
 
@@ -623,6 +620,7 @@ button:disabled {
 }
 
 .entry-card {
+  position: relative;
   border: 1px solid var(--line);
   border-left: 4px solid #94a3b8;
   border-radius: 6px;
@@ -647,41 +645,10 @@ button:disabled {
   border-left-color: #64748b;
 }
 
-.entry-card-topline {
-  margin-bottom: 8px;
-  justify-content: space-between;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.entry-state-icon {
-  display: inline-flex;
-  flex: 0 0 var(--compact-control-height);
-  width: var(--compact-control-height);
-  height: var(--compact-control-height);
-  align-items: center;
-  justify-content: center;
-}
-
-.entry-state-icon.is-enabled {
-  color: var(--blue);
-}
-
-.entry-state-icon.is-disabled,
-.entry-card.is-pending .entry-state-icon {
-  color: var(--pending);
-}
-
-.entry-card.is-disabled .entry-state-icon {
-  color: #475569;
-}
-
 .entry-text {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: block;
   margin: 0 0 8px;
+  padding-right: 28px;
   color: #000;
   font-size: 20px;
   font-weight: 800;
@@ -690,8 +657,6 @@ button:disabled {
 }
 
 .entry-value {
-  min-width: 0;
-  flex: 1 1 auto;
   text-decoration-line: underline;
   text-decoration-color: #e5e7eb;
   text-decoration-style: solid;
@@ -699,11 +664,47 @@ button:disabled {
   text-underline-offset: 3px;
 }
 
+.entry-value-with-tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.entry-value-with-tooltip:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.entry-confidence-tooltip {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  display: none;
+  width: max-content;
+  max-width: 240px;
+  border-radius: 4px;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 6px 8px;
+  pointer-events: none;
+}
+
+.entry-value-with-tooltip:hover .entry-confidence-tooltip,
+.entry-value-with-tooltip:focus-visible .entry-confidence-tooltip {
+  display: block;
+}
+
 .entry-locate-button {
-  width: var(--compact-control-height);
-  height: var(--compact-control-height);
-  flex: 0 0 var(--compact-control-height);
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
   color: var(--blue);
+  vertical-align: middle;
 }
 
 .entry-locate-button:hover:not(:disabled) {
@@ -717,28 +718,85 @@ button:disabled {
   row-gap: 4px;
 }
 
-.entry-card-actions {
+.entry-card-menu {
+  position: absolute;
+  z-index: 12;
+  top: 8px;
+  right: 8px;
+}
+
+.entry-card-menu-trigger {
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  color: #475569;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.entry-card:hover .entry-card-menu-trigger,
+.entry-card:focus-within .entry-card-menu-trigger,
+.entry-card.is-selected .entry-card-menu-trigger,
+.entry-card-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.entry-card-menu-trigger:hover,
+.entry-card-menu-trigger[aria-expanded="true"] {
+  background: #f1f5f9;
+}
+
+.entry-card-menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: 34px;
+  right: 0;
+  min-width: 120px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  padding: 4px;
+}
+
+.entry-card-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #111827;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
   gap: 8px;
-  justify-content: flex-end;
-  margin-top: 12px;
+  padding: 8px 10px;
+  text-align: left;
 }
 
-.entry-card-actions .button,
-.entry-card-actions .icon-button {
-  min-height: var(--compact-control-height);
-  height: var(--compact-control-height);
+.entry-card-menu-item:hover,
+.entry-card-menu-item:focus-visible {
+  background: #f1f5f9;
+  outline: 0;
 }
 
-.entry-card-actions .button {
-  padding-inline: 12px;
+.entry-card-menu-item.is-danger {
+  color: #b91c1c;
 }
 
-.entry-card-actions .icon-button {
-  width: var(--compact-control-height);
+.entry-card-menu-item.is-danger:hover,
+.entry-card-menu-item.is-danger:focus-visible {
+  background: #fef2f2;
 }
 
-.entry-card .icon-button {
-  min-height: var(--compact-control-height);
+@media (hover: none), (pointer: coarse) {
+  .entry-card-menu-trigger {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .button,
@@ -832,6 +890,23 @@ button:disabled {
   flex: 0 0 auto;
   border-top: 1px solid var(--line);
   background: var(--surface);
+  view-transition-name: restore-dock;
+}
+
+::view-transition-group(root) {
+  animation: none;
+}
+
+::view-transition-group(restore-dock) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+::view-transition-old(restore-dock),
+::view-transition-new(restore-dock) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  mix-blend-mode: normal;
 }
 
 .restore-dock.is-maximized {
@@ -1360,6 +1435,16 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(restore-dock),
+  ::view-transition-old(restore-dock),
+  ::view-transition-new(restore-dock) {
+    animation: none;
+  }
+
+  .restore-toggle svg {
+    transition: none;
+  }
+
   .loading-spinner {
     animation: none;
   }
