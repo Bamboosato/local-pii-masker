@@ -583,6 +583,8 @@ MVPで許容するネットワーク通信：
 
 将来的にはモデルを同一オリジンで配信する案を評価する。MVP初期はHugging Face Hubからの取得も候補とするが、通信先をUIとドキュメントで明示する。
 
+本番配信では、`config/securityHeaders.ts`と同じCSP、フレーム埋め込み拒否、MIMEスニッフィング拒否、Referrer Policy、Permissions Policy等をHTTPレスポンスへ適用する。Vercel配信では`vercel.json`を適用境界とし、設定値がTypeScript側の定義と一致することを自動テストで保証する。
+
 ## 14. UI状態遷移
 
 ```mermaid

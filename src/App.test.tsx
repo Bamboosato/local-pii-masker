@@ -1024,6 +1024,13 @@ describe("App", () => {
     expect(expandButton).toBeInTheDocument();
     expect(expandButton.parentElement).toHaveClass("restore-field-heading");
     expect(expandButton.closest(".restore-textarea-wrap")).not.toBeInTheDocument();
+    const restoreOutput = screen.getByRole("textbox", {
+      name: "マスクを復元した文章",
+    });
+    expect(restoreOutput.closest(".restore-field")?.firstElementChild).toHaveClass(
+      "restore-field-heading",
+    );
+    expect(screen.getAllByRole("button", { name: "入力欄を拡大" })).toHaveLength(1);
     const restoreInput = screen.getByRole("textbox", { name: "マスクを含む文章" });
 
     await user.click(screen.getByRole("button", { name: "入力欄を拡大" }));
@@ -1045,6 +1052,77 @@ describe("App", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("外部回答")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("復元結果")).not.toBeInTheDocument();
+  });
+
+  it("拡大直後の古いResizeObserver通知でテキストエリアを縮小しない", async () => {
+    const user = userEvent.setup();
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: class {
+        constructor(callback: ResizeObserverCallback) {
+          resizeCallbacks.push(callback);
+        }
+
+        disconnect() {}
+        observe() {}
+        unobserve() {}
+      },
+    });
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "マスクを復元" }));
+
+    const restoreInput = screen.getByRole("textbox", {
+      name: "マスクを含む文章",
+    });
+    const restoreOutput = screen.getByRole("textbox", {
+      name: "マスクを復元した文章",
+    });
+    const rect = (top: number, height: number) =>
+      ({
+        bottom: top + height,
+        height,
+        left: 0,
+        right: 100,
+        top,
+        width: 100,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    vi.spyOn(document.querySelector(".app-shell")!, "getBoundingClientRect").mockReturnValue(
+      rect(0, 800),
+    );
+    vi.spyOn(document.querySelector(".app-header")!, "getBoundingClientRect").mockReturnValue(
+      rect(0, 52),
+    );
+    vi.spyOn(document.querySelector(".restore-dock")!, "getBoundingClientRect").mockReturnValue(
+      rect(52, 250),
+    );
+    vi.spyOn(
+      document.querySelector(".restore-content")!,
+      "getBoundingClientRect",
+    ).mockReturnValue(rect(52, 450));
+    vi.spyOn(restoreInput, "getBoundingClientRect").mockReturnValue(rect(90, 160));
+    vi.spyOn(restoreOutput, "getBoundingClientRect").mockReturnValue(rect(90, 160));
+
+    await user.click(screen.getByRole("button", { name: "入力欄を拡大" }));
+    expect(restoreInput).toHaveStyle({ height: "309px" });
+
+    const latestCallback = resizeCallbacks.at(-1);
+    expect(latestCallback).toBeDefined();
+    act(() => {
+      latestCallback?.(
+        [{ target: restoreInput } as unknown as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+    });
+
+    expect(restoreInput).toHaveStyle({ height: "309px" });
+    expect(restoreOutput).toHaveStyle({ height: "309px" });
+    Reflect.deleteProperty(globalThis, "ResizeObserver");
   });
 
   it("対応ブラウザではView Transition内で復元欄を開閉する", async () => {

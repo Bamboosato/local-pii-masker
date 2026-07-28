@@ -148,3 +148,4 @@ vite.config.ts.timestamp-*
 output/playwright/
 playwright-report/
 test-results/
+.vercel

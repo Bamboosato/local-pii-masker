@@ -121,7 +121,9 @@ function calculateRestoreTextareaHeight(
     (sum, height) => sum + height,
     0,
   );
-  const fixedHeight = dock.getBoundingClientRect().height - currentTextareasHeight;
+  const contentRect = content.getBoundingClientRect();
+  const dockRect = dock.getBoundingClientRect();
+  const fixedHeight = contentRect.bottom - dockRect.top - currentTextareasHeight;
   const availableHeight =
     (appShell.getBoundingClientRect().bottom -
       appHeader.getBoundingClientRect().bottom -
@@ -343,10 +345,9 @@ export default function App() {
         restoreInputsExpanded && content && dock && appHeader && appShell
           ? calculateRestoreTextareaHeight(content, dock, appHeader, appShell)
           : undefined;
-      const nextHeight = Math.max(
-        RESTORE_TEXTAREA_MIN_HEIGHT,
-        Math.min(measuredHeight, maxExpandedHeight ?? measuredHeight),
-      );
+      const nextHeight =
+        maxExpandedHeight ??
+        Math.max(RESTORE_TEXTAREA_MIN_HEIGHT, measuredHeight);
       setRestoreTextareaHeight((currentHeight) =>
         currentHeight === nextHeight ? currentHeight : nextHeight,
       );
@@ -1039,7 +1040,9 @@ export default function App() {
               </div>
             </label>
             <label className="restore-field">
-              <span>マスクを復元した文章</span>
+              <div className="restore-field-heading">
+                <span>マスクを復元した文章</span>
+              </div>
               <div className="restore-textarea-wrap">
                 <textarea
                   aria-label="マスクを復元した文章"

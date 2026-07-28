@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildContentSecurityPolicy,
@@ -40,5 +42,24 @@ describe("security headers", () => {
     expect(headers["Referrer-Policy"]).toBe("no-referrer");
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
+  });
+
+  it("Vercel配信では全パスへ本番HTTPヘッダーを適用する", () => {
+    const config = JSON.parse(
+      readFileSync(join(process.cwd(), "vercel.json"), "utf8"),
+    ) as {
+      headers: Array<{
+        source: string;
+        headers: Array<{ key: string; value: string }>;
+      }>;
+    };
+
+    expect(config.headers).toHaveLength(1);
+    expect(config.headers[0]?.source).toBe("/(.*)");
+    expect(
+      Object.fromEntries(
+        config.headers[0]?.headers.map(({ key, value }) => [key, value]) ?? [],
+      ),
+    ).toEqual(buildSecurityHeaders());
   });
 });
