@@ -920,8 +920,8 @@ button:disabled {
 
 .restore-header {
   display: flex;
-  min-height: var(--section-header-height);
-  height: var(--section-header-height);
+  min-height: 44px;
+  height: 44px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -966,19 +966,19 @@ button:disabled {
   gap: 16px;
   grid-template-columns: 1fr 1fr;
   background: var(--surface);
-  padding: 17px 24px 24px;
+  padding: 12px 24px 24px;
 }
 
 .restore-content label {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   color: #334155;
   font-weight: 700;
 }
 
 .restore-field-heading {
   display: flex;
-  min-height: 30px;
+  min-height: 28px;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -999,9 +999,9 @@ button:disabled {
 }
 
 .restore-expand-button {
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.92);

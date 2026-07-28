@@ -25,6 +25,61 @@ test("CSPとセキュリティヘッダーを適用して起動できる", async
   await expect(page.getByRole("textbox", { name: "原文" })).toBeVisible();
 });
 
+test("復元エリアの2つのテキスト枠は上下位置が揃う", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "マスクを復元" }).click();
+
+  const maskedInput = page.getByRole("textbox", { name: "マスクを含む文章" });
+  const restoredOutput = page.getByRole("textbox", {
+    name: "マスクを復元した文章",
+  });
+  const maskedRect = await maskedInput.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
+  );
+  const restoredRect = await restoredOutput.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
+  );
+  const compactLayout = await page.locator(".restore-dock").evaluate((dock) => {
+    const header = dock.querySelector<HTMLElement>(".restore-header");
+    const content = dock.querySelector<HTMLElement>(".restore-content");
+    const heading = dock.querySelector<HTMLElement>(".restore-field-heading");
+    const expand = dock.querySelector<HTMLElement>(".restore-expand-button");
+    const contentStyle = getComputedStyle(content ?? dock);
+    const fieldStyle = getComputedStyle(heading?.closest(".restore-field") ?? dock);
+    return {
+      contentPaddingTop: Number.parseFloat(contentStyle.paddingTop),
+      expandHeight: expand?.getBoundingClientRect().height ?? 0,
+      fieldGap: Number.parseFloat(fieldStyle.gap),
+      headerHeight: header?.getBoundingClientRect().height ?? 0,
+      headingHeight: heading?.getBoundingClientRect().height ?? 0,
+    };
+  });
+
+  expect(compactLayout.headerHeight).toBeLessThanOrEqual(44);
+  expect(compactLayout.headingHeight).toBeLessThanOrEqual(28);
+  expect(compactLayout.expandHeight).toBeLessThanOrEqual(28);
+  expect(compactLayout.contentPaddingTop).toBe(12);
+  expect(compactLayout.fieldGap).toBe(6);
+  expect(Math.abs(maskedRect.top - restoredRect.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(maskedRect.bottom - restoredRect.bottom)).toBeLessThanOrEqual(1);
+  const expandButton = page.getByRole("button", { name: "入力欄を拡大" });
+  await expect(expandButton).toHaveCount(1);
+  await expandButton.click();
+  await expect(page.getByRole("button", { name: "入力欄を縮小" })).toBeVisible();
+  await page.waitForTimeout(300);
+
+  const expandedMaskedRect = await maskedInput.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
+  );
+  const expandedRestoredRect = await restoredOutput.evaluate((element) =>
+    element.getBoundingClientRect().toJSON(),
+  );
+  expect(expandedMaskedRect.height).toBeGreaterThan(maskedRect.height);
+  expect(Math.abs(expandedMaskedRect.height - expandedRestoredRect.height)).toBeLessThanOrEqual(
+    1,
+  );
+});
+
 test("メニューから正規化Workerの結果を確認して原文へ適用できる", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "原文" });
