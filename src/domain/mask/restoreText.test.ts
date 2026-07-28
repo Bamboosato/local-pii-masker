@@ -3,8 +3,8 @@ import { inspectTokens } from "./inspectTokens";
 import { restoreText } from "./restoreText";
 
 const entries = [
-  { token: "[人名_1]", originalText: "山田太郎" },
-  { token: "[電話番号_1]", originalText: "090-1234-5678" },
+  { token: "[人名_1]", restorationText: "山田太郎" },
+  { token: "[電話番号_1]", restorationText: "090-1234-5678" },
 ];
 
 describe("restoreText", () => {
@@ -12,6 +12,17 @@ describe("restoreText", () => {
     expect(restoreText("[人名_1]です。[人名_1]宛です。", entries)).toBe(
       "山田太郎です。山田太郎宛です。",
     );
+  });
+
+  it("検出補正後の復元文字列を同一トークンの全出現へ使用する", () => {
+    expect(
+      restoreText("[メール_1] と [メール_1]", [
+        {
+          token: "[メール_1]",
+          restorationText: "taro.yamada@example.co.jp",
+        },
+      ]),
+    ).toBe("taro.yamada@example.co.jp と taro.yamada@example.co.jp");
   });
 
   it("既知、不明、未出現トークンを分類する", () => {

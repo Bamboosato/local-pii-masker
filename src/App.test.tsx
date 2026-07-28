@@ -514,6 +514,27 @@ describe("App", () => {
     expect(within(addressCard).getByText("住所改行結合")).toBeInTheDocument();
   });
 
+  it("OCR補正候補のトークンを検出時の補正後文字列へ復元する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const email = "ｔａｒｏ．ｙａｍａｄａ ＠ ｅｘａｍｐｌｅ．ｃｏ．ｊｐ";
+
+    setEditorText(screen.getByLabelText("原文"), `連絡先は${email}です。`);
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+    await within(screen.getByLabelText("マスク対象管理")).findByText(email);
+    await user.click(screen.getByRole("button", { name: "マスクを復元" }));
+
+    const restoreInput = screen.getByRole("textbox", {
+      name: "マスクを含む文章",
+    });
+    await user.click(restoreInput);
+    await user.paste("送信先は[メール_1]です。");
+
+    expect(
+      screen.getByRole("textbox", { name: "マスクを復元した文章" }),
+    ).toHaveValue("送信先はtaro.yamada@example.co.jpです。");
+  });
+
   it("無効化した自動検出対象は再検出しても無効状態を維持する", async () => {
     const user = userEvent.setup();
     render(<App />);

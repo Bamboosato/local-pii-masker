@@ -11,6 +11,7 @@ function entry(
     id,
     originalText,
     normalizedText: originalText.normalize("NFC"),
+    restorationText: originalText.normalize("NFC"),
     token: `[${id}]`,
     category: "PERSON",
     sources: ["manual"],

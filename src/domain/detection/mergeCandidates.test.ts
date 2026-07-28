@@ -84,6 +84,7 @@ describe("mergeCandidates", () => {
           id: "manual-address",
           originalText: address,
           normalizedText: address,
+          restorationText: address,
           token: "[機密_1]",
           category: "SECRET",
           sources: ["manual"],
@@ -123,6 +124,7 @@ describe("mergeCandidates", () => {
           id: "email-1",
           originalText: "yamada@example.com",
           normalizedText: "yamada@example.com",
+          restorationText: "yamada@example.com",
           token: "[メール_1]",
           category: "EMAIL",
           sources: ["regex"],
@@ -160,6 +162,7 @@ describe("mergeCandidates", () => {
           id: "legacy-email",
           originalText: "yamada@example.com",
           normalizedText: "yamada@example.com",
+          restorationText: "yamada@example.com",
           token: "[メール_1]",
           category: "EMAIL",
           sources: ["regex"],
@@ -197,6 +200,7 @@ describe("mergeCandidates", () => {
       candidates: [
         {
           originalText: email,
+          restorationText: "taro.yamada@example.co.jp",
           category: "EMAIL",
           source: "regex",
           normalizationRules: ["email_at_spacing"],
@@ -210,6 +214,7 @@ describe("mergeCandidates", () => {
         id: "normalized-email",
         originalText: email,
         normalizedText: email,
+        restorationText: "taro.yamada@example.co.jp",
         normalizationRules: ["email_at_spacing"],
         occurrenceCount: 2,
       }),
@@ -244,7 +249,79 @@ describe("mergeCandidates", () => {
         token: "[組織_1]",
         sources: ["regex", "ner"],
         normalizationRules: ["organization_line_break"],
+        restorationText: "東海システム開発センター",
       }),
     ]);
+  });
+
+  it("補正後候補を未補正候補より優先し、低優先度の候補では上書きしない", () => {
+    const originalText = "山田\n太郎";
+    const entries = mergeCandidates({
+      originalText,
+      entries: [],
+      candidates: [
+        {
+          originalText,
+          category: "PERSON",
+          source: "ner",
+        },
+        {
+          originalText,
+          restorationText: "山田太郎",
+          category: "PERSON",
+          source: "regex",
+          normalizationRules: ["person_name_line_break"],
+        },
+        {
+          originalText,
+          restorationText: "誤った復元値",
+          category: "PERSON",
+          source: "ner",
+          normalizationRules: ["person_name_line_break"],
+        },
+      ],
+      createId: () => "person-1",
+    });
+
+    expect(entries[0]).toMatchObject({
+      originalText,
+      restorationText: "山田太郎",
+      sources: ["ner", "regex"],
+    });
+  });
+
+  it("再検出時は確定済みの同優先度復元値を維持する", () => {
+    const originalText = "株式会社\n青葉";
+    const entries = mergeCandidates({
+      originalText,
+      entries: [
+        {
+          id: "organization-1",
+          originalText,
+          normalizedText: originalText,
+          restorationText: "株式会社青葉",
+          token: "[組織_1]",
+          category: "ORGANIZATION",
+          sources: ["regex"],
+          normalizationRules: ["organization_line_break"],
+          enabled: true,
+          occurrenceCount: 1,
+          reviewStatus: "approved",
+          displayOrder: 0,
+        },
+      ],
+      candidates: [
+        {
+          originalText,
+          restorationText: "異なる株式会社青葉",
+          category: "ORGANIZATION",
+          source: "regex",
+          normalizationRules: ["organization_line_break"],
+        },
+      ],
+      createId: () => "unused",
+    });
+
+    expect(entries[0].restorationText).toBe("株式会社青葉");
   });
 });

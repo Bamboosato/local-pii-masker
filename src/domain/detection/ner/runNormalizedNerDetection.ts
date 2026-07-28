@@ -53,6 +53,7 @@ export async function runNormalizedNerDetection(
       return [
         {
           ...candidate,
+          restorationText: normalized.text.slice(range.start, range.end),
           originalText: sourceText.slice(originalRange.start, originalRange.end),
           start: originalRange.start,
           end: originalRange.end,

@@ -26,6 +26,7 @@ export type MaskEntry = {
   id: string;
   originalText: string;
   normalizedText: string;
+  restorationText: string;
   token: string;
   category: MaskCategory;
   sources: DetectionSource[];

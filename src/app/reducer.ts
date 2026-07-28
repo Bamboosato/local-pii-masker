@@ -278,6 +278,7 @@ function addManualEntry(
     id: value.id,
     originalText: normalizedText,
     normalizedText,
+    restorationText: normalizedText,
     token: createMaskToken(value.category, {
       originalText: state.originalText,
       entries: state.entries,

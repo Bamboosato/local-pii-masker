@@ -34,6 +34,7 @@ export function mapNormalizedCandidates(
     return [
       {
         ...candidate,
+        restorationText: normalized.text.slice(candidate.start, candidate.end),
         originalText: sourceText.slice(originalRange.start, originalRange.end),
         start: originalRange.start,
         end: originalRange.end,

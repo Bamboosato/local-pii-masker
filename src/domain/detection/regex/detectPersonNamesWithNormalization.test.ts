@@ -9,6 +9,7 @@ describe("detectPersonNamesWithNormalization", () => {
     expect(detectPersonNamesWithNormalization(sourceText)).toEqual([
       expect.objectContaining({
         originalText: name,
+        restorationText: name.replace(/\r?\n/gu, ""),
         category: "PERSON",
         source: "regex",
         normalizationRules: ["person_name_line_break"],
@@ -22,6 +23,7 @@ describe("detectPersonNamesWithNormalization", () => {
       expect(detectPersonNamesWithNormalization(name)).toEqual([
         {
           originalText: name,
+          restorationText: name.replace(/[ \u3000]/gu, ""),
           category: "PERSON",
           source: "regex",
           start: 0,
