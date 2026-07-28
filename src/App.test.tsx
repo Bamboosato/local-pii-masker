@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -381,7 +381,9 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(within(managementPanel).getByText("090-1234-5678")).toBeInTheDocument();
     expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
-    expect(within(managementPanel).getAllByRole("img", { name: "有効" })).toHaveLength(2);
+    expect(
+      within(managementPanel).getAllByRole("article", { name: /、有効$/ }),
+    ).toHaveLength(2);
     expect(screen.queryByText("AI検出中")).not.toBeInTheDocument();
     expect(
       Array.from(container.querySelectorAll(".original-highlight.is-approved")).map(
@@ -509,9 +511,9 @@ describe("App", () => {
       (card) => card.querySelector(".entry-text")?.textContent === address,
     ) as HTMLElement;
 
-    expect(within(emailCard).getByText("メール改行結合")).toBeInTheDocument();
+    expect(within(emailCard).getByText("改行結合")).toBeInTheDocument();
     expect(within(emailCard).getByText("行末ハイフン継続")).toBeInTheDocument();
-    expect(within(addressCard).getByText("住所改行結合")).toBeInTheDocument();
+    expect(within(addressCard).getByText("改行結合")).toBeInTheDocument();
   });
 
   it("OCR補正候補のトークンを検出時の補正後文字列へ復元する", async () => {
@@ -544,7 +546,10 @@ describe("App", () => {
     await within(screen.getByLabelText("マスク対象管理")).findByText(
       "yamada@example.com",
     );
-    await user.click(screen.getByRole("button", { name: "無効化" }));
+    await user.click(
+      screen.getByRole("button", { name: "yamada@example.comの操作メニュー" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "無効化" }));
 
     expect(screen.getByRole("button", { name: "無効（1）" })).toBeInTheDocument();
 
@@ -552,8 +557,11 @@ describe("App", () => {
     await screen.findByText("自動検出完了：追加0件、更新1件。");
 
     await user.click(screen.getByRole("button", { name: "無効（1）" }));
-    expect(screen.getByRole("img", { name: "無効" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "有効化" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: /、無効$/ })).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "yamada@example.comの操作メニュー" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "有効化" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "無効（1）" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "マスク結果" }));
@@ -569,6 +577,7 @@ describe("App", () => {
         category: "PERSON",
         source: "ner",
         confidence: 0.91,
+        normalizationRules: ["japanese_inter_character_space"],
       },
     ]);
     render(<App />);
@@ -581,8 +590,20 @@ describe("App", () => {
       await within(managementPanel).findByText("山田太郎さん"),
     ).toBeInTheDocument();
     expect(within(managementPanel).getByText("AI検出")).toBeInTheDocument();
-    expect(within(managementPanel).getByText("信頼度 91%")).toBeInTheDocument();
-    expect(within(managementPanel).getByRole("img", { name: "有効" })).toBeInTheDocument();
+    expect(within(managementPanel).getByText("空白補正")).toBeInTheDocument();
+    expect(within(managementPanel).queryByText("氏名空白補正")).not.toBeInTheDocument();
+    const targetText = within(managementPanel).getByText("山田太郎さん");
+    const confidenceTooltip = within(managementPanel).getByRole("tooltip", {
+      name: "AI検出の信頼度：91%",
+    });
+    expect(targetText).toHaveAttribute("tabindex", "0");
+    expect(targetText).toHaveAttribute("aria-describedby", confidenceTooltip.id);
+    expect(
+      within(managementPanel).queryByText("信頼度 91%"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(managementPanel).getByRole("article", { name: /、有効$/ }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "有効（1）" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "無効（0）" })).toBeInTheDocument();
 
@@ -713,10 +734,14 @@ describe("App", () => {
     expect(
       within(managementPanel).getByText("https://dev.orion.example.jp/login"),
     ).toBeInTheDocument();
-    expect(within(managementPanel).getByText("住所")).toBeInTheDocument();
-    expect(within(managementPanel).getByText("その他")).toBeInTheDocument();
+    expect(within(managementPanel).getByText("[住所_1]")).toBeInTheDocument();
+    expect(within(managementPanel).getByText("[その他_1]")).toBeInTheDocument();
+    expect(within(managementPanel).queryByText("住所")).not.toBeInTheDocument();
+    expect(within(managementPanel).queryByText("その他")).not.toBeInTheDocument();
     expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
-    expect(within(managementPanel).getAllByRole("img", { name: "有効" })).toHaveLength(2);
+    expect(
+      within(managementPanel).getAllByRole("article", { name: /、有効$/ }),
+    ).toHaveLength(2);
   });
 
   it("AI検出に失敗しても形式候補は統合される", async () => {
@@ -828,9 +853,10 @@ describe("App", () => {
       (element) => element.querySelector(".entry-text")?.textContent === organization,
     ) as HTMLElement;
 
-    expect(within(card).getByText("組織")).toBeInTheDocument();
+    expect(within(card).getByText("[組織_1]")).toBeInTheDocument();
+    expect(within(card).queryByText("組織")).not.toBeInTheDocument();
     expect(within(card).getByText("形式")).toBeInTheDocument();
-    expect(within(card).getByText("組織改行結合")).toBeInTheDocument();
+    expect(within(card).getByText("改行結合")).toBeInTheDocument();
     expect(await screen.findByText(/AI検出に失敗しました/)).toBeInTheDocument();
   });
 
@@ -919,15 +945,36 @@ describe("App", () => {
 
     expect(screen.queryByRole("button", { name: "除外" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "無効化" }));
+    const activeCard = screen.getByRole("article", { name: "山田、有効" });
+    const menuButton = within(activeCard).getByRole("button", {
+      name: "山田の操作メニュー",
+    });
+    const entryText = within(activeCard).getByText("山田");
+    expect(entryText.nextElementSibling).toHaveAttribute(
+      "aria-label",
+      "山田の最初の出現箇所へ移動",
+    );
+
+    await user.click(menuButton);
+    expect(screen.getByRole("menu", { name: "山田の操作" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu", { name: "山田の操作" })).not.toBeInTheDocument();
+    expect(menuButton).toHaveFocus();
+
+    await user.click(menuButton);
+    await user.click(screen.getByRole("menuitem", { name: "無効化" }));
 
     await user.click(screen.getByRole("button", { name: "無効（1）" }));
-    expect(screen.getByRole("img", { name: "無効" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "有効化" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: /、無効$/ })).toBeInTheDocument();
+    const disabledMenuButton = screen.getByRole("button", {
+      name: "山田の操作メニュー",
+    });
+    await user.click(disabledMenuButton);
+    expect(screen.getByRole("menuitem", { name: "有効化" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "無効（1）" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "除外" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "有効化" }));
+    await user.click(screen.getByRole("menuitem", { name: "有効化" }));
 
     expect(screen.getByText("無効なマスク対象はありません。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "無効（0）" })).toBeInTheDocument();
@@ -998,6 +1045,103 @@ describe("App", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("外部回答")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("復元結果")).not.toBeInTheDocument();
+  });
+
+  it("対応ブラウザではView Transition内で復元欄を開閉する", async () => {
+    const user = userEvent.setup();
+    const startViewTransition = vi.fn((update: () => void) => {
+      update();
+      return {};
+    });
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: startViewTransition,
+    });
+
+    render(<App />);
+    const toggle = screen.getByRole("button", { name: "マスクを復元" });
+
+    await user.click(toggle);
+    expect(startViewTransition).toHaveBeenCalledTimes(1);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "マスクを含む文章" }), {
+      target: { value: "[PERSON_1]です。" },
+    });
+    await user.click(toggle);
+    expect(startViewTransition).toHaveBeenCalledTimes(2);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(toggle);
+    expect(screen.getByRole("textbox", { name: "マスクを含む文章" })).toHaveValue(
+      "[PERSON_1]です。",
+    );
+
+    Reflect.deleteProperty(document, "startViewTransition");
+  });
+
+  it("対応ブラウザではView Transition内で復元入力欄を拡大縮小する", async () => {
+    const user = userEvent.setup();
+    const startViewTransition = vi.fn((update: () => void) => {
+      update();
+      return {};
+    });
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: startViewTransition,
+    });
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "マスクを復元" }));
+    await user.click(screen.getByRole("button", { name: "入力欄を拡大" }));
+
+    expect(startViewTransition).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "入力欄を縮小" })).toHaveFocus();
+    expect(document.querySelector(".restore-dock")).toHaveClass("is-maximized");
+
+    await user.click(screen.getByRole("button", { name: "入力欄を縮小" }));
+
+    expect(startViewTransition).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole("button", { name: "入力欄を拡大" })).toHaveFocus();
+    expect(document.querySelector(".restore-dock")).not.toHaveClass("is-maximized");
+
+    Reflect.deleteProperty(document, "startViewTransition");
+  });
+
+  it("動きを減らす設定ではView Transitionを使わず復元欄を開く", async () => {
+    const user = userEvent.setup();
+    const startViewTransition = vi.fn();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn((media: string) => ({
+        addEventListener: vi.fn(),
+        addListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        matches: media === "(prefers-reduced-motion: reduce)",
+        media,
+        onchange: null,
+        removeEventListener: vi.fn(),
+        removeListener: vi.fn(),
+      }) as MediaQueryList),
+    });
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: startViewTransition,
+    });
+
+    render(<App />);
+    const toggle = screen.getByRole("button", { name: "マスクを復元" });
+    await user.click(toggle);
+
+    expect(startViewTransition).not.toHaveBeenCalled();
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(screen.getByRole("button", { name: "入力欄を拡大" }));
+    expect(startViewTransition).not.toHaveBeenCalled();
+    expect(document.querySelector(".restore-dock")).toHaveClass("is-maximized");
+
+    Reflect.deleteProperty(window, "matchMedia");
+    Reflect.deleteProperty(document, "startViewTransition");
   });
 
   it("全消去で原文と候補をリセットする", async () => {
