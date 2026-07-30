@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getNormalizationAvailability,
-  getNormalizationAvailabilityMessage,
+  getNormalizationTooltipMessage,
 } from "./normalizationAvailability";
 
 describe("getNormalizationAvailability", () => {
@@ -40,9 +40,21 @@ describe("getNormalizationAvailability", () => {
     ).toEqual({ state: "disabled", reason: "locked" });
   });
 
-  it("explains the locked state", () => {
+  it("returns concise tooltip copy for every availability state", () => {
+    expect(getNormalizationTooltipMessage({ state: "enabled" })).toBe(
+      "空白・改行・表記を整えます。",
+    );
     expect(
-      getNormalizationAvailabilityMessage({ state: "disabled", reason: "locked" }),
-    ).toContain("作業内容を消去");
+      getNormalizationTooltipMessage({ state: "disabled", reason: "empty_source" }),
+    ).toBe("原文を入力してください。");
+    expect(
+      getNormalizationTooltipMessage({ state: "disabled", reason: "detecting" }),
+    ).toBe("自動検出中は正規化できません。");
+    expect(
+      getNormalizationTooltipMessage({ state: "disabled", reason: "normalizing" }),
+    ).toBe("正規化中です。");
+    expect(
+      getNormalizationTooltipMessage({ state: "disabled", reason: "locked" }),
+    ).toBe("検出後は正規化できません。全消去してやり直してください。");
   });
 });

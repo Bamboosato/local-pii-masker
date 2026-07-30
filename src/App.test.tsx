@@ -89,24 +89,51 @@ describe("App", () => {
     const emptyGuidance = screen.getByText(
       "原文でマスク対象が検出、選択されると表示されます。",
     );
+    const entryList = emptyGuidance.parentElement as HTMLElement;
     expect(emptyGuidance).toHaveClass("empty-state");
-    expect(emptyGuidance.parentElement).toHaveClass("is-empty");
+    expect(entryList).toHaveClass("is-empty");
     expect(screen.queryByRole("searchbox", { name: "候補を検索" })).not.toBeInTheDocument();
 
     await user.click(within(panelHeader).getByRole("button", { name: "マスク対象を検索" }));
 
     const searchInput = screen.getByRole("searchbox", { name: "候補を検索" });
+    expect(entryList).toHaveClass("has-search");
+    expect(entryList).toContainElement(searchInput);
     await waitFor(() => expect(searchInput).toHaveFocus());
     await user.type(searchInput, "山田");
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("searchbox", { name: "候補を検索" })).not.toBeInTheDocument();
+    expect(entryList).not.toHaveClass("has-search");
     await waitFor(() =>
       expect(within(panelHeader).getByRole("button", { name: "マスク対象を検索" })).toHaveFocus(),
     );
 
     await user.click(within(panelHeader).getByRole("button", { name: "マスク対象を検索" }));
+    expect(entryList).toHaveClass("has-search");
     expect(screen.getByRole("searchbox", { name: "候補を検索" })).toHaveValue("");
+  });
+
+  it("一覧のスクロールバー幅をヘッダー右端揃え用のCSS変数へ反映する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const panel = screen.getByRole("complementary", { name: "マスク対象管理" });
+    const entryList = panel.querySelector(".entry-list") as HTMLElement;
+    Object.defineProperty(entryList, "offsetWidth", {
+      configurable: true,
+      value: 360,
+    });
+    Object.defineProperty(entryList, "clientWidth", {
+      configurable: true,
+      value: 345,
+    });
+
+    await user.click(within(panel).getByRole("button", { name: "マスク対象を検索" }));
+
+    await waitFor(() =>
+      expect(panel).toHaveStyle("--entry-list-scrollbar-width: 15px"),
+    );
   });
 
   it("出現箇所マスク方式の切替UIを表示しない", () => {
@@ -125,9 +152,15 @@ describe("App", () => {
     const menuButton = screen.getByRole("button", { name: "メニュー" });
     await user.click(menuButton);
 
-    expect(
-      screen.getByRole("menuitem", { name: "テキストを正規化" }),
-    ).toHaveFocus();
+    const normalizeItem = screen.getByRole("menuitem", { name: "テキストを正規化" });
+    const normalizationTooltip = document.getElementById(
+      "normalization-menu-tooltip",
+    ) as HTMLElement;
+    expect(normalizeItem).toHaveFocus();
+    expect(normalizeItem).toHaveAttribute("aria-disabled", "false");
+    expect(normalizeItem).toHaveAttribute("aria-describedby", normalizationTooltip.id);
+    expect(normalizationTooltip).toHaveAttribute("role", "tooltip");
+    expect(normalizationTooltip).toHaveTextContent("空白・改行・表記を整えます。");
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
@@ -143,6 +176,7 @@ describe("App", () => {
     await user.click(screen.getByRole("menuitem", { name: "テキストを正規化" }));
 
     const dialog = await screen.findByRole("dialog", { name: "テキスト正規化" });
+    expect(dialog.querySelectorAll(".modal-footer .button.large")).toHaveLength(0);
     expect(within(dialog).getByRole("radio", { name: /^標準/ })).toBeChecked();
     await waitFor(() =>
       expect(within(dialog).getByRole("button", { name: "適用" })).toBeEnabled(),
@@ -213,8 +247,18 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "メニュー" }));
     const normalizeItem = screen.getByRole("menuitem", { name: "テキストを正規化" });
+    const normalizationTooltip = document.getElementById(
+      "normalization-menu-tooltip",
+    ) as HTMLElement;
     expect(normalizeItem).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText(/マスク対象の検出後は正規化できません/)).toBeInTheDocument();
+    expect(normalizeItem).toHaveAttribute("aria-describedby", normalizationTooltip.id);
+    expect(normalizationTooltip).toHaveAttribute("role", "tooltip");
+    expect(normalizationTooltip).toHaveTextContent(
+      "検出後は正規化できません。全消去してやり直してください。",
+    );
+    expect(document.querySelector(".header-menu-disabled-reason")).not.toBeInTheDocument();
+    await user.click(normalizeItem);
+    expect(screen.queryByRole("dialog", { name: "テキスト正規化" })).not.toBeInTheDocument();
   });
 
   it("原文入力、手動追加、マスク結果タブ切替を通しで操作できる", async () => {
@@ -227,6 +271,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
 
     const dialog = screen.getByRole("dialog", { name: "マスク対象に追加" });
+    expect(dialog.querySelectorAll(".modal-footer .button.large")).toHaveLength(0);
     expect(within(dialog).getByLabelText("対象の文字列")).toHaveValue(
       "山田太郎",
     );
@@ -360,6 +405,7 @@ describe("App", () => {
     const dialog = screen.getByRole("dialog", {
       name: "有効なマスク対象がありません",
     });
+    expect(dialog.querySelectorAll(".modal-footer .button.large")).toHaveLength(0);
     await user.click(within(dialog).getByRole("button", { name: "コピーする" }));
 
     expect(writeTextSpy).toHaveBeenCalledWith("山田です");
@@ -919,7 +965,7 @@ describe("App", () => {
     await screen.findByRole("button", { name: "中止" });
     await user.click(screen.getByRole("button", { name: "メニュー" }));
     await user.click(screen.getByRole("menuitem", { name: "すべて消去" }));
-    await user.click(screen.getByRole("button", { name: "全消去" }));
+    await user.click(screen.getByRole("button", { name: "すべて消去" }));
 
     await waitFor(() => expect(receivedSignal?.aborted).toBe(true));
     expect(receivedSignal?.reason).toBe("session-cleared");
@@ -1229,10 +1275,33 @@ describe("App", () => {
     setEditorText(screen.getByLabelText("原文"), "山田です");
     await user.click(screen.getByRole("button", { name: "メニュー" }));
     await user.click(screen.getByRole("menuitem", { name: "すべて消去" }));
-    await user.click(screen.getByRole("button", { name: "全消去" }));
+    await user.click(screen.getByRole("button", { name: "すべて消去" }));
 
     expect(getEditorText(screen.getByLabelText("原文"))).toBe("");
     expect(screen.getByText("文字数: 0 / 10,000")).toBeInTheDocument();
+  });
+
+  it("全消去確認を一般ユーザー向けの文言とコンパクトな操作ボタンで表示する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), "山田です");
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+    await user.click(screen.getByRole("menuitem", { name: "すべて消去" }));
+
+    const dialog = screen.getByRole("dialog", {
+      name: "入力内容をすべて消去しますか？",
+    });
+    expect(dialog).toHaveClass("clear-confirm-modal");
+    expect(within(dialog).getByText(
+      "入力した文章、マスク対象、復元内容がすべて消去されます。この操作は取り消せません。",
+    )).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "キャンセル" })).not.toHaveClass(
+      "large",
+    );
+    const confirmButton = within(dialog).getByRole("button", { name: "すべて消去" });
+    expect(confirmButton).not.toHaveClass("large");
+    expect(confirmButton).toHaveAttribute("title", "入力内容をすべて消去します");
   });
 });
 
