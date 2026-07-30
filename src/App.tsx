@@ -32,7 +32,7 @@ import {
 } from "./app/reducer";
 import {
   getNormalizationAvailability,
-  getNormalizationAvailabilityMessage,
+  getNormalizationTooltipMessage,
 } from "./app/normalizationAvailability";
 import {
   selectActiveEntries,
@@ -166,6 +166,7 @@ export default function App() {
   const detectionButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchInputRef = useRef<HTMLInputElement>(null);
+  const managementPanelRef = useRef<HTMLElement>(null);
   const entryListRef = useRef<HTMLDivElement>(null);
   const restoreDockRef = useRef<HTMLElement>(null);
   const restoreContentRef = useRef<HTMLDivElement>(null);
@@ -185,9 +186,7 @@ export default function App() {
     isDetecting,
     isNormalizing: normalization.state.open,
   });
-  const normalizationAvailabilityMessage = getNormalizationAvailabilityMessage(
-    normalizationAvailability,
-  );
+  const normalizationTooltipMessage = getNormalizationTooltipMessage(normalizationAvailability);
   const hasSessionData =
     state.originalText.length > 0 ||
     state.entries.length > 0 ||
@@ -252,6 +251,32 @@ export default function App() {
       window.requestAnimationFrame(() => entrySearchInputRef.current?.focus());
     }
   }, [entrySearchOpen]);
+
+  useEffect(() => {
+    const panel = managementPanelRef.current;
+    const entryList = entryListRef.current;
+
+    if (!panel || !entryList) {
+      return;
+    }
+
+    const updateScrollbarWidth = () => {
+      const scrollbarWidth = Math.max(0, entryList.offsetWidth - entryList.clientWidth);
+      panel.style.setProperty("--entry-list-scrollbar-width", `${scrollbarWidth}px`);
+    };
+
+    updateScrollbarWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateScrollbarWidth);
+      return () => window.removeEventListener("resize", updateScrollbarWidth);
+    }
+
+    const observer = new ResizeObserver(updateScrollbarWidth);
+    observer.observe(entryList);
+
+    return () => observer.disconnect();
+  }, [entrySearchOpen, state.entryFilter, state.entries, visibleEntries.length]);
 
   useEffect(() => {
     if (!headerMenuOpen) {
@@ -677,28 +702,27 @@ export default function App() {
                 id="header-session-menu"
                 role="menu"
               >
-                <button
-                  aria-describedby={
-                    normalizationAvailabilityMessage
-                      ? "normalization-menu-disabled-reason"
-                      : undefined
-                  }
-                  aria-disabled={normalizationAvailability.state !== "enabled"}
-                  className="header-menu-item"
-                  onClick={openNormalizationDialog}
-                  ref={normalizationMenuItemRef}
-                  role="menuitem"
-                  title="原文の空白・改行・表記を正規化します"
-                  type="button"
-                >
-                  <Eraser aria-hidden="true" size={16} />
-                  テキストを正規化
-                </button>
-                {normalizationAvailabilityMessage ? (
-                  <span className="header-menu-disabled-reason" id="normalization-menu-disabled-reason">
-                    {normalizationAvailabilityMessage}
+                <div className="header-menu-tooltip-anchor" role="none">
+                  <button
+                    aria-describedby="normalization-menu-tooltip"
+                    aria-disabled={normalizationAvailability.state !== "enabled"}
+                    className="header-menu-item"
+                    onClick={openNormalizationDialog}
+                    ref={normalizationMenuItemRef}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <Eraser aria-hidden="true" size={16} />
+                    テキストを正規化
+                  </button>
+                  <span
+                    className="normalization-menu-tooltip"
+                    id="normalization-menu-tooltip"
+                    role="tooltip"
+                  >
+                    {normalizationTooltipMessage}
                   </span>
-                ) : null}
+                </div>
                 <div aria-hidden="true" className="header-menu-separator" role="separator" />
                 <button
                   className="header-menu-item danger"
@@ -876,7 +900,11 @@ export default function App() {
           </div>
         </section>
 
-        <aside className="management-panel" aria-label="マスク対象管理">
+        <aside
+          className="management-panel"
+          aria-label="マスク対象管理"
+          ref={managementPanelRef}
+        >
           <div className="panel-header">
             <strong>マスク対象</strong>
             <div className="panel-header-actions">
@@ -917,36 +945,38 @@ export default function App() {
               </button>
             </div>
           </div>
-          {entrySearchOpen ? (
-            <label className="search-box" id="entry-search">
-              <Search size={18} />
-              <input
-                aria-label="候補を検索"
-                onChange={(event) =>
-                  dispatch({ type: "setEntrySearch", value: event.target.value })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    dispatch({ type: "setEntrySearch", value: "" });
-                    setEntrySearchOpen(false);
-                    window.requestAnimationFrame(() =>
-                      entrySearchButtonRef.current?.focus(),
-                    );
-                  }
-                }}
-                placeholder="候補を検索..."
-                ref={entrySearchInputRef}
-                type="search"
-                value={state.entrySearch}
-              />
-            </label>
-          ) : null}
-
           <div
-            className={`entry-list${visibleEntries.length === 0 ? " is-empty" : ""}`}
+            className={`entry-list${entrySearchOpen ? " has-search" : ""}${visibleEntries.length === 0 ? " is-empty" : ""}`}
             ref={entryListRef}
           >
+            {entrySearchOpen ? (
+              <div className="entry-search-row">
+                <label className="search-box" id="entry-search">
+                  <Search size={18} />
+                  <input
+                    aria-label="候補を検索"
+                    onChange={(event) =>
+                      dispatch({ type: "setEntrySearch", value: event.target.value })
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        dispatch({ type: "setEntrySearch", value: "" });
+                        setEntrySearchOpen(false);
+                        window.requestAnimationFrame(() =>
+                          entrySearchButtonRef.current?.focus(),
+                        );
+                      }
+                    }}
+                    placeholder="候補を検索..."
+                    ref={entrySearchInputRef}
+                    type="search"
+                    value={state.entrySearch}
+                  />
+                </label>
+              </div>
+            ) : null}
+
             {visibleEntries.length === 0 ? (
               <div className="empty-state">
                 {state.entries.length === 0
@@ -1087,7 +1117,7 @@ export default function App() {
 
       {clearConfirmOpen ? (
         <ConfirmDialog
-          confirmLabel="全消去"
+          confirmLabel="すべて消去"
           danger
           onCancel={() => {
             setClearConfirmOpen(false);
@@ -1102,9 +1132,9 @@ export default function App() {
             setEntrySearchOpen(false);
             setClearConfirmOpen(false);
           }}
-          title="セッションデータを消去します"
+          title="入力内容をすべて消去しますか？"
         >
-          原文、候補、マスク対象、マスクを含む文章、マスクを復元した文章を初期化します。モデルなどの公開資材キャッシュは対象外です。
+          入力した文章、マスク対象、復元内容がすべて消去されます。この操作は取り消せません。
         </ConfirmDialog>
       ) : null}
 
@@ -1465,14 +1495,14 @@ function ManualAddDialog(props: {
         </div>
         <div className="modal-footer">
           <button
-            className="button button-ghost large"
+            className="button button-ghost"
             onClick={props.onClose}
             title="追加をキャンセルします"
             type="button"
           >
             キャンセル
           </button>
-          <button className="button button-primary large" title="選択した文字列をマスク対象に追加します" type="submit">
+          <button className="button button-primary" title="選択した文字列をマスク対象に追加します" type="submit">
             <ShieldCheck size={18} />
             追加してマスク
           </button>
@@ -1492,7 +1522,11 @@ function ConfirmDialog(props: {
 }) {
   return (
     <div className="modal-backdrop">
-      <div aria-labelledby="confirm-title" className="modal compact" role="dialog">
+      <div
+        aria-labelledby="confirm-title"
+        className={props.danger ? "modal compact clear-confirm-modal" : "modal compact"}
+        role="dialog"
+      >
         <div className="modal-header">
           <h2 id="confirm-title">{props.title}</h2>
           <button
@@ -1510,7 +1544,7 @@ function ConfirmDialog(props: {
         </div>
         <div className="modal-footer">
           <button
-            className="button button-ghost large"
+            className="button button-ghost"
             onClick={props.onCancel}
             title="操作をキャンセルします"
             type="button"
@@ -1518,9 +1552,9 @@ function ConfirmDialog(props: {
             キャンセル
           </button>
           <button
-            className={props.danger ? "button button-danger large" : "button button-primary large"}
+            className={props.danger ? "button button-danger" : "button button-primary"}
             onClick={props.onConfirm}
-            title={props.danger ? "セッションデータをすべて消去します" : props.confirmLabel}
+            title={props.danger ? "入力内容をすべて消去します" : props.confirmLabel}
             type="button"
           >
             {props.danger ? <Eraser size={18} /> : <Copy size={18} />}

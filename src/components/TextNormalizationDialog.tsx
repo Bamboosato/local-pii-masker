@@ -200,7 +200,7 @@ export function TextNormalizationDialog(props: {
             キャンセル
           </button>
           <button
-            className="button button-primary large normalization-apply-button"
+            className="button button-primary normalization-apply-button"
             disabled={applyDisabled}
             onClick={() => {
               if (props.state.result) {

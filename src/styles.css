@@ -243,12 +243,38 @@ button:disabled {
   opacity: 0.65;
 }
 
-.header-menu-disabled-reason {
-  display: block;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.45;
-  padding: 4px 10px 6px;
+.header-menu-tooltip-anchor {
+  position: relative;
+}
+
+.normalization-menu-tooltip {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: calc(100% + 8px);
+  width: max-content;
+  max-width: 240px;
+  border-radius: 4px;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  opacity: 0;
+  padding: 6px 8px;
+  pointer-events: none;
+  transform: translate(3px, -50%);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  visibility: hidden;
+}
+
+.header-menu-tooltip-anchor:hover .normalization-menu-tooltip,
+.header-menu-item:focus-visible + .normalization-menu-tooltip {
+  opacity: 1;
+  transform: translate(0, -50%);
+  visibility: visible;
 }
 
 .header-menu-separator {
@@ -259,6 +285,12 @@ button:disabled {
 
 .header-menu-item:hover,
 .header-menu-item:focus-visible {
+  background: #f1f5f9;
+  outline: 0;
+}
+
+.header-menu-item.danger:hover,
+.header-menu-item.danger:focus-visible {
   background: #fef2f2;
   outline: 0;
 }
@@ -507,6 +539,9 @@ button:disabled {
 }
 
 .management-panel {
+  --entry-list-inline-padding: 20px;
+  --entry-list-scrollbar-width: 0px;
+
   display: flex;
   min-height: 0;
   flex-direction: column;
@@ -524,7 +559,7 @@ button:disabled {
   gap: 12px;
   color: #334155;
   font-size: 16px;
-  padding: 0 20px;
+  padding: 0 calc(var(--entry-list-inline-padding) + var(--entry-list-scrollbar-width)) 0 20px;
   box-shadow: inset 0 -1px var(--line);
 }
 
@@ -546,15 +581,19 @@ button:disabled {
 }
 
 .filter-button {
+  display: inline-flex;
   flex: 0 0 auto;
   min-height: var(--compact-control-height);
   height: var(--compact-control-height);
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: var(--radius);
   background: #e5e7eb;
   color: #111827;
   font-weight: 700;
   padding: 0 10px;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -563,9 +602,11 @@ button:disabled {
   color: #fff;
 }
 
-.panel-search-toggle {
+.icon-button.panel-search-toggle {
   flex: 0 0 var(--compact-control-height);
+  min-width: var(--compact-control-height);
   width: var(--compact-control-height);
+  min-height: var(--compact-control-height);
   height: var(--compact-control-height);
   color: #475569;
 }
@@ -580,7 +621,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 20px 12px;
+  margin: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -598,6 +639,18 @@ button:disabled {
   outline: 0;
 }
 
+/* Share the card scrollport so both edges account for the native scrollbar. */
+.entry-search-row {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  flex: 0 0 auto;
+  /* The row's 12px bottom padding replaces the list's 16px item gap. */
+  margin-bottom: -16px;
+  background: var(--panel);
+  padding: 12px 0;
+}
+
 .entry-list {
   display: flex;
   min-height: 0;
@@ -611,6 +664,17 @@ button:disabled {
 /* Keep the initial empty panel aligned with the original editor frame. */
 .entry-list.is-empty {
   padding: 24px 24px calc(var(--workspace-footer-height) + 24px);
+}
+
+.entry-list.has-search,
+.entry-list.has-search.is-empty {
+  padding-top: 0;
+  /* Keep located cards below the 40px search field and its vertical padding. */
+  scroll-padding-top: 64px;
+}
+
+.entry-list.has-search.is-empty {
+  padding-inline: 20px;
 }
 
 .entry-list.is-empty .empty-state {
@@ -813,11 +877,6 @@ button:disabled {
   gap: 8px;
   border: 1px solid transparent;
   padding: 0 16px;
-}
-
-.button.large {
-  min-height: 48px;
-  padding: 0 24px;
 }
 
 .button-primary {
@@ -1335,20 +1394,22 @@ button:disabled {
   padding: 20px 28px;
 }
 
+.modal-footer .button {
+  min-height: var(--compact-control-height);
+  height: var(--compact-control-height);
+  padding: 0 14px;
+}
+
+.modal.clear-confirm-modal {
+  width: min(520px, calc(100vw - 32px));
+}
+
 .normalization-modal .modal-footer {
   gap: 12px;
   padding: 10px 20px;
 }
 
-.normalization-modal .modal-footer .button,
 .normalization-cancel-button {
-  min-height: var(--compact-control-height);
-  height: var(--compact-control-height);
-  padding-block: 0;
-}
-
-.normalization-cancel-button {
-  padding-inline: 14px;
   font-size: 13px;
 }
 
@@ -1451,12 +1512,34 @@ button:disabled {
 }
 
 @media (max-width: 1199px) {
+  .management-panel {
+    --entry-list-inline-padding: 16px;
+  }
+
   .main-grid {
     grid-template-columns: minmax(0, 1fr) 360px;
   }
 
+  .panel-header {
+    gap: 8px;
+    padding-left: 16px;
+  }
+
+  .panel-header-actions,
+  .filter-row {
+    gap: 4px;
+  }
+
+  .filter-button {
+    padding-inline: 8px;
+  }
+
   .entry-list {
     padding: 16px;
+  }
+
+  .entry-list.has-search.is-empty {
+    padding-inline: 16px;
   }
 }
 

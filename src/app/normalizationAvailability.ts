@@ -28,20 +28,20 @@ export function getNormalizationAvailability(input: {
   return { state: "enabled" };
 }
 
-export function getNormalizationAvailabilityMessage(
+export function getNormalizationTooltipMessage(
   availability: NormalizationAvailability,
-): string | undefined {
+): string {
   if (availability.state === "enabled") {
-    return undefined;
+    return "空白・改行・表記を整えます。";
   }
   switch (availability.reason) {
     case "empty_source":
-      return "原文を入力してから正規化してください。";
+      return "原文を入力してください。";
     case "detecting":
-      return "自動検出中は正規化できません。検出を完了または中止してください。";
+      return "自動検出中は正規化できません。";
     case "normalizing":
-      return "正規化処理中です。";
+      return "正規化中です。";
     case "locked":
-      return "マスク対象の検出後は正規化できません。作業内容を消去して原文を貼り付け直してください。";
+      return "検出後は正規化できません。全消去してやり直してください。";
   }
 }
