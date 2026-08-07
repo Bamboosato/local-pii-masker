@@ -37,14 +37,13 @@ describe("PwaStatus", () => {
     return serviceWorker;
   }
 
-  it("登録完了状態を表示する", async () => {
-    mockServiceWorker(mockRegistration());
+  it("通常状態ではPWAと未確認のNER状態を表示しない", async () => {
+    const serviceWorker = mockServiceWorker(mockRegistration());
 
     render(<PwaStatus hasSessionData={false} modelState="available" />);
 
-    const status = await screen.findByRole("status", { name: "PWA状態" });
-    expect(status).toHaveTextContent("PWA準備完了");
-    expect(status).toHaveTextContent("NER: 利用可能");
+    await waitFor(() => expect(serviceWorker.register).toHaveBeenCalled());
+    expect(screen.queryByRole("status", { name: "PWA状態" })).not.toBeInTheDocument();
   });
 
   it("モデル失敗時は利用不可を表示する", async () => {
@@ -52,7 +51,9 @@ describe("PwaStatus", () => {
 
     render(<PwaStatus hasSessionData={false} modelState="unavailable" />);
 
-    expect(await screen.findByLabelText("NERモデル: 利用不可")).toBeVisible();
+    expect(await screen.findByRole("status", { name: "PWA状態" })).toHaveTextContent(
+      "モデル利用不可",
+    );
   });
 
   it("編集中は更新を適用せず延期する", async () => {
