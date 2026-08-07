@@ -146,6 +146,92 @@ button:disabled {
   gap: 8px;
 }
 
+.pwa-status {
+  position: relative;
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 7px;
+}
+
+.pwa-status.is-offline {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.pwa-status.has-update {
+  border-color: #fde68a;
+  background: #fefce8;
+  color: #a16207;
+}
+
+.pwa-status-label,
+.pwa-status-model,
+.pwa-status-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pwa-status-model {
+  border-left: 1px solid currentColor;
+  font-size: 10px;
+  font-weight: 600;
+  padding-left: 6px;
+}
+
+.pwa-status-button {
+  min-height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 0 7px;
+}
+
+.pwa-status-button:hover:not(:disabled),
+.pwa-status-button:focus-visible {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.pwa-status-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.pwa-status-tooltip {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  display: none;
+  width: min(360px, calc(100vw - 40px));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 9px 10px;
+}
+
+.pwa-status:hover .pwa-status-tooltip,
+.pwa-status:focus-within .pwa-status-tooltip {
+  display: block;
+}
+
 .privacy-status {
   position: relative;
   display: inline-flex;
@@ -354,6 +440,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   justify-content: flex-end;
+  padding-bottom: 10px;
 }
 
 .tab-actions .button {

@@ -184,6 +184,8 @@ Chrome Worker実測：
 - ONNX RuntimeのWASM/MJSはViteビルドへ取り込み、同一オリジンから取得する。`cdn.jsdelivr.net`への実行時依存は除去した
 - LocalStorage、SessionStorage、IndexedDB、Cookieは空で、Cache Storageにはモデル、Tokenizer、ONNX Runtime資材だけが保存された
 
+Phase 7では、NERモデルを当面Hugging Face Hubから取得し、`jiting/xlm-roberta-ner-japanese_onnx`の取得リビジョン`8d70fc4`を固定する。公開モデル資材のキャッシュはTransformers.jsのブラウザキャッシュを所有者とし、Service Workerのアプリシェルキャッシュとは分離する。オフラインでモデルが未取得・破損・容量超過の場合は、NERを利用不可として形式検出と手動追加へ縮退する。
+
 100文書PoCとChrome Worker実測の範囲では現行モデルを維持する。次は200～300文書の最終確認用データによる評価を優先する。8GB級PC、macOS Chrome、初回取得失敗・低速回線の確認は後続フェーズへ延期する。
 
 ### 3.7 未見100文書による最終確認（2026年7月14日）
@@ -442,6 +444,9 @@ NERが`山田`だけを返し、正解が`山田太郎`である場合、Overlap
 - 検出結果や対応表が送信されないこと
 - モデル取得失敗時にユーザーデータが失われないこと
 - キャッシュ消去後に再取得できること
+- 固定リビジョンのモデル資材が2回目以降にブラウザキャッシュから利用されること
+- Service WorkerのアプリシェルキャッシュとTransformers.jsのモデルキャッシュが二重管理にならないこと
+- モデルキャッシュが利用できないオフライン起動でも、形式検出と手動追加が継続できること
 
 ## 11. 長文チャンク評価
 
