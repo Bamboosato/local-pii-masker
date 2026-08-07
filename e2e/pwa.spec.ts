@@ -24,9 +24,7 @@ test.describe("Phase 7 PWA", () => {
 
     await page.goto("/");
     await page.waitForFunction(() => navigator.serviceWorker?.controller !== null);
-    await expect(page.getByRole("status", { name: "PWA状態" })).toContainText(
-      "PWA準備完了",
-    );
+    await expect(page.getByRole("status", { name: "PWA状態" })).toHaveCount(0);
   });
 
   test("ウォームキャッシュ状態ではオフライン起動して形式検出を継続できる", async ({

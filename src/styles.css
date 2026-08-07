@@ -174,18 +174,10 @@ button:disabled {
 }
 
 .pwa-status-label,
-.pwa-status-model,
 .pwa-status-button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-.pwa-status-model {
-  border-left: 1px solid currentColor;
-  font-size: 10px;
-  font-weight: 600;
-  padding-left: 6px;
 }
 
 .pwa-status-button {

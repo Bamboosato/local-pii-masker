@@ -1,14 +1,11 @@
 import {
   CircleAlert,
-  Download,
   RefreshCw,
-  Wifi,
   WifiOff,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   canUsePwaServiceWorker,
-  type BeforeInstallPromptEvent,
   registerPwaServiceWorker,
 } from "../pwa/pwaClient";
 
@@ -31,8 +28,6 @@ export function PwaStatus({
     );
   const [registration, setRegistration] = useState<ServiceWorkerRegistration>();
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [installPrompt, setInstallPrompt] =
-    useState<BeforeInstallPromptEvent>();
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
@@ -41,26 +36,14 @@ export function PwaStatus({
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    const handleInstalled = () => setInstallPrompt(undefined);
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleInstalled);
 
     if (!canUsePwaServiceWorker()) {
       return () => {
         window.removeEventListener("online", handleOnline);
         window.removeEventListener("offline", handleOffline);
-        window.removeEventListener(
-          "beforeinstallprompt",
-          handleBeforeInstallPrompt,
-        );
-        window.removeEventListener("appinstalled", handleInstalled);
       };
     }
 
@@ -107,11 +90,6 @@ export function PwaStatus({
       disposed = true;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt,
-      );
-      window.removeEventListener("appinstalled", handleInstalled);
     };
   }, []);
 
@@ -142,6 +120,17 @@ export function PwaStatus({
     return null;
   }
 
+  const shouldShowStatus =
+    !isOnline ||
+    updateAvailable ||
+    registrationState === "error" ||
+    modelState === "loading" ||
+    modelState === "unavailable";
+
+  if (!shouldShowStatus) {
+    return null;
+  }
+
   const statusLabel = !isOnline
     ? "オフライン"
     : updateAvailable
@@ -149,30 +138,20 @@ export function PwaStatus({
         ? "更新を保留中"
         : "更新可能"
       : registrationState === "error"
-        ? "PWA未登録"
-        : registrationState === "registering"
-          ? "PWA準備中"
-          : "PWA準備完了";
+        ? "オフライン利用不可"
+        : modelState === "loading"
+          ? "モデル準備中"
+          : "モデル利用不可";
 
   const statusDescription = !isOnline
     ? "公開資産のキャッシュを利用しています。モデル未取得時は形式検出と手動追加を利用できます。"
     : updateAvailable && hasSessionData
-        ? "入力中のセッションを保持するため、更新を延期しています。"
+      ? "入力中のセッションを保持するため、更新を延期しています。"
       : registrationState === "error"
-        ? "通常のブラウザアプリとして利用を継続できます。"
-        : "入力内容はService Workerのキャッシュへ保存されません。";
-
-  const modelLabel = getModelLabel(modelState);
-
-  async function handleInstall() {
-    if (!installPrompt) {
-      return;
-    }
-
-    await installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(undefined);
-  }
+        ? "Service Workerを登録できないため、オフライン利用は保証されません。"
+        : modelState === "loading"
+          ? "NERモデルを準備しています。完了するまで形式検出と手動追加を利用できます。"
+          : "NERモデルを利用できません。形式検出と手動追加は利用できます。";
 
   function handleApplyUpdate() {
     if (hasSessionData || !registration?.waiting) {
@@ -192,28 +171,14 @@ export function PwaStatus({
       <span className="pwa-status-label">
         {!isOnline ? (
           <WifiOff aria-hidden="true" size={14} />
-        ) : registrationState === "error" ? (
+        ) : registrationState === "error" || modelState === "unavailable" ? (
           <CircleAlert aria-hidden="true" size={14} />
         ) : (
-          <Wifi aria-hidden="true" size={14} />
+          <RefreshCw aria-hidden="true" size={14} />
         )}
         {statusLabel}
       </span>
-      <span aria-label={`NERモデル: ${modelLabel}`} className="pwa-status-model">
-        NER: {modelLabel}
-      </span>
       <span className="pwa-status-tooltip">{statusDescription}</span>
-      {installPrompt ? (
-        <button
-          className="pwa-status-button"
-          onClick={handleInstall}
-          title="アプリとしてインストール"
-          type="button"
-        >
-          <Download aria-hidden="true" size={14} />
-          インストール
-        </button>
-      ) : null}
       {updateAvailable ? (
         <button
           className="pwa-status-button"
@@ -232,17 +197,4 @@ export function PwaStatus({
       ) : null}
     </div>
   );
-}
-
-function getModelLabel(modelState: PwaModelState): string {
-  switch (modelState) {
-    case "loading":
-      return "準備中";
-    case "available":
-      return "利用可能";
-    case "unavailable":
-      return "利用不可";
-    case "unknown":
-      return "未確認";
-  }
 }
