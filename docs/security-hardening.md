@@ -99,3 +99,17 @@ npm run benchmark:core
 ```
 
 `npm run test:phase5`は単体テスト、Chromium E2E、コア性能計測を順に実行する。Edgeはインストール済みWindows環境で`npm run test:e2e:edge`を別途実行する。
+
+## 8. Phase 7 PWAセキュリティ境界
+
+Phase 7では、Service Workerを導入してもユーザーデータの保存範囲を拡大しない。
+
+- Service Workerが管理するのは、許可された同一オリジンのアプリシェルだけとする
+- POST、API応答、認証、任意URL、ユーザー操作で生成されたデータはキャッシュしない
+- NERモデル、Tokenizer、ONNX Runtimeなどの公開資産は、ユーザーデータと分離したブラウザキャッシュとして扱う
+- キャッシュ名、更新メタデータ、Service Workerのログへ原文、候補、トークンを含めない
+- モデルキャッシュは固定リビジョンの1版を基本とし、新版の取得・初期化成功後だけ旧版を削除する
+- `sw.js`、Manifest、`index.html`は再検証可能にし、ハッシュ付き静的資産だけを長期キャッシュする
+- 既存のCSP、`worker-src 'self' blob:`、Hugging Faceの許可済み`connect-src`を維持する
+
+Phase 7の検証では、合成マーカーを入力したうえで、Cache Storage、LocalStorage、SessionStorage、IndexedDB、Cookie、ネットワーク要求、Consoleにマーカーが出ないことを確認する。更新可能状態で編集中のセッションを自動リロードしないことも確認する。

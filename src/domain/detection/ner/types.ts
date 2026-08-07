@@ -1,6 +1,7 @@
 import type { DetectionCandidate } from "../mergeCandidates";
 
 export const NER_MODEL_ID = "jiting/xlm-roberta-ner-japanese_onnx";
+export const NER_MODEL_REVISION = "8d70fc4";
 
 export type NerModelLabel =
   | "PER"

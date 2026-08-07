@@ -54,12 +54,31 @@ describe("security headers", () => {
       }>;
     };
 
-    expect(config.headers).toHaveLength(1);
+    expect(config.headers).toHaveLength(5);
     expect(config.headers[0]?.source).toBe("/(.*)");
     expect(
       Object.fromEntries(
         config.headers[0]?.headers.map(({ key, value }) => [key, value]) ?? [],
       ),
     ).toEqual(buildSecurityHeaders());
+
+    const routeHeaders = new Map(
+      config.headers.slice(1).map((entry) => [
+        entry.source,
+        Object.fromEntries(entry.headers.map(({ key, value }) => [key, value])),
+      ]),
+    );
+    expect(routeHeaders.get("/sw.js")).toEqual({
+      "Cache-Control": "no-cache, must-revalidate",
+    });
+    expect(routeHeaders.get("/manifest.webmanifest")).toEqual({
+      "Cache-Control": "no-cache, must-revalidate",
+    });
+    expect(routeHeaders.get("/index.html")).toEqual({
+      "Cache-Control": "no-cache, must-revalidate",
+    });
+    expect(routeHeaders.get("/assets/(.*)")).toEqual({
+      "Cache-Control": "public, max-age=31536000, immutable",
+    });
   });
 });

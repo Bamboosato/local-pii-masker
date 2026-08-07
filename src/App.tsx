@@ -47,6 +47,7 @@ import {
   OriginalTextEditor,
   type OriginalTextEditorHandle,
 } from "./components/OriginalTextEditor";
+import { PwaStatus, type PwaModelState } from "./components/PwaStatus";
 import { TextNormalizationDialog } from "./components/TextNormalizationDialog";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
@@ -147,6 +148,7 @@ export default function App() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
   const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
+  const [modelState, setModelState] = useState<PwaModelState>("unknown");
   const [showDetectionProgress, setShowDetectionProgress] = useState(false);
   const [restoreInputsExpanded, setRestoreInputsExpanded] = useState(false);
   const [restoreTextareaHeight, setRestoreTextareaHeight] = useState<number>();
@@ -538,12 +540,15 @@ export default function App() {
 
       try {
         setDetectionPhase("ner-loading");
+        setModelState("loading");
         nerCandidates = await runNerDetection(detectionText, {
           signal: detectionController.signal,
           onProgress: (progress) => {
             setDetectionPhase(toDetectionPhase(progress));
+            setModelState(progress.phase === "loading" ? "loading" : "available");
           },
         });
+        setModelState("available");
       } catch (error) {
         if (error instanceof NerDetectionCancelledError) {
           if (error.reason === "source-changed") {
@@ -562,6 +567,7 @@ export default function App() {
           nerOutcome = "cancelled";
         } else {
           nerOutcome = "failed";
+          setModelState("unavailable");
         }
       }
 
@@ -680,6 +686,7 @@ export default function App() {
           </span>
         </div>
         <div className="header-actions">
+          <PwaStatus hasSessionData={hasSessionData} modelState={modelState} />
           <div className="header-menu" ref={headerMenuRef}>
             <button
               aria-controls="header-session-menu"

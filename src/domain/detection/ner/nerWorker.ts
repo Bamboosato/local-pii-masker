@@ -1,6 +1,7 @@
 import { env, pipeline } from "@huggingface/transformers";
 import {
   NER_MODEL_ID,
+  NER_MODEL_REVISION,
   type NerDetectionRequest,
   type NerDetectionResponse,
 } from "./types";
@@ -20,6 +21,7 @@ const detectorLoader = createRetryableLoader(
     pipeline("token-classification", NER_MODEL_ID, {
       device: "wasm",
       dtype: "q8",
+      revision: NER_MODEL_REVISION,
       progress_callback: () => {
         // Public model asset progress is intentionally not echoed with filenames.
       },

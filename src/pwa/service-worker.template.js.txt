@@ -1,0 +1,100 @@
+const CACHE_PREFIX = "local-pii-masker-app-";
+const CACHE_NAME = `${CACHE_PREFIX}__PWA_BUILD_ID__`;
+const PRECACHE_URLS = __PWA_PRECACHE_URLS__;
+const STATIC_DESTINATIONS = new Set([
+  "script",
+  "style",
+  "worker",
+  "font",
+  "image",
+]);
+
+function isSameOrigin(url) {
+  return url.origin === self.location.origin;
+}
+
+function isStaticAssetRequest(request, url) {
+  return (
+    isSameOrigin(url) &&
+    STATIC_DESTINATIONS.has(request.destination) &&
+    url.pathname.startsWith("/assets/")
+  );
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(request);
+  if (response.ok) {
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
+async function networkFirstDocument(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return (await cache.match(request)) ?? (await cache.match("/index.html"));
+  }
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((cacheNames) =>
+        Promise.all(
+          cacheNames
+            .filter(
+              (cacheName) =>
+                cacheName.startsWith(CACHE_PREFIX) && cacheName !== CACHE_NAME,
+            )
+            .map((cacheName) => caches.delete(cacheName)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") {
+    return;
+  }
+
+  const url = new URL(request.url);
+  if (!isSameOrigin(url)) {
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirstDocument(request));
+    return;
+  }
+
+  if (isStaticAssetRequest(request, url)) {
+    event.respondWith(cacheFirst(request));
+  }
+});
