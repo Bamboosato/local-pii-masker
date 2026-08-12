@@ -87,9 +87,11 @@ export type AppAction =
       type: "relateEntries";
       ids: string[];
       groupId: string;
-      restorationText: string;
+      mode: "new" | "existing";
+      restorationText?: string;
     }
   | { type: "unlinkRelatedEntry"; id: string }
+  | { type: "unlinkRelatedGroup"; id: string }
   | { type: "deleteEntry"; id: string }
   | { type: "setExternalResponse"; value: string }
   | { type: "setRestoreExpanded"; value: boolean }
@@ -223,6 +225,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "unlinkRelatedEntry":
       return unlinkRelatedEntry(state, action.id);
 
+    case "unlinkRelatedGroup":
+      return unlinkRelatedGroup(state, action.id);
+
     case "deleteEntry":
       return {
         ...state,
@@ -329,10 +334,17 @@ function relateEntries(
     selectedIds.includes(entry.id),
   );
 
-  if (selectedEntries.length < 2) {
+  if (selectedEntries.length === 0) {
     return {
       ...state,
-      notice: "同一人物として関連付けるには2件以上選択してください。",
+      notice: "同一人物として関連付ける対象を選択してください。",
+    };
+  }
+
+  if (action.mode === "new" && selectedEntries.length < 2) {
+    return {
+      ...state,
+      notice: "新しい関連付けには2件以上選択してください。",
     };
   }
 
@@ -358,20 +370,39 @@ function relateEntries(
     };
   }
 
-  const restorationText = normalizeText(action.restorationText).trim();
-  if (restorationText.length === 0 || restorationText.includes("\n")) {
-    return {
-      ...state,
-      notice: "復元時の代表表記を入力してください。",
-    };
-  }
-
+  const restorationText = normalizeText(action.restorationText ?? "").trim();
   const selectedIdSet = new Set(selectedIds);
   const primaryEntry = state.entries.find((entry) => entry.id === selectedIds[0]);
 
   if (!primaryEntry) {
     return state;
   }
+
+  const existingGroupEntries = state.entries.filter(
+    (entry) => entry.relatedGroupId === action.groupId,
+  );
+  if (action.mode === "existing" && existingGroupEntries.length === 0) {
+    return {
+      ...state,
+      notice: "追加先の関連付けを選択してください。",
+    };
+  }
+
+  const groupReference = existingGroupEntries[0];
+  const nextRestorationText =
+    action.mode === "existing"
+      ? groupReference?.restorationText ?? ""
+      : restorationText;
+  if (
+    action.mode === "new" &&
+    (nextRestorationText.length === 0 || nextRestorationText.includes("\n"))
+  ) {
+    return {
+      ...state,
+      notice: "復元時の代表表記を入力してください。",
+    };
+  }
+  const nextToken = groupReference?.token ?? primaryEntry.token;
 
   return {
     ...state,
@@ -382,14 +413,17 @@ function relateEntries(
             relatedGroupId: action.groupId,
             relatedOriginalRestorationText: entry.restorationText,
             relatedOriginalToken: entry.token,
-            restorationText,
-            token: primaryEntry.token,
+            restorationText: nextRestorationText,
+            token: nextToken,
           }
         : entry,
     ),
     selectedEntryId: primaryEntry.id,
     selectedEntryIds: [],
-    notice: `${selectedEntries.length}件を同一人物として関連付けました。`,
+    notice:
+      action.mode === "existing"
+        ? `${selectedEntries.length}件を既存の関連付けへ追加しました。`
+        : `${selectedEntries.length}件を同一人物として関連付けました。`,
   };
 }
 
@@ -423,6 +457,18 @@ function toggleEntryEnabled(state: AppState, entryId: string): AppState {
 }
 
 function unlinkRelatedEntry(state: AppState, entryId: string): AppState {
+  return unlinkRelatedEntries(state, entryId, "entry");
+}
+
+function unlinkRelatedGroup(state: AppState, entryId: string): AppState {
+  return unlinkRelatedEntries(state, entryId, "group");
+}
+
+function unlinkRelatedEntries(
+  state: AppState,
+  entryId: string,
+  scope: "entry" | "group",
+): AppState {
   const target = state.entries.find((entry) => entry.id === entryId);
 
   if (!target?.relatedGroupId) {
@@ -439,15 +485,17 @@ function unlinkRelatedEntry(state: AppState, entryId: string): AppState {
   const groupEntries = state.entries.filter(
     (entry) => entry.relatedGroupId === target.relatedGroupId,
   );
-  const shouldBreakGroup = groupEntries.length <= 2;
-  const remainingGroupEntryIds = new Set(
-    groupEntries.filter((entry) => entry.id !== entryId).map((entry) => entry.id),
+  const shouldBreakGroup = scope === "group" || groupEntries.length <= 2;
+  const entriesToUnlink = new Set(
+    shouldBreakGroup
+      ? groupEntries.map((entry) => entry.id)
+      : [entryId],
   );
 
   return {
     ...state,
     entries: state.entries.map((entry) => {
-      if (entry.id === entryId || (shouldBreakGroup && remainingGroupEntryIds.has(entry.id))) {
+      if (entriesToUnlink.has(entry.id)) {
         return {
           ...entry,
           relatedGroupId: undefined,
@@ -467,7 +515,10 @@ function unlinkRelatedEntry(state: AppState, entryId: string): AppState {
       return entry;
     }),
     selectedEntryId: entryId,
-    notice: "同一人物の関連付けを解除しました。",
+    notice:
+      scope === "group"
+        ? "同一人物の関連付けをすべて解除しました。"
+        : "同一人物の関連付けを解除しました。",
   };
 }
 

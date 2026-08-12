@@ -373,6 +373,12 @@ describe("App", () => {
     const dialog = screen.getByRole("dialog", {
       name: "同一人物として関連付け",
     });
+    expect(
+      within(dialog).getByRole("radio", { name: "① 新規の関連付け" }),
+    ).toBeChecked();
+    expect(
+      within(dialog).getByRole("radio", { name: "② 既存の関連付けへの追加" }),
+    ).toBeDisabled();
     expect(within(dialog).getByLabelText("復元時の代表表記")).toHaveValue(
       "山田太郎",
     );
@@ -382,6 +388,175 @@ describe("App", () => {
 
     expect(screen.getAllByRole("button", { name: "[人名_1]" })).toHaveLength(2);
     expect(screen.getAllByText("関連付け1")).toHaveLength(2);
+  });
+
+  it("3件以上の同一人物関連付けでは解除方法を選択できる", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const editor = screen.getByLabelText("原文");
+    setEditorText(editor, "山田さんと山田太郎さんと田中さん");
+
+    const addEntry = async (start: number, end: number) => {
+      selectEditorRange(editor, start, end);
+      await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
+      await user.click(
+        within(screen.getByRole("dialog", { name: "マスク対象に追加" })).getByRole(
+          "button",
+          { name: "追加してマスク" },
+        ),
+      );
+    };
+
+    await addEntry(0, 2);
+    await addEntry(5, 9);
+    await addEntry(12, 14);
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "山田を同一人物として選択" }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: "山田太郎を同一人物として選択" }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: "田中を同一人物として選択" }),
+    );
+
+    const selectedCard = screen.getByRole("article", {
+      name: "山田、有効",
+    });
+    await user.click(
+      within(selectedCard).getByRole("button", {
+        name: "山田の操作メニュー",
+      }),
+    );
+    await user.click(
+      within(selectedCard).getByRole("menuitem", { name: "同一人物として関連付け" }),
+    );
+    await user.click(
+      within(screen.getByRole("dialog", { name: "同一人物として関連付け" })).getByRole(
+        "button",
+        { name: "関連付ける" },
+      ),
+    );
+
+    await user.click(
+      within(selectedCard).getByRole("button", {
+        name: "山田の操作メニュー",
+      }),
+    );
+    await user.click(
+      within(selectedCard).getByRole("menuitem", { name: "関連付けを解除" }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "関連付けを解除" });
+    expect(
+      within(dialog).getByRole("radio", { name: "このマスクのみ解除する" }),
+    ).toBeChecked();
+    expect(
+      within(dialog).getByRole("radio", {
+        name: "同一の関連付けをすべて解除する",
+      }),
+    ).not.toBeChecked();
+
+    await user.click(
+      within(dialog).getByRole("radio", {
+        name: "同一の関連付けをすべて解除する",
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "関連付けを解除する" }),
+    );
+
+    expect(screen.queryByRole("dialog", { name: "関連付けを解除" })).not.toBeInTheDocument();
+    expect(screen.queryAllByText("関連付け1")).toHaveLength(0);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "山田の操作メニュー" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("1件選択時は既存の関連付けへの追加だけを選べる", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const editor = screen.getByLabelText("原文");
+    setEditorText(editor, "山田さんと山田太郎さんと田中さん");
+
+    const addEntry = async (start: number, end: number) => {
+      selectEditorRange(editor, start, end);
+      await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
+      await user.click(
+        within(screen.getByRole("dialog", { name: "マスク対象に追加" })).getByRole(
+          "button",
+          { name: "追加してマスク" },
+        ),
+      );
+    };
+
+    await addEntry(0, 2);
+    await addEntry(5, 9);
+    await addEntry(12, 14);
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "山田を同一人物として選択" }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: "山田太郎を同一人物として選択" }),
+    );
+    const fullNameCard = screen.getByRole("article", {
+      name: "山田太郎、有効",
+    });
+    await user.click(
+      within(fullNameCard).getByRole("button", {
+        name: "山田太郎の操作メニュー",
+      }),
+    );
+    await user.click(
+      within(fullNameCard).getByRole("menuitem", {
+        name: "同一人物として関連付け",
+      }),
+    );
+    await user.click(
+      within(screen.getByRole("dialog", { name: "同一人物として関連付け" })).getByRole(
+        "button",
+        { name: "関連付ける" },
+      ),
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "田中を同一人物として選択" }),
+    );
+    const newPersonCard = screen.getByRole("article", {
+      name: "田中、有効",
+    });
+    await user.click(
+      within(newPersonCard).getByRole("button", {
+        name: "田中の操作メニュー",
+      }),
+    );
+    await user.click(
+      within(newPersonCard).getByRole("menuitem", {
+        name: "同一人物として関連付け",
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "同一人物として関連付け",
+    });
+    expect(
+      within(dialog).getByRole("radio", { name: "① 新規の関連付け" }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).getByRole("radio", { name: "② 既存の関連付けへの追加" }),
+    ).toBeChecked();
+    const selectedGroup = within(dialog).getByLabelText("追加先の関連付け");
+    expect((selectedGroup as HTMLSelectElement).value).toMatch(/^related-1-/);
+
+    await user.click(within(dialog).getByRole("button", { name: "関連付ける" }));
+
+    expect(screen.getAllByText("関連付け1")).toHaveLength(3);
   });
 
   it("マスク対象カードのアイコンから本文内の最初の出現箇所へ移動する", async () => {
