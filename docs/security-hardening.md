@@ -102,7 +102,7 @@ npm run benchmark:core
 
 ## 8. Phase 7 PWAセキュリティ境界
 
-Phase 7では、Service Workerを導入してもユーザーデータの保存範囲を拡大しない。
+Phase 7では、Service Workerを導入してもCache Storageの保存範囲を拡大しない。明示保存によるOPFS作業履歴は、Service WorkerとCache Storageから分離した専用Repositoryで管理する。
 
 - Service Workerが管理するのは、許可された同一オリジンのアプリシェルだけとする
 - POST、API応答、認証、任意URL、ユーザー操作で生成されたデータはキャッシュしない
@@ -111,5 +111,19 @@ Phase 7では、Service Workerを導入してもユーザーデータの保存�
 - モデルキャッシュは固定リビジョンの1版を基本とし、新版の取得・初期化成功後だけ旧版を削除する
 - `sw.js`、Manifest、`index.html`は再検証可能にし、ハッシュ付き静的資産だけを長期キャッシュする
 - 既存のCSP、`worker-src 'self' blob:`、Hugging Faceの許可済み`connect-src`を維持する
+- OPFSへのアクセスは`navigator.storage.getDirectory()`を含む専用Repository層へ限定する
 
-Phase 7の検証では、合成マーカーを入力したうえで、Cache Storage、LocalStorage、SessionStorage、IndexedDB、Cookie、ネットワーク要求、Consoleにマーカーが出ないことを確認する。更新可能状態で編集中のセッションを自動リロードしないことも確認する。
+Phase 7の検証では、合成マーカーを入力したうえで、Cache Storage、LocalStorage、SessionStorage、IndexedDB、Cookie、ネットワーク要求、Consoleにマーカーが出ないことを確認する。明示保存を行った場合も、Cache Storage、Service Worker、ネットワーク、Consoleへ機密マーカーが出ないことを確認する。更新可能状態で編集中のセッションを自動リロードしないことも確認する。
+
+## 9. ローカル作業履歴セキュリティ境界
+
+ローカル作業履歴では、原文、検出値、マスク対応情報をAES-GCMで暗号化し、タイトル、保存日時、文字数、マスク対象件数などの一覧用メタデータだけを平文インデックスへ保存する。画面・文書では「保存データはすべて暗号化」と表現しない。
+
+検証では、保存処理ごとに生成した合成PIIとパスフレーズを使用し、次を確認する。
+
+- OPFSのセッションファイルに原文、検出値、トークン対応、マスク内容の平文がない
+- `index.json`に許可された一覧メタデータ以外がない
+- パスフレーズ、復号済みデータ、暗号鍵をログ・エラー・ネットワークへ出さない
+- 誤パスフレーズ、改ざん、破損、未対応スキーマで現在作業を変更しない
+- 保存・上書き・削除・インデックス更新の失敗時に正常な既存データを維持する
+- Service WorkerとCache StorageがOPFSファイルを読み書きしない
