@@ -20,6 +20,7 @@ export type NormalizationLockReason =
 export type AppState = MaskSession & {
   activeTextView: TextView;
   selectedEntryId?: string;
+  selectedEntryIds: string[];
   entryFilter: EntryFilter;
   entrySearch: string;
   restoreExpanded: boolean;
@@ -34,6 +35,7 @@ export const initialAppState: AppState = {
   externalResponse: "",
   occurrenceMaskingMode: FIXED_OCCURRENCE_MASKING_MODE,
   activeTextView: "original",
+  selectedEntryIds: [],
   entryFilter: "enabled",
   entrySearch: "",
   restoreExpanded: false,
@@ -53,6 +55,8 @@ export type AppAction =
   | { type: "setEntryFilter"; value: EntryFilter }
   | { type: "setEntrySearch"; value: string }
   | { type: "selectEntry"; id?: string }
+  | { type: "toggleEntrySelection"; id: string }
+  | { type: "clearEntrySelection" }
   | {
       type: "addManualEntry";
       value: {
@@ -79,6 +83,13 @@ export type AppAction =
       enabled: boolean;
     }
   | { type: "toggleEntryEnabled"; id: string }
+  | {
+      type: "relateEntries";
+      ids: string[];
+      groupId: string;
+      restorationText: string;
+    }
+  | { type: "unlinkRelatedEntry"; id: string }
   | { type: "deleteEntry"; id: string }
   | { type: "setExternalResponse"; value: string }
   | { type: "setRestoreExpanded"; value: boolean }
@@ -119,6 +130,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         entries: [],
         activeTextView: "original",
         selectedEntryId: undefined,
+        selectedEntryIds: [],
         entryFilter: "enabled",
         entrySearch: "",
         notice: "原文を正規化しました。マスク対象を検出してください。",
@@ -136,6 +148,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case "selectEntry":
       return { ...state, selectedEntryId: action.id };
+
+    case "toggleEntrySelection":
+      return {
+        ...state,
+        selectedEntryIds: state.selectedEntryIds.includes(action.id)
+          ? state.selectedEntryIds.filter((id) => id !== action.id)
+          : [...state.selectedEntryIds, action.id],
+      };
+
+    case "clearEntrySelection":
+      return { ...state, selectedEntryIds: [] };
 
     case "addManualEntry":
       return addManualEntry(state, action.value);
@@ -192,26 +215,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "toggleEntryEnabled":
-      return {
-        ...state,
-        entries: state.entries.map((entry) =>
-          entry.id === action.id
-            ? {
-                ...entry,
-                enabled: !entry.enabled,
-                reviewStatus: !entry.enabled || entry.reviewStatus === "unreviewed"
-                  ? "approved"
-                  : entry.reviewStatus,
-              }
-            : entry,
-        ),
-        selectedEntryId: action.id,
-      };
+      return toggleEntryEnabled(state, action.id);
+
+    case "relateEntries":
+      return relateEntries(state, action);
+
+    case "unlinkRelatedEntry":
+      return unlinkRelatedEntry(state, action.id);
 
     case "deleteEntry":
       return {
         ...state,
         entries: state.entries.filter((entry) => entry.id !== action.id),
+        selectedEntryIds: state.selectedEntryIds.filter(
+          (id) => id !== action.id,
+        ),
         selectedEntryId:
           state.selectedEntryId === action.id ? undefined : state.selectedEntryId,
       };
@@ -299,6 +317,157 @@ function addManualEntry(
     entryFilter: "enabled",
     normalizationLockReason: "candidate_registered",
     notice: "マスク対象に追加しました。",
+  };
+}
+
+function relateEntries(
+  state: AppState,
+  action: Extract<AppAction, { type: "relateEntries" }>,
+): AppState {
+  const selectedIds = [...new Set(action.ids)];
+  const selectedEntries = state.entries.filter((entry) =>
+    selectedIds.includes(entry.id),
+  );
+
+  if (selectedEntries.length < 2) {
+    return {
+      ...state,
+      notice: "同一人物として関連付けるには2件以上選択してください。",
+    };
+  }
+
+  if (
+    selectedEntries.some(
+      (entry) =>
+        entry.category !== "PERSON" ||
+        !entry.enabled ||
+        entry.reviewStatus !== "approved" ||
+        entry.relatedGroupId !== undefined,
+    )
+  ) {
+    return {
+      ...state,
+      notice: "有効な人名のマスク対象だけを関連付けできます。",
+    };
+  }
+
+  if (state.externalResponse.trim().length > 0) {
+    return {
+      ...state,
+      notice: "復元する文章を空にしてから関連付けてください。",
+    };
+  }
+
+  const restorationText = normalizeText(action.restorationText).trim();
+  if (restorationText.length === 0 || restorationText.includes("\n")) {
+    return {
+      ...state,
+      notice: "復元時の代表表記を入力してください。",
+    };
+  }
+
+  const selectedIdSet = new Set(selectedIds);
+  const primaryEntry = state.entries.find((entry) => entry.id === selectedIds[0]);
+
+  if (!primaryEntry) {
+    return state;
+  }
+
+  return {
+    ...state,
+    entries: state.entries.map((entry) =>
+      selectedIdSet.has(entry.id)
+        ? {
+            ...entry,
+            relatedGroupId: action.groupId,
+            relatedOriginalRestorationText: entry.restorationText,
+            relatedOriginalToken: entry.token,
+            restorationText,
+            token: primaryEntry.token,
+          }
+        : entry,
+    ),
+    selectedEntryId: primaryEntry.id,
+    selectedEntryIds: [],
+    notice: `${selectedEntries.length}件を同一人物として関連付けました。`,
+  };
+}
+
+function toggleEntryEnabled(state: AppState, entryId: string): AppState {
+  const target = state.entries.find((entry) => entry.id === entryId);
+
+  if (!target) {
+    return state;
+  }
+
+  const nextEnabled = !target.enabled;
+
+  return {
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.id === entryId ||
+      (target.relatedGroupId !== undefined &&
+        entry.relatedGroupId === target.relatedGroupId)
+        ? {
+            ...entry,
+            enabled: nextEnabled,
+            reviewStatus:
+              nextEnabled || entry.reviewStatus === "unreviewed"
+                ? "approved"
+                : entry.reviewStatus,
+          }
+        : entry,
+    ),
+    selectedEntryId: entryId,
+  };
+}
+
+function unlinkRelatedEntry(state: AppState, entryId: string): AppState {
+  const target = state.entries.find((entry) => entry.id === entryId);
+
+  if (!target?.relatedGroupId) {
+    return state;
+  }
+
+  if (state.externalResponse.trim().length > 0) {
+    return {
+      ...state,
+      notice: "復元する文章を空にしてから関連付けを解除してください。",
+    };
+  }
+
+  const groupEntries = state.entries.filter(
+    (entry) => entry.relatedGroupId === target.relatedGroupId,
+  );
+  const shouldBreakGroup = groupEntries.length <= 2;
+  const remainingGroupEntryIds = new Set(
+    groupEntries.filter((entry) => entry.id !== entryId).map((entry) => entry.id),
+  );
+
+  return {
+    ...state,
+    entries: state.entries.map((entry) => {
+      if (entry.id === entryId || (shouldBreakGroup && remainingGroupEntryIds.has(entry.id))) {
+        return {
+          ...entry,
+          relatedGroupId: undefined,
+          relatedOriginalRestorationText: undefined,
+          relatedOriginalToken: undefined,
+          restorationText:
+            entry.relatedOriginalRestorationText ?? entry.restorationText,
+          token:
+            entry.relatedOriginalToken ??
+            createMaskToken(entry.category, {
+              originalText: state.originalText,
+              entries: state.entries,
+            }),
+        };
+      }
+
+      return entry;
+    }),
+    selectedEntryId: entryId,
+    notice: "同一人物の関連付けを解除しました。",
   };
 }
 

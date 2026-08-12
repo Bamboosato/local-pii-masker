@@ -28,6 +28,9 @@ export type MaskEntry = {
   normalizedText: string;
   restorationText: string;
   token: string;
+  relatedGroupId?: string;
+  relatedOriginalRestorationText?: string;
+  relatedOriginalToken?: string;
   category: MaskCategory;
   sources: DetectionSource[];
   confidence?: number;

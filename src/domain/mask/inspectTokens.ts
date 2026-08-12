@@ -14,14 +14,13 @@ export function inspectTokens(
   response: string,
   entries: Pick<MaskEntry, "token">[],
 ): TokenInspection {
-  const knownTokens = new Set(entries.map((entry) => entry.token));
+  const knownTokenList = [...new Set(entries.map((entry) => entry.token))];
+  const knownTokens = new Set(knownTokenList);
   const responseTokens = new Set(response.match(TOKEN_PATTERN) ?? []);
 
-  const knownPresent = entries
-    .map((entry) => entry.token)
+  const knownPresent = knownTokenList
     .filter((token) => responseTokens.has(token));
-  const absent = entries
-    .map((entry) => entry.token)
+  const absent = knownTokenList
     .filter((token) => !responseTokens.has(token));
   const unknown = [...responseTokens].filter((token) => !knownTokens.has(token));
 

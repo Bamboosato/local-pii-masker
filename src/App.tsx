@@ -35,6 +35,10 @@ import {
   getNormalizationTooltipMessage,
 } from "./app/normalizationAvailability";
 import {
+  getNextRelatedGroupNumber,
+  getRelatedGroupLabels,
+} from "./app/relatedGroupLabels";
+import {
   selectActiveEntries,
   selectMaskableOccurrenceCount,
   selectMaskedText,
@@ -75,7 +79,7 @@ import {
   type OccurrenceMaskingMode,
 } from "./domain/types";
 
-const MAX_CHAR_COUNT = 10000;
+const MAX_CHAR_COUNT = 30_000;
 const DETECTION_PROGRESS_DELAY_MS = 1000;
 const RESTORE_TEXTAREA_MIN_HEIGHT = 160;
 type DetectionPhase = "idle" | "regex" | "ner-loading" | "ner-running";
@@ -143,6 +147,8 @@ export default function App() {
   const [selectedText, setSelectedText] = useState("");
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualCategory, setManualCategory] = useState<MaskCategory>("PERSON");
+  const [relationDialogOpen, setRelationDialogOpen] = useState(false);
+  const [relationRestorationText, setRelationRestorationText] = useState("");
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -168,6 +174,7 @@ export default function App() {
   const detectionButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchInputRef = useRef<HTMLInputElement>(null);
+  const relationReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const managementPanelRef = useRef<HTMLElement>(null);
   const entryListRef = useRef<HTMLDivElement>(null);
   const restoreDockRef = useRef<HTMLElement>(null);
@@ -181,6 +188,18 @@ export default function App() {
   const activeEntries = selectActiveEntries(state.entries);
   const restoration = selectRestoredResponse(state);
   const tokenInspection = selectTokenInspection(state);
+  const selectedRelationEntries = state.entries.filter((entry) =>
+    state.selectedEntryIds.includes(entry.id),
+  );
+  const relatedGroupLabels = useMemo(
+    () => getRelatedGroupLabels(state.entries),
+    [state.entries],
+  );
+  const canRelateSelectedEntries =
+    selectedRelationEntries.length >= 2 &&
+    selectedRelationEntries.length === state.selectedEntryIds.length &&
+    selectedRelationEntries.every(isRelatableEntry) &&
+    state.externalResponse.trim().length === 0;
   const isDetecting = detectionPhase !== "idle";
   const normalizationAvailability = getNormalizationAvailability({
     originalText: state.originalText,
@@ -441,6 +460,46 @@ export default function App() {
     });
     setManualDialogOpen(false);
     lastSelectionControlRef.current?.focus();
+  }
+
+  function openRelationDialog() {
+    if (!canRelateSelectedEntries) {
+      dispatch({
+        type: "setNotice",
+        value:
+          state.externalResponse.trim().length > 0
+            ? "復元する文章を空にしてから関連付けてください。"
+            : "有効な人名のマスク対象を2件以上選択してください。",
+      });
+      return;
+    }
+
+    const suggestion = [...selectedRelationEntries]
+      .sort((a, b) => b.restorationText.length - a.restorationText.length)[0]
+      ?.restorationText ?? "";
+    setRelationRestorationText(suggestion);
+    setRelationDialogOpen(true);
+  }
+
+  function openRelationDialogFromMenu(trigger: HTMLButtonElement | null) {
+    relationReturnFocusRef.current = trigger;
+    openRelationDialog();
+  }
+
+  function focusRelationTrigger() {
+    window.requestAnimationFrame(() => relationReturnFocusRef.current?.focus());
+  }
+
+  function relateEntries(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    dispatch({
+      type: "relateEntries",
+      ids: state.selectedEntryIds,
+      groupId: createRelatedGroupId(state.entries),
+      restorationText: relationRestorationText,
+    });
+    setRelationDialogOpen(false);
+    focusRelationTrigger();
   }
 
   function openNormalizationDialog() {
@@ -998,13 +1057,28 @@ export default function App() {
               visibleEntries.map((entry) => (
                 <EntryCard
                   entry={entry}
+                  relatedGroupLabel={
+                    entry.relatedGroupId
+                      ? relatedGroupLabels.get(entry.relatedGroupId)
+                      : undefined
+                  }
                   maskingMode={state.occurrenceMaskingMode}
                   maskableOccurrenceCount={selectMaskableOccurrenceCount(state, entry)}
+                  relationSelectable={isRelatableEntry(entry)}
+                  relationSelected={state.selectedEntryIds.includes(entry.id)}
+                  canRelateSelection={canRelateSelectedEntries}
                   isSelected={state.selectedEntryId === entry.id}
                   key={entry.id}
                   onDelete={() => dispatch({ type: "deleteEntry", id: entry.id })}
                   onNavigateToEntry={() => navigateToEntry(entry.id)}
                   onSelect={() => dispatch({ type: "selectEntry", id: entry.id })}
+                  onToggleRelationSelection={() =>
+                    dispatch({ type: "toggleEntrySelection", id: entry.id })
+                  }
+                  onRelate={(trigger) => openRelationDialogFromMenu(trigger)}
+                  onUnlink={() =>
+                    dispatch({ type: "unlinkRelatedEntry", id: entry.id })
+                  }
                   onToggle={() =>
                     dispatch({ type: "toggleEntryEnabled", id: entry.id })
                   }
@@ -1105,6 +1179,19 @@ export default function App() {
           onSubmit={addManualEntry}
           previewToken={manualPreviewToken}
           selectedText={selectedText}
+        />
+      ) : null}
+
+      {relationDialogOpen ? (
+        <RelateEntriesDialog
+          entries={selectedRelationEntries}
+          onClose={() => {
+            setRelationDialogOpen(false);
+            focusRelationTrigger();
+          }}
+          onRestorationTextChange={setRelationRestorationText}
+          onSubmit={relateEntries}
+          restorationText={relationRestorationText}
         />
       ) : null}
 
@@ -1249,15 +1336,26 @@ export default function App() {
 
 function EntryCard(props: {
   entry: MaskEntry;
+  relatedGroupLabel?: string;
   isSelected: boolean;
   maskingMode: OccurrenceMaskingMode;
   maskableOccurrenceCount: number;
+  relationSelectable: boolean;
+  relationSelected: boolean;
+  canRelateSelection: boolean;
   onDelete: () => void;
   onNavigateToEntry: () => void;
   onSelect: () => void;
+  onToggleRelationSelection: () => void;
+  onRelate: (trigger: HTMLButtonElement | null) => void;
+  onUnlink: () => void;
   onToggle: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [relationTooltipPosition, setRelationTooltipPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const menuRootRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstMenuItemRef = useRef<HTMLButtonElement>(null);
@@ -1277,6 +1375,25 @@ function EntryCard(props: {
     ),
   ];
   const menuId = `entry-menu-${props.entry.id}`;
+  const relationTooltipText = props.relationSelectable
+    ? "同一人物として関連付ける対象に選択"
+    : "有効な人名のマスク対象だけ選択できます";
+
+  function showRelationTooltip(element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const tooltipWidth = Math.min(240, Math.max(0, viewportWidth - 32));
+    const maxLeft = Math.max(16, viewportWidth - tooltipWidth - 16);
+    const left = Math.min(
+      Math.max(16, rect.right - tooltipWidth),
+      maxLeft,
+    );
+
+    setRelationTooltipPosition({
+      left,
+      top: Math.max(8, rect.bottom + 6),
+    });
+  }
 
   useEffect(() => {
     if (!menuOpen) {
@@ -1312,7 +1429,7 @@ function EntryCard(props: {
   return (
     <article
       aria-label={`${props.entry.originalText}、${statusLabel}`}
-      className={`entry-card ${statusClass} ${props.isSelected ? "is-selected" : ""}`}
+      className={`entry-card ${statusClass} ${props.isSelected ? "is-selected" : ""} ${props.relationSelected ? "is-relation-selected" : ""}`}
       data-entry-id={props.entry.id}
       onFocus={props.onSelect}
       onMouseDown={props.onSelect}
@@ -1356,6 +1473,40 @@ function EntryCard(props: {
               )}
               {props.entry.enabled ? "無効化" : "有効化"}
             </button>
+            {props.relationSelected ? (
+              <button
+                className="entry-card-menu-item"
+                disabled={!props.canRelateSelection}
+                onClick={() => {
+                  setMenuOpen(false);
+                  props.onRelate(menuButtonRef.current);
+                }}
+                role="menuitem"
+                title={
+                  props.canRelateSelection
+                    ? "選択中の人名を同一人物として関連付けます"
+                    : "人名を2件以上選択すると関連付けできます"
+                }
+                type="button"
+              >
+                <Link2 aria-hidden="true" size={16} />
+                同一人物として関連付け
+              </button>
+            ) : null}
+            {props.entry.relatedGroupId ? (
+              <button
+                className="entry-card-menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  props.onUnlink();
+                }}
+                role="menuitem"
+                type="button"
+              >
+                <Link2 aria-hidden="true" size={16} />
+                関連付けを解除
+              </button>
+            ) : null}
             <button
               className="entry-card-menu-item is-danger"
               onClick={() => {
@@ -1371,39 +1522,72 @@ function EntryCard(props: {
           </div>
         ) : null}
       </div>
-      <div className="entry-text">
-        {confidenceLabel ? (
-          <span
-            aria-describedby={confidenceTooltipId}
-            className="entry-value entry-value-with-tooltip"
-            tabIndex={0}
-          >
-            {props.entry.originalText}
-            <span
-              className="entry-confidence-tooltip"
-              id={confidenceTooltipId}
-              role="tooltip"
-            >
-              {confidenceLabel}
-            </span>
-          </span>
-        ) : (
-          <span className="entry-value">{props.entry.originalText}</span>
-        )}
-        <button
-          aria-label={`${props.entry.originalText}の最初の出現箇所へ移動`}
-          className="icon-button entry-locate-button"
-          disabled={props.entry.occurrenceCount === 0}
-          onClick={props.onNavigateToEntry}
+      <div className="entry-text-row">
+        <label
+          className="entry-relation-select"
+          onClick={(event) => event.stopPropagation()}
+          onBlur={() => setRelationTooltipPosition(null)}
+          onFocus={(event) => showRelationTooltip(event.currentTarget)}
+          onMouseEnter={(event) => showRelationTooltip(event.currentTarget)}
+          onMouseLeave={() => setRelationTooltipPosition(null)}
+          onMouseDown={(event) => event.stopPropagation()}
           title={
-            props.entry.occurrenceCount === 0
-              ? "現在の原文に存在しません"
-              : "本文内の最初の出現箇所へ移動"
+            props.relationSelectable
+              ? "同一人物として関連付ける対象に選択"
+              : "有効な人名のマスク対象だけ選択できます"
           }
-          type="button"
         >
-          <Link2 aria-hidden="true" size={17} />
-        </button>
+          <input
+            aria-label={`${props.entry.originalText}を同一人物として選択`}
+            checked={props.relationSelected}
+            disabled={!props.relationSelectable}
+            onChange={props.onToggleRelationSelection}
+            type="checkbox"
+          />
+          <span
+            className={`entry-relation-tooltip${relationTooltipPosition ? " is-visible" : ""}`}
+            role="tooltip"
+            style={relationTooltipPosition ?? undefined}
+          >
+            {relationTooltipText}
+          </span>
+        </label>
+        <div className="entry-text">
+        <div className="entry-value-line">
+          {confidenceLabel ? (
+            <span
+              aria-describedby={confidenceTooltipId}
+              className="entry-value entry-value-with-tooltip"
+              tabIndex={0}
+            >
+              {props.entry.originalText}
+              <span
+                className="entry-confidence-tooltip"
+                id={confidenceTooltipId}
+                role="tooltip"
+              >
+                {confidenceLabel}
+              </span>
+            </span>
+          ) : (
+            <span className="entry-value">{props.entry.originalText}</span>
+          )}
+          <button
+            aria-label={`${props.entry.originalText}の最初の出現箇所へ移動`}
+            className="icon-button entry-locate-button"
+            disabled={props.entry.occurrenceCount === 0}
+            onClick={props.onNavigateToEntry}
+            title={
+              props.entry.occurrenceCount === 0
+                ? "現在の原文に存在しません"
+                : "本文内の最初の出現箇所へ移動"
+            }
+            type="button"
+          >
+            <Link2 aria-hidden="true" size={17} />
+          </button>
+        </div>
+        </div>
       </div>
       <div className="chip-row">
         <span className="chip mono">{props.entry.token}</span>
@@ -1431,6 +1615,11 @@ function EntryCard(props: {
             {label}
           </span>
         ))}
+        {props.entry.relatedGroupId ? (
+          <span className="chip chip-related">
+            {props.relatedGroupLabel ?? "関連付け"}
+          </span>
+        ) : null}
       </div>
     </article>
   );
@@ -1519,6 +1708,85 @@ function ManualAddDialog(props: {
   );
 }
 
+function RelateEntriesDialog(props: {
+  entries: MaskEntry[];
+  onClose: () => void;
+  onRestorationTextChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  restorationText: string;
+}) {
+  return (
+    <div className="modal-backdrop">
+      <form
+        aria-labelledby="relate-dialog-title"
+        className="modal relation-modal"
+        onSubmit={props.onSubmit}
+        role="dialog"
+      >
+        <div className="modal-header">
+          <h2 id="relate-dialog-title">同一人物として関連付け</h2>
+          <button
+            aria-label="閉じる"
+            className="icon-button"
+            onClick={props.onClose}
+            title="ダイアログを閉じます"
+            type="button"
+          >
+            <X size={22} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>
+            選択した表記をマスク済み文章内で同じトークンに統一します。復元時は、指定した代表表記へ戻ります。
+          </p>
+          <div className="relation-entry-list">
+            <strong>関連付ける表記</strong>
+            <ul>
+              {props.entries.map((entry) => (
+                <li key={entry.id}>
+                  <span>{entry.originalText}</span>
+                  <span className="chip mono">{entry.token}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <label className="field">
+            <span>復元時の代表表記</span>
+            <input
+              aria-label="復元時の代表表記"
+              onChange={(event) => props.onRestorationTextChange(event.target.value)}
+              required
+              value={props.restorationText}
+            />
+          </label>
+          <div className="info-callout">
+            <Info size={18} />
+            原文上の姓・姓名などの表記差は、復元時に保持されません。
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button
+            className="button button-ghost"
+            onClick={props.onClose}
+            title="関連付けをキャンセルします"
+            type="button"
+          >
+            キャンセル
+          </button>
+          <button
+            className="button button-primary"
+            title="選択した表記を同一人物として関連付けます"
+            type="submit"
+          >
+            <Link2 size={18} />
+            関連付ける
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function ConfirmDialog(props: {
   children: ReactNode;
   confirmLabel: string;
@@ -1594,6 +1862,19 @@ function FilterButton(props: {
 
 function createEntryId(): string {
   return `entry-${crypto.randomUUID()}`;
+}
+
+function createRelatedGroupId(entries: MaskEntry[]): string {
+  return `related-${getNextRelatedGroupNumber(entries)}-${crypto.randomUUID()}`;
+}
+
+function isRelatableEntry(entry: MaskEntry): boolean {
+  return (
+    entry.category === "PERSON" &&
+    entry.enabled &&
+    entry.reviewStatus === "approved" &&
+    entry.relatedGroupId === undefined
+  );
 }
 
 function countSelectedOccurrences(originalText: string, selectedText: string): number {
