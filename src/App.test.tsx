@@ -313,6 +313,77 @@ describe("App", () => {
     });
   });
 
+  it("人名カードを同一人物として関連付け、マスクトークンを統一する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const editor = screen.getByLabelText("原文");
+    setEditorText(editor, "山田さんと山田太郎さん");
+
+    selectEditorRange(editor, 0, 2);
+    await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "マスク対象に追加" })).getByRole(
+        "button",
+        { name: "追加してマスク" },
+      ),
+    );
+
+    selectEditorRange(editor, 5, 9);
+    await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "マスク対象に追加" })).getByRole(
+        "button",
+        { name: "追加してマスク" },
+      ),
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "山田を同一人物として選択" }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: "山田太郎を同一人物として選択" }),
+    );
+    expect(screen.queryByText("2件選択中")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "選択解除" }),
+    ).not.toBeInTheDocument();
+    const selectedCard = screen.getByRole("article", {
+      name: "山田太郎、有効",
+    });
+    expect(
+      within(selectedCard).getByRole("tooltip", {
+        name: "同一人物として関連付ける対象に選択",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      selectedCard.querySelector(".entry-text-row")?.firstElementChild,
+    ).toHaveClass("entry-relation-select");
+    await user.click(
+      within(selectedCard).getByRole("button", {
+        name: "山田太郎の操作メニュー",
+      }),
+    );
+    await user.click(
+      within(selectedCard).getByRole("menuitem", {
+        name: "同一人物として関連付け",
+      }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "同一人物として関連付け",
+    });
+    expect(within(dialog).getByLabelText("復元時の代表表記")).toHaveValue(
+      "山田太郎",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "関連付ける" }));
+
+    await user.click(screen.getByRole("tab", { name: "マスク結果" }));
+
+    expect(screen.getAllByRole("button", { name: "[人名_1]" })).toHaveLength(2);
+    expect(screen.getAllByText("関連付け1")).toHaveLength(2);
+  });
+
   it("マスク対象カードのアイコンから本文内の最初の出現箇所へ移動する", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -1268,6 +1339,21 @@ describe("App", () => {
     Reflect.deleteProperty(document, "startViewTransition");
   });
 
+  it("30,000文字まで入力でき、超過した変更は適用しない", () => {
+    render(<App />);
+    const editor = screen.getByLabelText("原文");
+    const withinLimit = "あ".repeat(30_000);
+
+    setEditorText(editor, withinLimit);
+
+    expect(getEditorText(editor)).toHaveLength(30_000);
+    expect(screen.getByText("文字数: 30,000 / 30,000")).toBeInTheDocument();
+
+    setEditorText(editor, `${withinLimit}い`);
+
+    expect(getEditorText(editor)).toBe(withinLimit);
+  });
+
   it("全消去で原文と候補をリセットする", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -1278,7 +1364,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "すべて消去" }));
 
     expect(getEditorText(screen.getByLabelText("原文"))).toBe("");
-    expect(screen.getByText("文字数: 0 / 10,000")).toBeInTheDocument();
+    expect(screen.getByText("文字数: 0 / 30,000")).toBeInTheDocument();
   });
 
   it("全消去確認を一般ユーザー向けの文言とコンパクトな操作ボタンで表示する", async () => {

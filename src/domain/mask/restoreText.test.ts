@@ -14,6 +14,19 @@ describe("restoreText", () => {
     );
   });
 
+  it("同一人物として関連付けた同じトークンを検査結果で重複させない", () => {
+    expect(
+      inspectTokens("[人名_1]", [
+        { token: "[人名_1]" },
+        { token: "[人名_1]" },
+      ]),
+    ).toEqual({
+      knownPresent: ["[人名_1]"],
+      absent: [],
+      unknown: [],
+    });
+  });
+
   it("検出補正後の復元文字列を同一トークンの全出現へ使用する", () => {
     expect(
       restoreText("[メール_1] と [メール_1]", [

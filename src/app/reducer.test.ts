@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { appReducer, initialAppState } from "./reducer";
+import { appReducer, initialAppState, type AppState } from "./reducer";
 import {
   selectMaskedText,
+  selectRestoredResponse,
   selectSessionCounts,
   selectVisibleEntries,
 } from "./selectors";
@@ -29,6 +30,163 @@ describe("appReducer", () => {
       token: "[人名_1]",
     });
     expect(selectMaskedText(next)).toBe("[人名_1]さん、[人名_1]です");
+  });
+
+  it("選択した人名を同一トークンへ関連付け、代表表記へ復元する", () => {
+    const withText = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "山田さんと山田太郎さん",
+    });
+    const withSurname = appReducer(withText, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-1",
+        selectedText: "山田",
+        category: "PERSON",
+      },
+    });
+    const withFullName = appReducer(withSurname, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-2",
+        selectedText: "山田太郎",
+        category: "PERSON",
+      },
+    });
+    const related = appReducer(withFullName, {
+      type: "relateEntries",
+      ids: ["entry-1", "entry-2"],
+      groupId: "related-1",
+      restorationText: "山田太郎",
+    });
+
+    expect(related.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "entry-1",
+          originalText: "山田",
+          relatedGroupId: "related-1",
+          restorationText: "山田太郎",
+          token: "[人名_1]",
+        }),
+        expect.objectContaining({
+          id: "entry-2",
+          originalText: "山田太郎",
+          relatedGroupId: "related-1",
+          restorationText: "山田太郎",
+          token: "[人名_1]",
+        }),
+      ]),
+    );
+    expect(selectMaskedText(related)).toBe("[人名_1]さんと[人名_1]さん");
+
+    const withResponse = appReducer(related, {
+      type: "setExternalResponse",
+      value: "[人名_1]さんと[人名_1]さん",
+    });
+
+    expect(selectRestoredResponse(withResponse)).toBe(
+      "山田太郎さんと山田太郎さん",
+    );
+
+    const redetected = appReducer(related, {
+      type: "mergeDetectedCandidates",
+      candidates: [
+        { originalText: "山田", category: "PERSON", source: "ner" },
+        { originalText: "山田太郎", category: "PERSON", source: "ner" },
+      ],
+      createId: () => "unexpected-new-entry",
+    });
+
+    expect(redetected.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          originalText: "山田",
+          relatedGroupId: "related-1",
+          token: "[人名_1]",
+          sources: ["manual", "ner"],
+        }),
+        expect.objectContaining({
+          originalText: "山田太郎",
+          relatedGroupId: "related-1",
+          token: "[人名_1]",
+          sources: ["manual", "ner"],
+        }),
+      ]),
+    );
+
+    const unlinked = appReducer(related, {
+      type: "unlinkRelatedEntry",
+      id: "entry-2",
+    });
+
+    expect(unlinked.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "entry-1",
+          relatedGroupId: undefined,
+          restorationText: "山田",
+          token: "[人名_1]",
+        }),
+        expect.objectContaining({
+          id: "entry-2",
+          relatedGroupId: undefined,
+          restorationText: "山田太郎",
+          token: "[人名_2]",
+        }),
+      ]),
+    );
+
+    const disabledGroup = appReducer(related, {
+      type: "toggleEntryEnabled",
+      id: "entry-1",
+    });
+
+    expect(disabledGroup.entries.every((entry) => !entry.enabled)).toBe(true);
+  });
+
+  it("人名以外や無効な項目は同一人物として関連付けない", () => {
+    const state: AppState = {
+      ...initialAppState,
+      entries: [
+        {
+          id: "person-1",
+          originalText: "山田",
+          normalizedText: "山田",
+          restorationText: "山田",
+          token: "[人名_1]",
+          category: "PERSON" as const,
+          sources: ["manual"],
+          enabled: true,
+          occurrenceCount: 1,
+          reviewStatus: "approved" as const,
+          displayOrder: 0,
+        },
+        {
+          id: "email-1",
+          originalText: "yamada@example.com",
+          normalizedText: "yamada@example.com",
+          restorationText: "yamada@example.com",
+          token: "[メール_1]",
+          category: "EMAIL" as const,
+          sources: ["manual"],
+          enabled: true,
+          occurrenceCount: 1,
+          reviewStatus: "approved" as const,
+          displayOrder: 1,
+        },
+      ],
+    };
+
+    const next = appReducer(state, {
+      type: "relateEntries",
+      ids: ["person-1", "email-1"],
+      groupId: "related-1",
+      restorationText: "山田",
+    });
+
+    expect(next.entries).toEqual(state.entries);
+    expect(next.notice).toBe("有効な人名のマスク対象だけを関連付けできます。");
   });
 
   it("原文編集後に出現数を再計算し、0件対象も一覧に残す", () => {
