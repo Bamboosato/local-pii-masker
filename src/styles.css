@@ -432,7 +432,6 @@ button:disabled {
   align-items: center;
   gap: 8px;
   justify-content: flex-end;
-  padding-bottom: 10px;
 }
 
 .tab-actions .button {
