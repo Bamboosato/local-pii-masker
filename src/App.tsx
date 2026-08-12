@@ -89,6 +89,12 @@ type DetectionCancellationReason =
   | "source-changed"
   | "session-cleared"
   | "unmount";
+type RelationMode = "new" | "existing";
+type UnlinkScope = "entry" | "group";
+type RelatedGroupOption = {
+  groupId: string;
+  label: string;
+};
 
 function calculateRestoreTextareaHeight(
   content: HTMLDivElement,
@@ -148,7 +154,10 @@ export default function App() {
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualCategory, setManualCategory] = useState<MaskCategory>("PERSON");
   const [relationDialogOpen, setRelationDialogOpen] = useState(false);
+  const [relationMode, setRelationMode] = useState<RelationMode>("new");
+  const [relationGroupId, setRelationGroupId] = useState("");
   const [relationRestorationText, setRelationRestorationText] = useState("");
+  const [unlinkDialogEntryId, setUnlinkDialogEntryId] = useState<string>();
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -175,6 +184,7 @@ export default function App() {
   const entrySearchButtonRef = useRef<HTMLButtonElement>(null);
   const entrySearchInputRef = useRef<HTMLInputElement>(null);
   const relationReturnFocusRef = useRef<HTMLButtonElement | null>(null);
+  const unlinkReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const managementPanelRef = useRef<HTMLElement>(null);
   const entryListRef = useRef<HTMLDivElement>(null);
   const restoreDockRef = useRef<HTMLElement>(null);
@@ -188,6 +198,9 @@ export default function App() {
   const activeEntries = selectActiveEntries(state.entries);
   const restoration = selectRestoredResponse(state);
   const tokenInspection = selectTokenInspection(state);
+  const unlinkDialogEntry = unlinkDialogEntryId
+    ? state.entries.find((entry) => entry.id === unlinkDialogEntryId)
+    : undefined;
   const selectedRelationEntries = state.entries.filter((entry) =>
     state.selectedEntryIds.includes(entry.id),
   );
@@ -195,11 +208,25 @@ export default function App() {
     () => getRelatedGroupLabels(state.entries),
     [state.entries],
   );
+  const relatedGroupOptions = useMemo<RelatedGroupOption[]>(
+    () =>
+      [...relatedGroupLabels.entries()]
+        .map(([groupId, label]) => ({ groupId, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, "ja", { numeric: true })),
+    [relatedGroupLabels],
+  );
   const canRelateSelectedEntries =
-    selectedRelationEntries.length >= 2 &&
+    selectedRelationEntries.length >= 1 &&
     selectedRelationEntries.length === state.selectedEntryIds.length &&
     selectedRelationEntries.every(isRelatableEntry) &&
-    state.externalResponse.trim().length === 0;
+    state.externalResponse.trim().length === 0 &&
+    (selectedRelationEntries.length >= 2 || relatedGroupOptions.length > 0);
+  const relationDisabledReason =
+    state.externalResponse.trim().length > 0
+      ? "復元する文章を空にしてから関連付けてください"
+      : selectedRelationEntries.length === 1 && relatedGroupOptions.length === 0
+        ? "既存の関連付けがないため、人名を2件以上選択してください"
+        : "有効な人名のマスク対象を1件以上選択してください";
   const isDetecting = detectionPhase !== "idle";
   const normalizationAvailability = getNormalizationAvailability({
     originalText: state.originalText,
@@ -469,14 +496,18 @@ export default function App() {
         value:
           state.externalResponse.trim().length > 0
             ? "復元する文章を空にしてから関連付けてください。"
-            : "有効な人名のマスク対象を2件以上選択してください。",
+            : "既存の関連付けがない場合は、有効な人名のマスク対象を2件以上選択してください。",
       });
       return;
     }
 
+    const initialMode: RelationMode =
+      selectedRelationEntries.length >= 2 ? "new" : "existing";
     const suggestion = [...selectedRelationEntries]
       .sort((a, b) => b.restorationText.length - a.restorationText.length)[0]
       ?.restorationText ?? "";
+    setRelationMode(initialMode);
+    setRelationGroupId(relatedGroupOptions[0]?.groupId ?? "");
     setRelationRestorationText(suggestion);
     setRelationDialogOpen(true);
   }
@@ -495,11 +526,54 @@ export default function App() {
     dispatch({
       type: "relateEntries",
       ids: state.selectedEntryIds,
-      groupId: createRelatedGroupId(state.entries),
-      restorationText: relationRestorationText,
+      groupId:
+        relationMode === "new"
+          ? createRelatedGroupId(state.entries)
+          : relationGroupId,
+      mode: relationMode,
+      restorationText:
+        relationMode === "new" ? relationRestorationText : undefined,
     });
     setRelationDialogOpen(false);
     focusRelationTrigger();
+  }
+
+  function requestUnlinkRelatedEntry(
+    entryId: string,
+    trigger: HTMLButtonElement | null,
+  ) {
+    const target = state.entries.find((entry) => entry.id === entryId);
+    const groupSize = target?.relatedGroupId
+      ? state.entries.filter(
+          (entry) => entry.relatedGroupId === target.relatedGroupId,
+        ).length
+      : 0;
+
+    if (target?.relatedGroupId && groupSize >= 3) {
+      unlinkReturnFocusRef.current = trigger;
+      setUnlinkDialogEntryId(entryId);
+      return;
+    }
+
+    dispatch({ type: "unlinkRelatedEntry", id: entryId });
+  }
+
+  function closeUnlinkDialog() {
+    setUnlinkDialogEntryId(undefined);
+    window.requestAnimationFrame(() => unlinkReturnFocusRef.current?.focus());
+  }
+
+  function unlinkRelatedEntry(scope: UnlinkScope) {
+    const entryId = unlinkDialogEntryId;
+    if (!entryId) {
+      return;
+    }
+
+    dispatch({
+      type: scope === "group" ? "unlinkRelatedGroup" : "unlinkRelatedEntry",
+      id: entryId,
+    });
+    closeUnlinkDialog();
   }
 
   function openNormalizationDialog() {
@@ -1067,6 +1141,7 @@ export default function App() {
                   relationSelectable={isRelatableEntry(entry)}
                   relationSelected={state.selectedEntryIds.includes(entry.id)}
                   canRelateSelection={canRelateSelectedEntries}
+                  relationDisabledReason={relationDisabledReason}
                   isSelected={state.selectedEntryId === entry.id}
                   key={entry.id}
                   onDelete={() => dispatch({ type: "deleteEntry", id: entry.id })}
@@ -1076,8 +1151,8 @@ export default function App() {
                     dispatch({ type: "toggleEntrySelection", id: entry.id })
                   }
                   onRelate={(trigger) => openRelationDialogFromMenu(trigger)}
-                  onUnlink={() =>
-                    dispatch({ type: "unlinkRelatedEntry", id: entry.id })
+                  onUnlink={(trigger) =>
+                    requestUnlinkRelatedEntry(entry.id, trigger)
                   }
                   onToggle={() =>
                     dispatch({ type: "toggleEntryEnabled", id: entry.id })
@@ -1185,13 +1260,26 @@ export default function App() {
       {relationDialogOpen ? (
         <RelateEntriesDialog
           entries={selectedRelationEntries}
+          existingGroupOptions={relatedGroupOptions}
+          mode={relationMode}
           onClose={() => {
             setRelationDialogOpen(false);
             focusRelationTrigger();
           }}
+          onGroupChange={setRelationGroupId}
+          onModeChange={setRelationMode}
           onRestorationTextChange={setRelationRestorationText}
           onSubmit={relateEntries}
+          selectedGroupId={relationGroupId}
           restorationText={relationRestorationText}
+        />
+      ) : null}
+
+      {unlinkDialogEntryId ? (
+        <UnlinkRelatedDialog
+          entry={unlinkDialogEntry}
+          onClose={closeUnlinkDialog}
+          onSubmit={unlinkRelatedEntry}
         />
       ) : null}
 
@@ -1343,12 +1431,13 @@ function EntryCard(props: {
   relationSelectable: boolean;
   relationSelected: boolean;
   canRelateSelection: boolean;
+  relationDisabledReason: string;
   onDelete: () => void;
   onNavigateToEntry: () => void;
   onSelect: () => void;
   onToggleRelationSelection: () => void;
   onRelate: (trigger: HTMLButtonElement | null) => void;
-  onUnlink: () => void;
+  onUnlink: (trigger: HTMLButtonElement | null) => void;
   onToggle: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1485,7 +1574,7 @@ function EntryCard(props: {
                 title={
                   props.canRelateSelection
                     ? "選択中の人名を同一人物として関連付けます"
-                    : "人名を2件以上選択すると関連付けできます"
+                    : props.relationDisabledReason
                 }
                 type="button"
               >
@@ -1498,7 +1587,7 @@ function EntryCard(props: {
                 className="entry-card-menu-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  props.onUnlink();
+                  props.onUnlink(menuButtonRef.current);
                 }}
                 role="menuitem"
                 type="button"
@@ -1710,11 +1799,19 @@ function ManualAddDialog(props: {
 
 function RelateEntriesDialog(props: {
   entries: MaskEntry[];
+  existingGroupOptions: RelatedGroupOption[];
+  mode: RelationMode;
   onClose: () => void;
+  onGroupChange: (value: string) => void;
+  onModeChange: (value: RelationMode) => void;
   onRestorationTextChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  selectedGroupId: string;
   restorationText: string;
 }) {
+  const canCreateNewGroup = props.entries.length >= 2;
+  const canAddToExistingGroup = props.existingGroupOptions.length > 0;
+
   return (
     <div className="modal-backdrop">
       <form
@@ -1750,18 +1847,62 @@ function RelateEntriesDialog(props: {
               ))}
             </ul>
           </div>
-          <label className="field">
-            <span>復元時の代表表記</span>
-            <input
-              aria-label="復元時の代表表記"
-              onChange={(event) => props.onRestorationTextChange(event.target.value)}
-              required
-              value={props.restorationText}
-            />
-          </label>
+          <fieldset className="relation-mode-fieldset">
+            <legend>関連付け方法</legend>
+            <label className="relation-mode-option">
+              <input
+                aria-label="① 新規の関連付け"
+                checked={props.mode === "new"}
+                disabled={!canCreateNewGroup}
+                name="relation-mode"
+                onChange={() => props.onModeChange("new")}
+                type="radio"
+                value="new"
+              />
+              <span>① 新規の関連付け</span>
+            </label>
+            <label className="relation-mode-option relation-mode-existing">
+              <input
+                aria-label="② 既存の関連付けへの追加"
+                checked={props.mode === "existing"}
+                disabled={!canAddToExistingGroup}
+                name="relation-mode"
+                onChange={() => props.onModeChange("existing")}
+                type="radio"
+                value="existing"
+              />
+              <span>② 既存の関連付けへの追加</span>
+              <select
+                aria-label="追加先の関連付け"
+                disabled={props.mode !== "existing" || !canAddToExistingGroup}
+                onChange={(event) => props.onGroupChange(event.target.value)}
+                required={props.mode === "existing"}
+                value={props.selectedGroupId}
+              >
+                {props.existingGroupOptions.map((option) => (
+                  <option key={option.groupId} value={option.groupId}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </fieldset>
+          {props.mode === "new" ? (
+            <label className="field">
+              <span>復元時の代表表記</span>
+              <input
+                aria-label="復元時の代表表記"
+                onChange={(event) => props.onRestorationTextChange(event.target.value)}
+                required
+                value={props.restorationText}
+              />
+            </label>
+          ) : null}
           <div className="info-callout">
             <Info size={18} />
-            原文上の姓・姓名などの表記差は、復元時に保持されません。
+            {props.mode === "new"
+              ? "新しい関連付けでは、復元時の代表表記へ戻します。"
+              : "選択した既存の関連付けと同じトークン・復元表記になります。"}
           </div>
         </div>
         <div className="modal-footer">
@@ -1775,11 +1916,107 @@ function RelateEntriesDialog(props: {
           </button>
           <button
             className="button button-primary"
+            disabled={
+              props.mode === "existing" && props.selectedGroupId.length === 0
+            }
             title="選択した表記を同一人物として関連付けます"
             type="submit"
           >
             <Link2 size={18} />
             関連付ける
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function UnlinkRelatedDialog(props: {
+  entry?: MaskEntry;
+  onClose: () => void;
+  onSubmit: (scope: UnlinkScope) => void;
+}) {
+  const [scope, setScope] = useState<UnlinkScope>("entry");
+
+  if (!props.entry) {
+    return null;
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <form
+        aria-labelledby="unlink-related-dialog-title"
+        className="modal compact unlink-related-modal"
+        onSubmit={(event) => {
+          event.preventDefault();
+          props.onSubmit(scope);
+        }}
+        role="dialog"
+      >
+        <div className="modal-header">
+          <h2 id="unlink-related-dialog-title">関連付けを解除</h2>
+          <button
+            aria-label="閉じる"
+            className="icon-button"
+            onClick={props.onClose}
+            title="ダイアログを閉じます"
+            type="button"
+          >
+            <X size={22} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>
+            「{props.entry.originalText}」は、3件以上のマスクと同一人物として関連付けられています。
+          </p>
+          <fieldset className="unlink-mode-fieldset">
+            <legend>解除方法</legend>
+            <label className="unlink-mode-option">
+              <input
+                aria-label="このマスクのみ解除する"
+                checked={scope === "entry"}
+                name="unlink-scope"
+                onChange={() => setScope("entry")}
+                type="radio"
+                value="entry"
+              />
+              <span>
+                <strong>このマスクのみ解除する</strong>
+                <small>選択したマスクだけを関連付けから外します。</small>
+              </span>
+            </label>
+            <label className="unlink-mode-option">
+              <input
+                aria-label="同一の関連付けをすべて解除する"
+                checked={scope === "group"}
+                name="unlink-scope"
+                onChange={() => setScope("group")}
+                type="radio"
+                value="group"
+              />
+              <span>
+                <strong>同一の関連付けをすべて解除する</strong>
+                <small>このグループに含まれるすべてのマスクを個別に戻します。</small>
+              </span>
+            </label>
+          </fieldset>
+        </div>
+        <div className="modal-footer">
+          <button
+            className="button button-ghost"
+            onClick={props.onClose}
+            title="関連付けの解除をキャンセルします"
+            type="button"
+          >
+            キャンセル
+          </button>
+          <button
+            className="button button-primary"
+            title="選択した方法で関連付けを解除します"
+            type="submit"
+          >
+            <Link2 size={18} />
+            関連付けを解除する
           </button>
         </div>
       </form>

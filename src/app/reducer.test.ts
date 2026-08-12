@@ -57,6 +57,7 @@ describe("appReducer", () => {
       type: "relateEntries",
       ids: ["entry-1", "entry-2"],
       groupId: "related-1",
+      mode: "new",
       restorationText: "山田太郎",
     });
 
@@ -145,6 +146,208 @@ describe("appReducer", () => {
     expect(disabledGroup.entries.every((entry) => !entry.enabled)).toBe(true);
   });
 
+  it("3件以上の関連付けでは選択したマスクだけを解除する", () => {
+    const withText = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "山田さんと山田太郎さんと田中さん",
+    });
+    const withSurname = appReducer(withText, {
+      type: "addManualEntry",
+      value: { id: "entry-1", selectedText: "山田", category: "PERSON" },
+    });
+    const withFullName = appReducer(withSurname, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-2",
+        selectedText: "山田太郎",
+        category: "PERSON",
+      },
+    });
+    const withThirdPerson = appReducer(withFullName, {
+      type: "addManualEntry",
+      value: { id: "entry-3", selectedText: "田中", category: "PERSON" },
+    });
+    const related = appReducer(withThirdPerson, {
+      type: "relateEntries",
+      ids: ["entry-1", "entry-2", "entry-3"],
+      groupId: "related-1",
+      mode: "new",
+      restorationText: "山田太郎",
+    });
+
+    const unlinked = appReducer(related, {
+      type: "unlinkRelatedEntry",
+      id: "entry-2",
+    });
+
+    expect(unlinked.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "entry-1",
+          relatedGroupId: "related-1",
+          restorationText: "山田太郎",
+        }),
+        expect.objectContaining({
+          id: "entry-2",
+          relatedGroupId: undefined,
+          restorationText: "山田太郎",
+          token: "[人名_2]",
+        }),
+        expect.objectContaining({
+          id: "entry-3",
+          relatedGroupId: "related-1",
+          restorationText: "山田太郎",
+        }),
+      ]),
+    );
+    expect(unlinked.notice).toBe("同一人物の関連付けを解除しました。");
+  });
+
+  it("3件以上の関連付けをすべて解除すると各マスクを元に戻す", () => {
+    const withText = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "山田さんと山田太郎さんと田中さん",
+    });
+    const withSurname = appReducer(withText, {
+      type: "addManualEntry",
+      value: { id: "entry-1", selectedText: "山田", category: "PERSON" },
+    });
+    const withFullName = appReducer(withSurname, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-2",
+        selectedText: "山田太郎",
+        category: "PERSON",
+      },
+    });
+    const withThirdPerson = appReducer(withFullName, {
+      type: "addManualEntry",
+      value: { id: "entry-3", selectedText: "田中", category: "PERSON" },
+    });
+    const related = appReducer(withThirdPerson, {
+      type: "relateEntries",
+      ids: ["entry-1", "entry-2", "entry-3"],
+      groupId: "related-1",
+      mode: "new",
+      restorationText: "山田太郎",
+    });
+
+    const unlinked = appReducer(related, {
+      type: "unlinkRelatedGroup",
+      id: "entry-2",
+    });
+
+    expect(unlinked.entries.every((entry) => entry.relatedGroupId === undefined)).toBe(
+      true,
+    );
+    expect(unlinked.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "entry-1",
+          originalText: "山田",
+          restorationText: "山田",
+        }),
+        expect.objectContaining({
+          id: "entry-2",
+          originalText: "山田太郎",
+          restorationText: "山田太郎",
+        }),
+        expect.objectContaining({
+          id: "entry-3",
+          originalText: "田中",
+          restorationText: "田中",
+        }),
+      ]),
+    );
+    expect(new Set(unlinked.entries.map((entry) => entry.token)).size).toBe(3);
+    expect(unlinked.notice).toBe("同一人物の関連付けをすべて解除しました。");
+  });
+
+  it("1件の人名を既存の関連付けへ追加し、既存のトークンと復元表記を引き継ぐ", () => {
+    const withText = appReducer(initialAppState, {
+      type: "setOriginalText",
+      value: "山田さんと山田太郎さんと田中さん",
+    });
+    const withSurname = appReducer(withText, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-1",
+        selectedText: "山田",
+        category: "PERSON",
+      },
+    });
+    const withFullName = appReducer(withSurname, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-2",
+        selectedText: "山田太郎",
+        category: "PERSON",
+      },
+    });
+    const related = appReducer(withFullName, {
+      type: "relateEntries",
+      ids: ["entry-1", "entry-2"],
+      groupId: "related-1",
+      mode: "new",
+      restorationText: "山田太郎",
+    });
+    const withNewPerson = appReducer(related, {
+      type: "addManualEntry",
+      value: {
+        id: "entry-3",
+        selectedText: "田中",
+        category: "PERSON",
+      },
+    });
+
+    const next = appReducer(withNewPerson, {
+      type: "relateEntries",
+      ids: ["entry-3"],
+      groupId: "related-1",
+      mode: "existing",
+    });
+
+    expect(next.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "entry-3",
+          relatedGroupId: "related-1",
+          restorationText: "山田太郎",
+          token: "[人名_1]",
+          relatedOriginalRestorationText: "田中",
+        }),
+      ]),
+    );
+  });
+
+  it("1件の人名を新規の関連付けとして登録しない", () => {
+    const state = appReducer(
+      appReducer(initialAppState, {
+        type: "setOriginalText",
+        value: "山田さん",
+      }),
+      {
+        type: "addManualEntry",
+        value: {
+          id: "entry-1",
+          selectedText: "山田",
+          category: "PERSON",
+        },
+      },
+    );
+
+    const next = appReducer(state, {
+      type: "relateEntries",
+      ids: ["entry-1"],
+      groupId: "related-1",
+      mode: "new",
+      restorationText: "山田",
+    });
+
+    expect(next.entries).toEqual(state.entries);
+    expect(next.notice).toBe("新しい関連付けには2件以上選択してください。");
+  });
+
   it("人名以外や無効な項目は同一人物として関連付けない", () => {
     const state: AppState = {
       ...initialAppState,
@@ -182,6 +385,7 @@ describe("appReducer", () => {
       type: "relateEntries",
       ids: ["person-1", "email-1"],
       groupId: "related-1",
+      mode: "new",
       restorationText: "山田",
     });
 
