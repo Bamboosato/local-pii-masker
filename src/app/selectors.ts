@@ -35,7 +35,11 @@ export function selectRestoredResponse(state: AppState): string {
 }
 
 export function selectTokenInspection(state: AppState) {
-  return inspectTokens(state.externalResponse, selectActiveEntries(state.entries));
+  return inspectTokens(
+    state.externalResponse,
+    selectActiveEntries(state.entries),
+    selectMaskedText(state),
+  );
 }
 
 export function selectVisibleEntries(state: AppState): MaskEntry[] {

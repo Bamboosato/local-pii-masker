@@ -17,7 +17,7 @@
 
 ## 2. 目的
 
-ユーザー入力を外部送信せず、明示保存前は永続化しないローカルファーストの設計を維持したまま、次の利用体験を実現する。明示保存時のOPFS作業履歴は本書のService Worker・Cache Storage管理対象外とし、[ローカル作業履歴 追加要件](local-work-history-requirements.md)に従う。
+ユーザー入力を外部送信せず、明示保存前は永続化しないローカルファーストの設計を維持したまま、次の利用体験を実現する。明示保存時のOPFSマスク対応表は本書のService Worker・Cache Storage管理対象外とし、[マスク対応表のローカル保存要件](local-work-history-requirements.md)に従う。
 
 - ブラウザからアプリとしてインストールできる
 - 一度取得した公開資産を利用して、ネットワーク不安定時にもアプリを起動できる
@@ -34,7 +34,7 @@ PWA対応そのものを目的にせず、安全な再利用性と失敗時の�
 - LocalStorage、SessionStorage、IndexedDB、Cookie、サーバーへユーザーデータを保存しない
 - 原文はネットワークリクエスト、URL、ブラウザ履歴、ログ、エラー報告へ含めない
 - NERはWeb Worker内で実行し、Worker外部のネットワークへ原文を送らない
-- Cache Storageに保存できるのは、アプリ本体とモデル、Tokenizer、ONNX Runtimeなどの公開資産だけとする。OPFSの作業履歴はService WorkerやCache Storageへ保存しない
+- Cache Storageに保存できるのは、アプリ本体とモデル、Tokenizer、ONNX Runtimeなどの公開資産だけとする。OPFSのマスク対応表はService WorkerやCache Storageへ保存しない
 - モバイル、iOS、クラウド同期、暗号化ファイルの入出力、直接AI API連携は対象外とする
 
 ## 4. 対象範囲
@@ -47,7 +47,7 @@ PWA対応そのものを目的にせず、安全な再利用性と失敗時の�
 - オフライン起動時の状態表示と機能縮退
 - 更新通知、更新延期、明示的な更新操作
 - PWA固有のネットワーク・Storage・UI・E2E検証
-- OPFSの作業履歴をService WorkerやCache Storageから分離する検証
+- OPFSのマスク対応表をService WorkerやCache Storageから分離する検証
 
 ### 4.2 対象外
 
@@ -75,7 +75,7 @@ GETの公開静的資産以外のリクエストは、Service Workerのキャッ
 
 キャッシュ名にはユーザー入力や候補文字列を含めない。アプリ資産とモデル資産を識別できる固定の命名規則を使用し、旧バージョンの不要なキャッシュを更新時に削除できるようにする。
 
-OPFSのセッションID、タイトル、暗号化ファイル名をCache Storageの名前、URL、Service Workerの更新メタデータへ含めない。
+OPFSの対応表ID、対応表名、暗号化ファイル名をCache Storageの名前、URL、Service Workerの更新メタデータへ含めない。
 
 ## 6. 機能要件
 
@@ -117,7 +117,7 @@ OPFSのセッションID、タイトル、暗号化ファイル名をCache Stora
 
 ### P7-F-10 既存機能との継続性
 
-PWA状態にかかわらず、原文編集、形式検出、NER失敗時の形式検出・手動追加、マスク結果確認、外部応答の復元、現在の作業の消去を維持する。保存済み作業の全削除は、別のローカル保存設定操作として扱う。
+PWA状態にかかわらず、原文編集、形式検出、NER失敗時の形式検出・手動追加、マスク結果確認、外部応答の復元、現在の作業の消去を維持する。保存済み対応表の全削除は、別のローカル保存設定操作として扱う。
 
 ## 7. 非機能要件
 
@@ -215,7 +215,7 @@ PWA固有のE2Eは、Vite開発モードではなく本番ビルドを本番相�
 
 ### AC-7-04 キャッシュプライバシー
 
-保存操作を行わずに合成したプライバシーマーカーを入力して操作した後、Cache Storage、LocalStorage、SessionStorage、IndexedDB、Cookie、ネットワーク要求、Consoleへマーカーが出現しない。明示保存を行う場合のOPFSと暗号化境界はローカル作業履歴の受入条件で確認する。
+保存操作を行わずに合成したプライバシーマーカーを入力して操作した後、Cache Storage、LocalStorage、SessionStorage、IndexedDB、Cookie、ネットワーク要求、Consoleへマーカーが出現しない。明示保存を行う場合のOPFSと暗号化境界はマスク対応表の受入条件で確認する。
 
 ### AC-7-05 更新安全性
 

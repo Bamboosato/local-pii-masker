@@ -55,4 +55,14 @@ describe("restoreText", () => {
     expect(inspection.knownPresent).toEqual(["[メール_1]"]);
     expect(inspection.unknown).toEqual([]);
   });
+
+  it("参照したマスク結果より既知トークンが増えた場合は要確認として分類する", () => {
+    const inspection = inspectTokens(
+      "[人名_1] と [人名_1]",
+      [{ token: "[人名_1]" }],
+      "[人名_1]",
+    );
+
+    expect(inspection.naturalCandidates).toEqual(["[人名_1]"]);
+  });
 });

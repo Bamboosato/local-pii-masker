@@ -10,6 +10,9 @@ import { mergeCandidates } from "../domain/detection/mergeCandidates";
 import { normalizeText } from "../domain/normalization/normalizeText";
 import { countOccurrences } from "../domain/mask/findOccurrences";
 import { createMaskToken } from "../domain/mask/tokenFactory";
+import type { LoadedMaskMapping, MaskMapping } from "../domain/mapping/types";
+import { reapplyMaskMapping } from "../domain/mapping/reapply";
+import { createMaskMappingFingerprint } from "../domain/mapping/snapshot";
 
 export type TextView = "original" | "masked";
 export type EntryFilter = "enabled" | "disabled";
@@ -27,6 +30,7 @@ export type AppState = MaskSession & {
   originalRevision: number;
   normalizationLockReason?: NormalizationLockReason;
   notice?: string;
+  mapping?: LoadedMaskMapping;
 };
 
 export const initialAppState: AppState = {
@@ -95,6 +99,8 @@ export type AppAction =
   | { type: "deleteEntry"; id: string }
   | { type: "setExternalResponse"; value: string }
   | { type: "setRestoreExpanded"; value: boolean }
+  | { type: "loadMaskMapping"; mapping: MaskMapping }
+  | { type: "markMaskMappingSaved"; mapping: LoadedMaskMapping }
   | { type: "setNotice"; value?: string }
   | { type: "clearSession" };
 
@@ -244,6 +250,35 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case "setRestoreExpanded":
       return { ...state, restoreExpanded: action.value };
+
+    case "loadMaskMapping": {
+      const entries = reapplyMaskMapping(action.mapping, state.originalText);
+      return {
+        ...state,
+        entries,
+        mapping: {
+          mappingId: action.mapping.mappingId,
+          name: action.mapping.name,
+          createdAt: action.mapping.createdAt,
+          updatedAt: action.mapping.updatedAt,
+          revision: action.mapping.revision,
+          fingerprint: createMaskMappingFingerprint(
+            entries,
+            action.mapping.occurrenceMaskingMode,
+          ),
+        },
+        activeTextView: "original",
+        selectedEntryId: undefined,
+        selectedEntryIds: [],
+        entryFilter: "enabled",
+        entrySearch: "",
+        normalizationLockReason: "candidate_registered",
+        notice: "保存済みの対応表を読み込みました。原文や処理結果は復元されません。",
+      };
+    }
+
+    case "markMaskMappingSaved":
+      return { ...state, mapping: action.mapping };
 
     case "setNotice":
       return { ...state, notice: action.value };
