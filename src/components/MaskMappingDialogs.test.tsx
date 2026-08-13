@@ -1,14 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MaskMappingLibraryDialog } from "./MaskMappingDialogs";
+import { MaskMappingLibraryDialog, MaskMappingSaveDialog } from "./MaskMappingDialogs";
 import type { MappingListItem } from "../domain/mapping/opfsRepository";
 import type { MaskMapping } from "../domain/mapping/types";
+import type { MaskEntry } from "../domain/types";
 
 const repositoryMock = vi.hoisted(() => ({
   deleteMaskMapping: vi.fn(),
   listMaskMappings: vi.fn(),
   loadMaskMapping: vi.fn(),
+  saveMaskMapping: vi.fn(),
 }));
 
 vi.mock("../domain/mapping/opfsRepository", async (importOriginal) => {
@@ -154,5 +156,86 @@ describe("MaskMappingLibraryDialog", () => {
     expect(screen.queryByRole("button", { name: /を開く$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "保存済み対応表をすべて削除" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("パスフレーズ")).not.toBeInTheDocument();
+  });
+});
+
+describe("MaskMappingSaveDialog", () => {
+  const existing = {
+    mappingId: "mapping-existing",
+    name: "既存の対応表",
+    createdAt: Date.parse("2026-08-12T01:00:00Z"),
+    revision: 3,
+  };
+  const entries: MaskEntry[] = [
+    {
+      id: "entry-1",
+      originalText: "山田太郎",
+      normalizedText: "山田太郎",
+      restorationText: "山田太郎",
+      token: "[PERSON_1]",
+      category: "PERSON" as const,
+      sources: ["manual"],
+      enabled: true,
+      occurrenceCount: 1,
+      reviewStatus: "approved" as const,
+      displayOrder: 0,
+    },
+  ];
+
+  beforeEach(() => {
+    repositoryMock.saveMaskMapping.mockReset();
+    repositoryMock.saveMaskMapping.mockImplementation(async ({ mapping }: { mapping: MaskMapping }) => mapping);
+  });
+
+  function renderSaveDialog() {
+    render(
+      <MaskMappingSaveDialog
+        entries={entries}
+        existing={existing}
+        onClose={vi.fn()}
+        onError={vi.fn()}
+        onSaved={vi.fn()}
+        occurrenceMaskingMode="contextual_ambiguous_surnames"
+      />,
+    );
+  }
+
+  it("上書き時は同じ対応表を新しいパスフレーズで保存する", async () => {
+    const user = userEvent.setup();
+    renderSaveDialog();
+
+    expect(screen.getByRole("radio", { name: "既存の対応表を上書き" })).toBeChecked();
+    await user.clear(screen.getByLabelText("対応表名"));
+    await user.type(screen.getByLabelText("対応表名"), "変更後の対応表");
+    await user.type(screen.getByLabelText("パスフレーズ（12文字以上）"), "new-passphrase");
+    await user.type(screen.getByLabelText("パスフレーズ（確認）"), "new-passphrase");
+    await user.click(screen.getByRole("button", { name: "上書き保存" }));
+
+    await waitFor(() => expect(repositoryMock.saveMaskMapping).toHaveBeenCalled());
+    expect(repositoryMock.saveMaskMapping).toHaveBeenCalledWith(expect.objectContaining({
+      passphrase: "new-passphrase",
+      mapping: expect.objectContaining({
+        mappingId: existing.mappingId,
+        name: "変更後の対応表",
+        revision: existing.revision,
+      }),
+    }));
+  });
+
+  it("新規保存を選ぶと元の対応表を残して新しいIDで保存する", async () => {
+    const user = userEvent.setup();
+    renderSaveDialog();
+
+    await user.click(screen.getByRole("radio", { name: "新しい対応表として保存" }));
+    await user.clear(screen.getByLabelText("対応表名"));
+    await user.type(screen.getByLabelText("対応表名"), "別の対応表");
+    await user.type(screen.getByLabelText("パスフレーズ（12文字以上）"), "another-passphrase");
+    await user.type(screen.getByLabelText("パスフレーズ（確認）"), "another-passphrase");
+    await user.click(screen.getByRole("button", { name: "新規に保存" }));
+
+    await waitFor(() => expect(repositoryMock.saveMaskMapping).toHaveBeenCalled());
+    const savedMapping = repositoryMock.saveMaskMapping.mock.calls[0][0].mapping as MaskMapping;
+    expect(savedMapping.mappingId).not.toBe(existing.mappingId);
+    expect(savedMapping.name).toBe("別の対応表");
   });
 });

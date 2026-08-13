@@ -13,6 +13,8 @@ import type { MaskMapping } from "../domain/mapping/types";
 import type { MaskEntry, OccurrenceMaskingMode } from "../domain/types";
 import { useDialogFocus } from "./useDialogFocus";
 
+type MappingSaveMode = "overwrite" | "new";
+
 export function MaskMappingSaveDialog(props: {
   entries: MaskEntry[];
   existing?: Pick<MaskMapping, "mappingId" | "name" | "createdAt" | "revision">;
@@ -23,11 +25,15 @@ export function MaskMappingSaveDialog(props: {
 }) {
   const dialogRef = useRef<HTMLFormElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [saveMode, setSaveMode] = useState<MappingSaveMode>(
+    props.existing ? "overwrite" : "new",
+  );
   const [name, setName] = useState(props.existing?.name ?? "");
   const [passphrase, setPassphrase] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const isOverwrite = saveMode === "overwrite" && props.existing !== undefined;
 
   useDialogFocus({
     dialogRef,
@@ -57,7 +63,7 @@ export function MaskMappingSaveDialog(props: {
     setError(undefined);
     try {
       const mapping = createMaskMappingForSave({
-        existing: props.existing,
+        existing: isOverwrite ? props.existing : undefined,
         name: normalizedName,
         entries: props.entries,
         occurrenceMaskingMode: props.occurrenceMaskingMode,
@@ -87,44 +93,74 @@ export function MaskMappingSaveDialog(props: {
         tabIndex={-1}
       >
         <div className="modal-header">
-          <h2 id="mapping-save-title">現在のマスク対応を保存</h2>
+          <h2 id="mapping-save-title">対応表を保存</h2>
           <button aria-label="閉じる" className="icon-button" onClick={props.onClose} type="button">
             <X size={22} />
           </button>
         </div>
         <div className="modal-body">
-          <p className="mapping-explanation">
-            原文や処理結果は保存されません。マスク対象文字列とマスク文字列の対応関係だけが、暗号化してブラウザ内に保存されます。
-          </p>
-          <label className="field mapping-field">
-            <span>対応表名</span>
+          <p className="mapping-storage-note">マスク対応表だけを暗号化して保存します。</p>
+          {props.existing ? (
+            <fieldset className="mapping-save-mode-fieldset">
+              <legend>保存方法</legend>
+              <label>
+                <input
+                  checked={isOverwrite}
+                  disabled={saving}
+                  name="mapping-save-mode"
+                  onChange={() => {
+                    setSaveMode("overwrite");
+                    setError(undefined);
+                  }}
+                  type="radio"
+                  value="overwrite"
+                />
+                既存の対応表を上書き
+              </label>
+              <label>
+                <input
+                  checked={!isOverwrite}
+                  disabled={saving}
+                  name="mapping-save-mode"
+                  onChange={() => {
+                    setSaveMode("new");
+                    setError(undefined);
+                  }}
+                  type="radio"
+                  value="new"
+                />
+                新しい対応表として保存
+              </label>
+            </fieldset>
+          ) : null}
+          <div className="field mapping-field">
+            <label htmlFor="mapping-save-name">対応表名</label>
             <input
               autoFocus
+              id="mapping-save-name"
               maxLength={200}
               onChange={(event) => setName(event.target.value)}
               ref={nameInputRef}
               value={name}
             />
             <small>対応表名は暗号化されません。氏名、住所などの個人情報を入力しないでください。</small>
-          </label>
-          <label className="field mapping-field">
-            <span>パスフレーズ（12文字以上）</span>
-            <input autoComplete="new-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
-          </label>
-          <label className="field mapping-field">
-            <span>パスフレーズ（確認）</span>
-            <input autoComplete="new-password" onChange={(event) => setConfirmation(event.target.value)} type="password" value={confirmation} />
-          </label>
-          <p className="mapping-storage-note">
-            AES-GCM 256bit・PBKDF2(SHA-256)・gzipで保存します。鍵とパスフレーズは保存しません。
-          </p>
+          </div>
+          <div className="field mapping-field">
+            <label htmlFor="mapping-save-passphrase">パスフレーズ（12文字以上）</label>
+            <input id="mapping-save-passphrase" autoComplete="new-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
+          </div>
+          {isOverwrite ? <p className="mapping-storage-note">入力したパスフレーズで上書きします。</p> : null}
+          <div className="field mapping-field">
+            <label htmlFor="mapping-save-confirmation">パスフレーズ（確認）</label>
+            <input id="mapping-save-confirmation" autoComplete="new-password" onChange={(event) => setConfirmation(event.target.value)} type="password" value={confirmation} />
+          </div>
           {error ? <p className="mapping-error" role="alert">{error}</p> : null}
         </div>
         <div className="modal-footer">
           <button className="button button-ghost" disabled={saving} onClick={props.onClose} type="button">キャンセル</button>
           <button className="button button-primary" disabled={saving} type="submit">
             {saving ? <LoaderCircle className="loading-spinner" size={18} /> : <KeyRound size={18} />}
-            {saving ? "保存中…" : "暗号化して保存"}
+            {saving ? "保存中…" : isOverwrite ? "上書き保存" : "新規に保存"}
           </button>
         </div>
       </form>
