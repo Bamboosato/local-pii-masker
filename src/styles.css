@@ -311,6 +311,18 @@ button:disabled {
   text-align: left;
 }
 
+.header-menu-group {
+  padding: 2px 0;
+}
+
+.header-menu-group-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 5px 10px 3px;
+}
+
 .header-menu-item.danger {
   color: var(--danger-strong);
 }
@@ -1308,6 +1320,15 @@ button:disabled {
 
 .mapping-library-body {
   gap: 14px;
+}
+
+.mapping-library-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mapping-library-footer .mapping-delete-all {
+  margin-right: auto;
 }
 
 .mapping-list {

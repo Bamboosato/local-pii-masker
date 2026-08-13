@@ -173,7 +173,7 @@ export default function App() {
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [mappingSaveOpen, setMappingSaveOpen] = useState(false);
-  const [mappingLibraryMode, setMappingLibraryMode] = useState<"open" | "delete">();
+  const [mappingLibraryOpen, setMappingLibraryOpen] = useState(false);
   const [mappingDeleteAllConfirmOpen, setMappingDeleteAllConfirmOpen] = useState(false);
   const [pendingLoadedMapping, setPendingLoadedMapping] = useState<MaskMapping>();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -634,13 +634,18 @@ export default function App() {
     setMappingSaveOpen(true);
   }
 
-  function openMappingLibrary(mode: "open" | "delete") {
+  function openMappingLibrary() {
     setHeaderMenuOpen(false);
     if (!mappingStorageSupported) {
       dispatch({ type: "setNotice", value: "このブラウザでは保存済み対応表を利用できません。現在の作業は一時利用できます。" });
       return;
     }
-    setMappingLibraryMode(mode);
+    setMappingLibraryOpen(true);
+  }
+
+  function requestDeleteAllSavedMappings() {
+    setMappingLibraryOpen(false);
+    setMappingDeleteAllConfirmOpen(true);
   }
 
   function handleMappingSaved(mapping: MaskMapping) {
@@ -663,7 +668,7 @@ export default function App() {
   }
 
   function handleMappingLoaded(mapping: MaskMapping) {
-    setMappingLibraryMode(undefined);
+    setMappingLibraryOpen(false);
     if (state.externalResponse.trim().length > 0) {
       dispatch({ type: "setNotice", value: "復元する文章を空にしてから対応表を開いてください。" });
       return;
@@ -939,102 +944,82 @@ export default function App() {
               disabled={!hasSessionData && !mappingStorageSupported}
               onClick={() => setHeaderMenuOpen((open) => !open)}
               ref={headerMenuButtonRef}
-              title="対応表と現在の作業のメニューを開く"
+              title="マスク対応表と現在の作業のメニューを開く"
               type="button"
             >
               <EllipsisVertical aria-hidden="true" size={20} />
             </button>
             {headerMenuOpen ? (
               <div
-                aria-label="対応表と現在の作業の操作"
+                aria-label="マスク対応表と現在の作業の操作"
                 className="header-menu-popover"
                 id="header-session-menu"
                 role="menu"
               >
-                <button
-                  className="header-menu-item"
-                  disabled={!mappingStorageSupported || (activeEntries.length === 0 && !state.mapping)}
-                  onClick={openMappingSaveDialog}
-                  role="menuitem"
-                  title={mappingStorageSupported ? "マスク対象とマスク文字列の対応関係だけを暗号化して保存します" : "このブラウザでは対応表の保存を利用できません"}
-                  type="button"
-                >
-                  <Save aria-hidden="true" size={16} />
-                  マスク対応表を保存
-                </button>
-                <button
-                  className="header-menu-item"
-                  disabled={!mappingStorageSupported}
-                  onClick={() => openMappingLibrary("open")}
-                  role="menuitem"
-                  title="保存済みの対応表を現在の原文へ適用します"
-                  type="button"
-                >
-                  <FolderOpen aria-hidden="true" size={16} />
-                  保存済みの対応表を開く
-                </button>
-                <button
-                  className="header-menu-item"
-                  disabled={!mappingStorageSupported}
-                  onClick={() => openMappingLibrary("delete")}
-                  role="menuitem"
-                  title="選択した保存済み対応表を削除します"
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" size={16} />
-                  対応表を削除
-                </button>
-                <button
-                  className="header-menu-item danger"
-                  disabled={!mappingStorageSupported}
-                  onClick={() => {
-                    setHeaderMenuOpen(false);
-                    setMappingDeleteAllConfirmOpen(true);
-                  }}
-                  role="menuitem"
-                  title="アプリが管理する保存済み対応表をすべて削除します"
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" size={16} />
-                  保存済みの対応表を全削除
-                </button>
-                <div aria-hidden="true" className="header-menu-separator" role="separator" />
-                <div className="header-menu-tooltip-anchor" role="none">
+                <div aria-labelledby="header-mask-mapping-group" className="header-menu-group" role="group">
+                  <div className="header-menu-group-label" id="header-mask-mapping-group">マスク対応表</div>
                   <button
-                    aria-describedby="normalization-menu-tooltip"
-                    aria-disabled={normalizationAvailability.state !== "enabled"}
                     className="header-menu-item"
-                    onClick={openNormalizationDialog}
-                    ref={normalizationMenuItemRef}
+                    disabled={!mappingStorageSupported || (activeEntries.length === 0 && !state.mapping)}
+                    onClick={openMappingSaveDialog}
                     role="menuitem"
+                    title={mappingStorageSupported ? "マスク対象とマスク文字列の対応関係だけを暗号化して保存します" : "このブラウザでは対応表の保存を利用できません"}
                     type="button"
                   >
-                    <Eraser aria-hidden="true" size={16} />
-                    テキストを正規化
+                    <Save aria-hidden="true" size={16} />
+                    現在のマスク対応を保存
                   </button>
-                  <span
-                    className="normalization-menu-tooltip"
-                    id="normalization-menu-tooltip"
-                    role="tooltip"
+                  <button
+                    className="header-menu-item"
+                    disabled={!mappingStorageSupported}
+                    onClick={openMappingLibrary}
+                    role="menuitem"
+                    title="保存済み対応表を開く、削除する、全削除する操作をまとめて表示します"
+                    type="button"
                   >
-                    {normalizationTooltipMessage}
-                  </span>
+                    <FolderOpen aria-hidden="true" size={16} />
+                    保存済み対応表を管理
+                  </button>
                 </div>
                 <div aria-hidden="true" className="header-menu-separator" role="separator" />
-                <button
-                  className="header-menu-item danger"
-                  onClick={() => {
-                    setHeaderMenuOpen(false);
-                    setClearConfirmOpen(true);
-                  }}
-                  ref={clearMenuItemRef}
-                  role="menuitem"
-                  title="現在の画面上の作業だけを消去します"
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" size={16} />
-                  現在の作業を消去
-                </button>
+                <div aria-labelledby="header-current-work-group" className="header-menu-group" role="group">
+                  <div className="header-menu-group-label" id="header-current-work-group">現在の作業</div>
+                  <div className="header-menu-tooltip-anchor" role="none">
+                    <button
+                      aria-describedby="normalization-menu-tooltip"
+                      aria-disabled={normalizationAvailability.state !== "enabled"}
+                      className="header-menu-item"
+                      onClick={openNormalizationDialog}
+                      ref={normalizationMenuItemRef}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <Eraser aria-hidden="true" size={16} />
+                      テキストを正規化
+                    </button>
+                    <span
+                      className="normalization-menu-tooltip"
+                      id="normalization-menu-tooltip"
+                      role="tooltip"
+                    >
+                      {normalizationTooltipMessage}
+                    </span>
+                  </div>
+                  <button
+                    className="header-menu-item danger"
+                    onClick={() => {
+                      setHeaderMenuOpen(false);
+                      setClearConfirmOpen(true);
+                    }}
+                    ref={clearMenuItemRef}
+                    role="menuitem"
+                    title="現在の画面上の作業だけを消去します"
+                    type="button"
+                  >
+                    <Trash2 aria-hidden="true" size={16} />
+                    現在の作業を消去
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -1492,10 +1477,10 @@ export default function App() {
         />
       ) : null}
 
-      {mappingLibraryMode ? (
+      {mappingLibraryOpen ? (
         <MaskMappingLibraryDialog
-          mode={mappingLibraryMode}
-          onClose={() => setMappingLibraryMode(undefined)}
+          onClose={() => setMappingLibraryOpen(false)}
+          onDeleteAll={requestDeleteAllSavedMappings}
           onError={(message) => dispatch({ type: "setNotice", value: message })}
           onLoaded={handleMappingLoaded}
         />
@@ -1514,12 +1499,12 @@ export default function App() {
 
       {mappingDeleteAllConfirmOpen ? (
         <ConfirmDialog
-          confirmLabel="保存済みの対応表を全削除"
+          confirmLabel="保存済み対応表を全削除"
           danger
-          dangerTitle="保存済みの対応表を全削除します"
+          dangerTitle="保存済み対応表を全削除します"
           onCancel={() => setMappingDeleteAllConfirmOpen(false)}
           onConfirm={() => void removeAllSavedMappings()}
-          title="保存済みの対応表をすべて削除しますか？"
+          title="保存済み対応表をすべて削除しますか？"
         >
           アプリが管理するOPFS内の保存済み対応表、一覧、バックアップを削除します。現在画面上の作業は自動的に消去されません。
         </ConfirmDialog>

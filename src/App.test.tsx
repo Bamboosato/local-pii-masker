@@ -67,6 +67,34 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("ヘッダーメニューをマスク対応表と現在の作業の2グループに分ける", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), "山田です");
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+
+    const mappingGroup = screen.getByRole("group", { name: "マスク対応表" });
+    expect(
+      within(mappingGroup).getByRole("menuitem", { name: "現在のマスク対応を保存" }),
+    ).toBeInTheDocument();
+    expect(
+      within(mappingGroup).getByRole("menuitem", { name: "保存済み対応表を管理" }),
+    ).toBeInTheDocument();
+    expect(
+      within(mappingGroup).queryByRole("menuitem", { name: "対応表を削除" }),
+    ).not.toBeInTheDocument();
+
+    const currentWorkGroup = screen.getByRole("group", { name: "現在の作業" });
+    expect(
+      within(currentWorkGroup).getByRole("menuitem", { name: "テキストを正規化" }),
+    ).toBeInTheDocument();
+    expect(
+      within(currentWorkGroup).getByRole("menuitem", { name: "現在の作業を消去" }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll(".header-menu-separator")).toHaveLength(1);
+  });
+
   it("表示中の操作ボタンにホバー説明を持つ", () => {
     render(<App />);
 

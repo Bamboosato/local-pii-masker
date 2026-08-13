@@ -70,7 +70,7 @@ export function MaskMappingSaveDialog(props: {
     <div className="modal-backdrop">
       <form aria-labelledby="mapping-save-title" className="modal mapping-modal" onSubmit={submit} role="dialog">
         <div className="modal-header">
-          <h2 id="mapping-save-title">マスク対応表を保存</h2>
+          <h2 id="mapping-save-title">現在のマスク対応を保存</h2>
           <button aria-label="閉じる" className="icon-button" onClick={props.onClose} type="button">
             <X size={22} />
           </button>
@@ -110,8 +110,8 @@ export function MaskMappingSaveDialog(props: {
 }
 
 export function MaskMappingLibraryDialog(props: {
-  mode: "open" | "delete";
   onClose: () => void;
+  onDeleteAll: () => void;
   onError: (message: string) => void;
   onLoaded: (mapping: MaskMapping) => void;
 }) {
@@ -181,6 +181,7 @@ export function MaskMappingLibraryDialog(props: {
       return;
     }
     setBusy(true);
+    setError(undefined);
     try {
       await deleteMaskMapping(selectedId);
       setSelectedId(undefined);
@@ -197,11 +198,11 @@ export function MaskMappingLibraryDialog(props: {
     <div className="modal-backdrop">
       <div aria-labelledby="mapping-library-title" className="modal mapping-modal" role="dialog">
         <div className="modal-header">
-          <h2 id="mapping-library-title">保存済みの対応表</h2>
+          <h2 id="mapping-library-title">保存済み対応表を管理</h2>
           <button aria-label="閉じる" className="icon-button" onClick={props.onClose} type="button"><X size={22} /></button>
         </div>
         <div className="modal-body mapping-library-body">
-          <p className="mapping-explanation">原文や処理結果は復元されません。読み込んだ対応表を現在の原文へ適用します。</p>
+          <p className="mapping-explanation">原文や処理結果は復元されません。対応表を開くと、現在の原文へマスク対応だけを適用します。</p>
           {busy && items.length === 0 ? <p>一覧を読み込んでいます…</p> : null}
           {!busy && items.length === 0 ? <p className="muted">保存済みの対応表はありません。</p> : null}
           <div className="mapping-list" role="list">
@@ -215,25 +216,23 @@ export function MaskMappingLibraryDialog(props: {
               </label>
             ))}
           </div>
-          {props.mode === "open" ? (
-            <label className="field mapping-field">
-              <span>パスフレーズ</span>
-              <input autoComplete="current-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
-            </label>
-          ) : null}
+          <label className="field mapping-field">
+            <span>パスフレーズ（対応表を開く場合）</span>
+            <input autoComplete="current-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
+          </label>
           {error ? <p className="mapping-error" role="alert">{error}</p> : null}
         </div>
-        <div className="modal-footer">
+        <div className="modal-footer mapping-library-footer">
           <button className="button button-ghost" onClick={props.onClose} type="button">閉じる</button>
-          {props.mode === "open" ? (
-            <button className="button button-primary" disabled={busy || !selectedId || items.find((item) => item.mappingId === selectedId)?.status !== "available"} onClick={() => void openSelected()} type="button">
-              <KeyRound size={18} /> 対応表を開く
-            </button>
-          ) : (
-            <button className="button button-danger" disabled={busy || !selectedId} onClick={() => void deleteSelected()} type="button">
-              <Trash2 size={18} /> 対応表を削除
-            </button>
-          )}
+          <button className="button button-danger mapping-delete-all" disabled={busy} onClick={props.onDeleteAll} type="button">
+            <Trash2 size={18} /> 保存済み対応表を全削除
+          </button>
+          <button className="button button-danger" disabled={busy || !selectedId} onClick={() => void deleteSelected()} type="button">
+            <Trash2 size={18} /> 対応表を削除
+          </button>
+          <button className="button button-primary" disabled={busy || !selectedId || items.find((item) => item.mappingId === selectedId)?.status !== "available"} onClick={() => void openSelected()} type="button">
+            <KeyRound size={18} /> 対応表を開く
+          </button>
         </div>
       </div>
     </div>
