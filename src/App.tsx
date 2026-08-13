@@ -59,6 +59,7 @@ import {
   MaskMappingLibraryDialog,
   MaskMappingSaveDialog,
 } from "./components/MaskMappingDialogs";
+import { useDialogFocus } from "./components/useDialogFocus";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
 import { extendHonorificCandidates } from "./domain/detection/extendHonorificCandidates";
@@ -174,7 +175,9 @@ export default function App() {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [mappingSaveOpen, setMappingSaveOpen] = useState(false);
   const [mappingLibraryOpen, setMappingLibraryOpen] = useState(false);
+  const [mappingLibraryRefreshKey, setMappingLibraryRefreshKey] = useState(0);
   const [mappingDeleteAllConfirmOpen, setMappingDeleteAllConfirmOpen] = useState(false);
+  const [mappingDeleteAllCount, setMappingDeleteAllCount] = useState(0);
   const [pendingLoadedMapping, setPendingLoadedMapping] = useState<MaskMapping>();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
@@ -643,8 +646,8 @@ export default function App() {
     setMappingLibraryOpen(true);
   }
 
-  function requestDeleteAllSavedMappings() {
-    setMappingLibraryOpen(false);
+  function requestDeleteAllSavedMappings(count: number) {
+    setMappingDeleteAllCount(count);
     setMappingDeleteAllConfirmOpen(true);
   }
 
@@ -680,6 +683,11 @@ export default function App() {
     dispatch({ type: "loadMaskMapping", mapping });
   }
 
+  function closeMappingLibrary() {
+    setMappingLibraryOpen(false);
+    window.requestAnimationFrame(() => headerMenuButtonRef.current?.focus());
+  }
+
   function applyPendingLoadedMapping() {
     if (!pendingLoadedMapping) {
       return;
@@ -692,8 +700,10 @@ export default function App() {
     try {
       await deleteAllMaskMappings();
       setMappingDeleteAllConfirmOpen(false);
+      setMappingLibraryRefreshKey((key) => key + 1);
       dispatch({ type: "setNotice", value: "保存済みの対応表をすべて削除しました。現在の作業は消去していません。" });
     } catch {
+      setMappingDeleteAllConfirmOpen(false);
       dispatch({ type: "setNotice", value: "保存済みの対応表を削除できませんでした。" });
     }
   }
@@ -967,14 +977,14 @@ export default function App() {
                     type="button"
                   >
                     <Save aria-hidden="true" size={16} />
-                    現在のマスク対応を保存
+                    対応表を保存
                   </button>
                   <button
                     className="header-menu-item"
                     disabled={!mappingStorageSupported}
                     onClick={openMappingLibrary}
                     role="menuitem"
-                    title="保存済み対応表を開く、削除する、全削除する操作をまとめて表示します"
+                    title="保存済み対応表の一覧・開く・削除する操作を表示します"
                     type="button"
                   >
                     <FolderOpen aria-hidden="true" size={16} />
@@ -1479,10 +1489,11 @@ export default function App() {
 
       {mappingLibraryOpen ? (
         <MaskMappingLibraryDialog
-          onClose={() => setMappingLibraryOpen(false)}
+          onClose={closeMappingLibrary}
           onDeleteAll={requestDeleteAllSavedMappings}
           onError={(message) => dispatch({ type: "setNotice", value: message })}
           onLoaded={handleMappingLoaded}
+          refreshKey={mappingLibraryRefreshKey}
         />
       ) : null}
 
@@ -1499,14 +1510,14 @@ export default function App() {
 
       {mappingDeleteAllConfirmOpen ? (
         <ConfirmDialog
-          confirmLabel="保存済み対応表を全削除"
+          confirmLabel="保存済み対応表をすべて削除"
           danger
-          dangerTitle="保存済み対応表を全削除します"
+          dangerTitle="保存済み対応表をすべて削除します"
           onCancel={() => setMappingDeleteAllConfirmOpen(false)}
           onConfirm={() => void removeAllSavedMappings()}
-          title="保存済み対応表をすべて削除しますか？"
+          title={`保存済み対応表${mappingDeleteAllCount}件をすべて削除しますか？`}
         >
-          アプリが管理するOPFS内の保存済み対応表、一覧、バックアップを削除します。現在画面上の作業は自動的に消去されません。
+          この操作は取り消せません。現在の作業には影響しません。
         </ConfirmDialog>
       ) : null}
 
@@ -2223,12 +2234,25 @@ function ConfirmDialog(props: {
   onConfirm: () => void;
   title: string;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useDialogFocus({
+    dialogRef,
+    initialFocusRef: cancelButtonRef,
+    onEscape: props.onCancel,
+  });
+
   return (
     <div className="modal-backdrop">
       <div
         aria-labelledby="confirm-title"
+        aria-describedby="confirm-description"
+        aria-modal="true"
         className={props.danger ? "modal compact clear-confirm-modal" : "modal compact"}
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <div className="modal-header">
           <h2 id="confirm-title">{props.title}</h2>
@@ -2243,12 +2267,13 @@ function ConfirmDialog(props: {
           </button>
         </div>
         <div className="modal-body">
-          <p>{props.children}</p>
+          <p id="confirm-description">{props.children}</p>
         </div>
         <div className="modal-footer">
           <button
             className="button button-ghost"
             onClick={props.onCancel}
+            ref={cancelButtonRef}
             title="操作をキャンセルします"
             type="button"
           >

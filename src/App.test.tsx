@@ -76,7 +76,7 @@ describe("App", () => {
 
     const mappingGroup = screen.getByRole("group", { name: "マスク対応表" });
     expect(
-      within(mappingGroup).getByRole("menuitem", { name: "現在のマスク対応を保存" }),
+      within(mappingGroup).getByRole("menuitem", { name: "対応表を保存" }),
     ).toBeInTheDocument();
     expect(
       within(mappingGroup).getByRole("menuitem", { name: "保存済み対応表を管理" }),

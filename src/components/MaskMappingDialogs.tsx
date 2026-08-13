@@ -1,5 +1,5 @@
-import { KeyRound, LoaderCircle, Trash2, X } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { EllipsisVertical, KeyRound, LoaderCircle, Trash2, X } from "lucide-react";
+import { type FormEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { createMaskMappingForSave } from "../domain/mapping/create";
 import {
   deleteMaskMapping,
@@ -11,6 +11,7 @@ import {
 } from "../domain/mapping/opfsRepository";
 import type { MaskMapping } from "../domain/mapping/types";
 import type { MaskEntry, OccurrenceMaskingMode } from "../domain/types";
+import { useDialogFocus } from "./useDialogFocus";
 
 export function MaskMappingSaveDialog(props: {
   entries: MaskEntry[];
@@ -20,11 +21,19 @@ export function MaskMappingSaveDialog(props: {
   onSaved: (mapping: MaskMapping) => void;
   occurrenceMaskingMode: OccurrenceMaskingMode;
 }) {
+  const dialogRef = useRef<HTMLFormElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(props.existing?.name ?? "");
   const [passphrase, setPassphrase] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
+
+  useDialogFocus({
+    dialogRef,
+    initialFocusRef: nameInputRef,
+    onEscape: props.onClose,
+  });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,7 +77,15 @@ export function MaskMappingSaveDialog(props: {
 
   return (
     <div className="modal-backdrop">
-      <form aria-labelledby="mapping-save-title" className="modal mapping-modal" onSubmit={submit} role="dialog">
+      <form
+        aria-labelledby="mapping-save-title"
+        aria-modal="true"
+        className="modal mapping-modal"
+        onSubmit={submit}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
         <div className="modal-header">
           <h2 id="mapping-save-title">現在のマスク対応を保存</h2>
           <button aria-label="閉じる" className="icon-button" onClick={props.onClose} type="button">
@@ -81,7 +98,13 @@ export function MaskMappingSaveDialog(props: {
           </p>
           <label className="field mapping-field">
             <span>対応表名</span>
-            <input autoFocus maxLength={200} onChange={(event) => setName(event.target.value)} value={name} />
+            <input
+              autoFocus
+              maxLength={200}
+              onChange={(event) => setName(event.target.value)}
+              ref={nameInputRef}
+              value={name}
+            />
             <small>対応表名は暗号化されません。氏名、住所などの個人情報を入力しないでください。</small>
           </label>
           <label className="field mapping-field">
@@ -98,7 +121,7 @@ export function MaskMappingSaveDialog(props: {
           {error ? <p className="mapping-error" role="alert">{error}</p> : null}
         </div>
         <div className="modal-footer">
-          <button className="button button-ghost" onClick={props.onClose} type="button">キャンセル</button>
+          <button className="button button-ghost" disabled={saving} onClick={props.onClose} type="button">キャンセル</button>
           <button className="button button-primary" disabled={saving} type="submit">
             {saving ? <LoaderCircle className="loading-spinner" size={18} /> : <KeyRound size={18} />}
             {saving ? "保存中…" : "暗号化して保存"}
@@ -109,27 +132,42 @@ export function MaskMappingSaveDialog(props: {
   );
 }
 
+type PendingMappingDelete = {
+  item: MappingListItem;
+};
+
 export function MaskMappingLibraryDialog(props: {
   onClose: () => void;
-  onDeleteAll: () => void;
+  onDeleteAll: (count: number) => void;
   onError: (message: string) => void;
   onLoaded: (mapping: MaskMapping) => void;
+  refreshKey: number;
 }) {
-  const reportError = props.onError;
+  const { onClose, onDeleteAll, onError, onLoaded, refreshKey } = props;
+  const reportError = useRef(onError);
+  useEffect(() => {
+    reportError.current = onError;
+  }, [onError]);
   const [items, setItems] = useState<MappingListItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string>();
-  const [passphrase, setPassphrase] = useState("");
+  const [busy, setBusy] = useState(true);
+  const [loadedRefreshKey, setLoadedRefreshKey] = useState(-1);
   const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
+  const [openItem, setOpenItem] = useState<MappingListItem>();
+  const [focusMappingId, setFocusMappingId] = useState<string>();
+  const [pendingDelete, setPendingDelete] = useState<PendingMappingDelete>();
+  const [deleteError, setDeleteError] = useState<string>();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteReturnFocusRef = useRef<HTMLElement | null>(null);
 
   async function refresh() {
     setBusy(true);
     try {
       setItems(await listMaskMappings());
+      setError(undefined);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "保存済み対応表を一覧表示できません。";
       setError(message);
-      props.onError(message);
+      reportError.current(message);
     } finally {
       setBusy(false);
     }
@@ -141,6 +179,9 @@ export function MaskMappingLibraryDialog(props: {
       .then((nextItems) => {
         if (!disposed) {
           setItems(nextItems);
+          setError(undefined);
+          setLoadedRefreshKey(refreshKey);
+          setBusy(false);
         }
       })
       .catch((cause: unknown) => {
@@ -149,92 +190,444 @@ export function MaskMappingLibraryDialog(props: {
         }
         const message = cause instanceof Error ? cause.message : "保存済み対応表を一覧表示できません。";
         setError(message);
-        reportError(message);
+        reportError.current(message);
+        setLoadedRefreshKey(refreshKey);
+        setBusy(false);
       });
 
     return () => {
       disposed = true;
     };
-  }, [reportError]);
+  }, [refreshKey]);
 
-  async function openSelected() {
-    if (!selectedId || passphrase.length === 0) {
-      setError("対応表とパスフレーズを指定してください。");
+  function requestOpen(item: MappingListItem) {
+    if (item.status !== "available") {
       return;
     }
+    setFocusMappingId(undefined);
+    setOpenItem(item);
+  }
+
+  function cancelOpen() {
+    if (!openItem) {
+      return;
+    }
+    setFocusMappingId(openItem.mappingId);
+    setOpenItem(undefined);
+  }
+
+  function requestDelete(item: MappingListItem, trigger: HTMLElement | null) {
+    deleteReturnFocusRef.current = trigger;
+    setDeleteError(undefined);
+    setPendingDelete({ item });
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) {
+      return;
+    }
+    const target = pendingDelete;
     setBusy(true);
-    setError(undefined);
+    setDeleteError(undefined);
     try {
-      props.onLoaded(await loadMaskMapping(selectedId, passphrase.normalize("NFKC")));
+      await deleteMaskMapping(target.item.mappingId);
+      deleteReturnFocusRef.current = closeButtonRef.current;
+      setPendingDelete(undefined);
+      await refresh();
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "対応表を開けませんでした。";
-      setError(message);
-      props.onError(message);
+      const message = cause instanceof MappingStorageError ? cause.message : "対応表を削除できませんでした。";
+      setDeleteError(message);
+      reportError.current(message);
     } finally {
       setBusy(false);
     }
   }
 
-  async function deleteSelected() {
-    if (!selectedId) {
-      setError("削除する対応表を選択してください。");
+  return (
+    <>
+      {!openItem ? (
+        <MaskMappingLibraryView
+          busy={busy || loadedRefreshKey !== refreshKey}
+          closeButtonRef={closeButtonRef}
+          error={error}
+          focusMappingId={focusMappingId}
+          items={items}
+          onClose={onClose}
+          onDeleteAll={onDeleteAll}
+          onDeleteRequest={requestDelete}
+          onFocusHandled={() => setFocusMappingId(undefined)}
+          onOpen={requestOpen}
+        />
+      ) : null}
+      {openItem ? (
+        <MaskMappingOpenDialog
+          item={openItem}
+          onCancel={cancelOpen}
+          onLoad={(passphrase) => loadMaskMapping(openItem.mappingId, passphrase)}
+          onLoaded={onLoaded}
+        />
+      ) : null}
+      {pendingDelete ? (
+        <MaskMappingDeleteConfirmDialog
+          error={deleteError}
+          item={pendingDelete.item}
+          onCancel={() => {
+            setPendingDelete(undefined);
+            setDeleteError(undefined);
+          }}
+          onConfirm={() => void confirmDelete()}
+          returnFocusRef={deleteReturnFocusRef}
+          busy={busy}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function MaskMappingLibraryView(props: {
+  busy: boolean;
+  closeButtonRef: RefObject<HTMLButtonElement | null>;
+  error?: string;
+  focusMappingId?: string;
+  items: MappingListItem[];
+  onClose: () => void;
+  onDeleteAll: (count: number) => void;
+  onDeleteRequest: (item: MappingListItem, trigger: HTMLElement | null) => void;
+  onFocusHandled: () => void;
+  onOpen: (item: MappingListItem) => void;
+}) {
+  const {
+    busy,
+    closeButtonRef,
+    error,
+    focusMappingId,
+    items,
+    onClose,
+    onDeleteAll,
+    onDeleteRequest,
+    onFocusHandled,
+    onOpen,
+  } = props;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const openButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const menuButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const menuRootRefs = useRef(new Map<string, HTMLDivElement>());
+  const menuItemRef = useRef<HTMLButtonElement>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string>();
+
+  useDialogFocus({
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+  });
+
+  useEffect(() => {
+    if (!focusMappingId) {
       return;
     }
+    const button = openButtonRefs.current.get(focusMappingId);
+    button?.focus();
+    onFocusHandled();
+  }, [focusMappingId, onFocusHandled]);
+
+  useEffect(() => {
+    if (!menuOpenId) {
+      return;
+    }
+    menuItemRef.current?.focus();
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const root = menuRootRefs.current.get(menuOpenId);
+      if (event.target instanceof Node && !root?.contains(event.target)) {
+        setMenuOpenId(undefined);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [menuOpenId]);
+
+  function closeMenuOnEscape(event: React.KeyboardEvent) {
+    if (event.key !== "Escape") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const button = menuOpenId ? menuButtonRefs.current.get(menuOpenId) : undefined;
+    setMenuOpenId(undefined);
+    button?.focus();
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <div
+        aria-describedby="mapping-library-description"
+        aria-labelledby="mapping-library-title"
+        aria-modal="true"
+        className="modal mapping-modal"
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <div className="modal-header">
+          <h2 id="mapping-library-title">保存済み対応表を管理</h2>
+          <button aria-label="閉じる" className="icon-button" onClick={onClose} ref={closeButtonRef} type="button"><X size={22} /></button>
+        </div>
+        <div className="modal-body mapping-library-body">
+          <p className="mapping-library-description" id="mapping-library-description">
+            対応表を開くと、現在の原文へマスク対応を適用します。
+          </p>
+          {busy && items.length === 0 ? <p role="status">一覧を読み込んでいます…</p> : null}
+          {!busy && items.length === 0 ? <p className="muted">保存済みの対応表はありません。</p> : null}
+          {items.length > 0 ? (
+            <div className="mapping-list" role="list">
+              {items.map((item) => {
+                const menuId = `mapping-menu-${item.mappingId}`;
+                const isMenuOpen = menuOpenId === item.mappingId;
+                return (
+                  <div className="mapping-list-item" key={item.mappingId} role="listitem">
+                    <div className="mapping-list-details">
+                      <strong title={item.name}>{item.name}</strong>
+                      <small>
+                        {new Date(item.updatedAt).toLocaleString("ja-JP")}
+                        {item.status === "missing" ? "・保存データ欠損" : ""}
+                      </small>
+                    </div>
+                    <div className="mapping-list-actions">
+                      <button
+                        aria-label={`${item.name}を開く`}
+                        className="button button-primary mapping-open-button"
+                        disabled={busy || item.status !== "available"}
+                        onClick={() => onOpen(item)}
+                        title={item.status === "available" ? "この対応表を開きます" : "保存データがないため開けません"}
+                        type="button"
+                        ref={(element) => {
+                          if (element) {
+                            openButtonRefs.current.set(item.mappingId, element);
+                          } else {
+                            openButtonRefs.current.delete(item.mappingId);
+                          }
+                        }}
+                      >
+                        開く
+                      </button>
+                      <div className="mapping-row-menu" ref={(element) => {
+                        if (element) {
+                          menuRootRefs.current.set(item.mappingId, element);
+                        } else {
+                          menuRootRefs.current.delete(item.mappingId);
+                        }
+                      }}>
+                        <button
+                          aria-controls={menuId}
+                          aria-expanded={isMenuOpen}
+                          aria-haspopup="menu"
+                          aria-label={`${item.name}のその他の操作`}
+                          className="icon-button mapping-row-menu-trigger"
+                          disabled={busy}
+                          onClick={() => setMenuOpenId(isMenuOpen ? undefined : item.mappingId)}
+                          ref={(element) => {
+                            if (element) {
+                              menuButtonRefs.current.set(item.mappingId, element);
+                            } else {
+                              menuButtonRefs.current.delete(item.mappingId);
+                            }
+                          }}
+                          title={`${item.name}のその他の操作`}
+                          type="button"
+                        >
+                          <EllipsisVertical aria-hidden="true" size={20} />
+                        </button>
+                        {isMenuOpen ? (
+                          <div
+                            aria-label={`${item.name}のその他の操作`}
+                            className="mapping-row-menu-popover"
+                            id={menuId}
+                            onKeyDown={closeMenuOnEscape}
+                            role="menu"
+                          >
+                            <button
+                              className="mapping-row-menu-item is-danger"
+                              onClick={() => {
+                                const trigger = menuButtonRefs.current.get(item.mappingId) ?? null;
+                                setMenuOpenId(undefined);
+                                onDeleteRequest(item, trigger);
+                              }}
+                              ref={menuItemRef}
+                              role="menuitem"
+                              type="button"
+                            >
+                              <Trash2 aria-hidden="true" size={16} />
+                              対応表を削除
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          {items.length > 0 ? (
+            <div className="mapping-library-danger-action">
+              <button
+                className="button button-danger-outline"
+                disabled={busy}
+                onClick={() => onDeleteAll(items.length)}
+                type="button"
+              >
+                保存済み対応表をすべて削除
+              </button>
+            </div>
+          ) : null}
+          {error ? <p className="mapping-error" role="alert">{error}</p> : null}
+        </div>
+        <div className="modal-footer mapping-library-footer">
+          <button className="button button-ghost" onClick={onClose} type="button">閉じる</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MaskMappingOpenDialog(props: {
+  item: MappingListItem;
+  onCancel: () => void;
+  onLoad: (passphrase: string) => Promise<MaskMapping>;
+  onLoaded: (mapping: MaskMapping) => void;
+}) {
+  const dialogRef = useRef<HTMLFormElement>(null);
+  const passphraseRef = useRef<HTMLInputElement>(null);
+  const [passphrase, setPassphrase] = useState("");
+  const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+
+  useDialogFocus({
+    dialogRef,
+    initialFocusRef: passphraseRef,
+    onEscape: props.onCancel,
+  });
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedPassphrase = passphrase.normalize("NFKC");
+    if (normalizedPassphrase.length === 0) {
+      setError("パスフレーズを入力してください。");
+      return;
+    }
+    if (Array.from(normalizedPassphrase).length < 12) {
+      setError("パスフレーズは12文字以上で入力してください。");
+      return;
+    }
+
     setBusy(true);
     setError(undefined);
     try {
-      await deleteMaskMapping(selectedId);
-      setSelectedId(undefined);
-      await refresh();
-    } catch (cause) {
-      const message = cause instanceof MappingStorageError ? cause.message : "対応表を削除できませんでした。";
+      props.onLoaded(await props.onLoad(normalizedPassphrase));
+    } catch {
+      const message = "対応表を開けませんでした。パスフレーズを確認してください。";
       setError(message);
-      props.onError(message);
+      requestAnimationFrame(() => passphraseRef.current?.focus());
+    } finally {
       setBusy(false);
     }
   }
 
   return (
     <div className="modal-backdrop">
-      <div aria-labelledby="mapping-library-title" className="modal mapping-modal" role="dialog">
+      <form
+        aria-describedby={error ? "mapping-open-description mapping-open-error" : "mapping-open-description"}
+        aria-labelledby="mapping-open-title"
+        aria-modal="true"
+        className="modal compact mapping-open-modal"
+        onSubmit={submit}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
         <div className="modal-header">
-          <h2 id="mapping-library-title">保存済み対応表を管理</h2>
-          <button aria-label="閉じる" className="icon-button" onClick={props.onClose} type="button"><X size={22} /></button>
+          <h2 id="mapping-open-title">対応表を開く</h2>
+          <button aria-label="閉じる" className="icon-button" disabled={busy} onClick={props.onCancel} type="button"><X size={22} /></button>
         </div>
-        <div className="modal-body mapping-library-body">
-          <p className="mapping-explanation">原文や処理結果は復元されません。対応表を開くと、現在の原文へマスク対応だけを適用します。</p>
-          {busy && items.length === 0 ? <p>一覧を読み込んでいます…</p> : null}
-          {!busy && items.length === 0 ? <p className="muted">保存済みの対応表はありません。</p> : null}
-          <div className="mapping-list" role="list">
-            {items.map((item) => (
-              <label className={`mapping-list-item${selectedId === item.mappingId ? " is-selected" : ""}`} key={item.mappingId}>
-                <input checked={selectedId === item.mappingId} name="mapping" onChange={() => setSelectedId(item.mappingId)} type="radio" />
-                <span className="mapping-list-details">
-                  <strong>{item.name}</strong>
-                  <small>{new Date(item.updatedAt).toLocaleString("ja-JP")}・{item.status === "available" ? "利用可能" : "保存データ欠損"}</small>
-                </span>
-              </label>
-            ))}
-          </div>
+        <div className="modal-body">
+          <p className="mapping-open-name">{props.item.name}</p>
           <label className="field mapping-field">
-            <span>パスフレーズ（対応表を開く場合）</span>
-            <input autoComplete="current-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
+            <span>パスフレーズ</span>
+            <input
+              autoComplete="current-password"
+              autoFocus
+              disabled={busy}
+              onChange={(event) => setPassphrase(event.target.value)}
+              ref={passphraseRef}
+              type="password"
+              value={passphrase}
+            />
           </label>
-          {error ? <p className="mapping-error" role="alert">{error}</p> : null}
+          <p className="mapping-storage-note" id="mapping-open-description">対応表の内容は画面上の現在の原文へ適用されます。</p>
+          {error ? <p className="mapping-error" id="mapping-open-error" role="alert">{error}</p> : null}
         </div>
-        <div className="modal-footer mapping-library-footer">
-          <button className="button button-ghost" onClick={props.onClose} type="button">閉じる</button>
-          <button className="button button-danger mapping-delete-all" disabled={busy} onClick={props.onDeleteAll} type="button">
-            <Trash2 size={18} /> 保存済み対応表を全削除
-          </button>
-          <button className="button button-danger" disabled={busy || !selectedId} onClick={() => void deleteSelected()} type="button">
-            <Trash2 size={18} /> 対応表を削除
-          </button>
-          <button className="button button-primary" disabled={busy || !selectedId || items.find((item) => item.mappingId === selectedId)?.status !== "available"} onClick={() => void openSelected()} type="button">
-            <KeyRound size={18} /> 対応表を開く
+        <div className="modal-footer">
+          <button className="button button-ghost" disabled={busy} onClick={props.onCancel} type="button">キャンセル</button>
+          <button className="button button-primary" disabled={busy || passphrase.length === 0} type="submit">
+            {busy ? <LoaderCircle className="loading-spinner" size={18} /> : <KeyRound size={18} />}
+            {busy ? "開いています…" : "対応表を開く"}
           </button>
         </div>
-      </div>
+      </form>
+    </div>
+  );
+}
+
+function MaskMappingDeleteConfirmDialog(props: {
+  busy: boolean;
+  error?: string;
+  item: MappingListItem;
+  onCancel: () => void;
+  onConfirm: () => void;
+  returnFocusRef: RefObject<HTMLElement | null>;
+}) {
+  const dialogRef = useRef<HTMLFormElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useDialogFocus({
+    dialogRef,
+    initialFocusRef: cancelButtonRef,
+    onEscape: props.busy ? () => undefined : props.onCancel,
+    returnFocusRef: props.returnFocusRef,
+  });
+
+  return (
+    <div className="modal-backdrop">
+      <form
+        aria-describedby={props.error ? "mapping-delete-description mapping-delete-error" : "mapping-delete-description"}
+        aria-labelledby="mapping-delete-title"
+        aria-modal="true"
+        className="modal compact clear-confirm-modal"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!props.busy) {
+            props.onConfirm();
+          }
+        }}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <div className="modal-header">
+          <h2 id="mapping-delete-title">「{props.item.name}」を削除しますか？</h2>
+          <button aria-label="閉じる" className="icon-button" disabled={props.busy} onClick={props.onCancel} type="button"><X size={22} /></button>
+        </div>
+        <div className="modal-body">
+          <p id="mapping-delete-description">この操作は取り消せません。現在の作業には影響しません。</p>
+          {props.error ? <p className="mapping-error" id="mapping-delete-error" role="alert">{props.error}</p> : null}
+        </div>
+        <div className="modal-footer">
+          <button className="button button-ghost" disabled={props.busy} onClick={props.onCancel} ref={cancelButtonRef} type="button">キャンセル</button>
+          <button className="button button-danger" disabled={props.busy} type="submit">
+            {props.busy ? <LoaderCircle className="loading-spinner" size={18} /> : <Trash2 size={18} />}
+            {props.busy ? "削除中…" : "削除"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
