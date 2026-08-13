@@ -154,6 +154,20 @@ describe("MaskMappingLibraryDialog", () => {
     expect(screen.getByRole("heading", { name: "保存済み対応表を管理" })).toBeInTheDocument();
   });
 
+  it("最下行のその他メニューは一覧内へ上向きに開く", async () => {
+    const user = userEvent.setup();
+    const lastItem = {
+      ...mappingItem,
+      mappingId: "mapping-last",
+      name: "最下行の対応表",
+    };
+    renderLibrary({ list: [mappingItem, lastItem] });
+
+    await user.click(await screen.findByRole("button", { name: `${lastItem.name}のその他の操作` }));
+
+    expect(screen.getByRole("menu")).toHaveClass("is-open-upward");
+  });
+
   it("空状態では一覧操作を表示しない", async () => {
     renderLibrary({ list: [] });
 

@@ -417,9 +417,10 @@ function MaskMappingLibraryView(props: {
           {!busy && items.length === 0 ? <p className="muted">保存済みの対応表はありません。</p> : null}
           {items.length > 0 ? (
             <div className="mapping-list" role="list">
-              {items.map((item) => {
+              {items.map((item, itemIndex) => {
                 const menuId = `mapping-menu-${item.mappingId}`;
                 const isMenuOpen = menuOpenId === item.mappingId;
+                const opensUpward = itemIndex === items.length - 1 && items.length > 1;
                 return (
                   <div className="mapping-list-item" key={item.mappingId} role="listitem">
                     <div className="mapping-list-details">
@@ -477,7 +478,7 @@ function MaskMappingLibraryView(props: {
                         {isMenuOpen ? (
                           <div
                             aria-label={`${item.name}のその他の操作`}
-                            className="mapping-row-menu-popover"
+                            className={`mapping-row-menu-popover${opensUpward ? " is-open-upward" : ""}`}
                             id={menuId}
                             onKeyDown={closeMenuOnEscape}
                             role="menu"
