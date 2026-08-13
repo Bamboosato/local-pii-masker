@@ -53,6 +53,8 @@ flowchart LR
     MD[ONNX NER Model]
     ME[Mask Engine]
     RE[Restore Engine]
+    MR[Mask Mapping Repository]
+    OP[OPFS]
     CB[Clipboard]
 
     U --> UI
@@ -67,6 +69,8 @@ flowchart LR
     ST --> RE
     RE --> UI
     UI --> CB
+    UI <--> MR
+    MR <--> OP
 ```
 
 ### 3.1 UI層
@@ -80,6 +84,7 @@ flowchart LR
 - マスクを含む文章の入力
 - マスクを復元した文章とトークン検査結果の表示
 - セッション消去
+- マスク対応表の保存、一覧、読み込み、個別削除、全削除
 - マスキング前テキスト正規化の起動、前後確認、適用
 - 曖昧姓に対する文脈付き出現箇所マスク方式の固定適用
 
@@ -93,6 +98,7 @@ flowchart LR
 - UI状態
 - 原文リビジョン
 - 正規化ロック理由
+- 読み込んだ対応表の識別情報と永続化対象フィンガープリント
 
 状態はReactコンポーネントへ分散させず、`useReducer`または同等の一方向データフローで管理する。
 
@@ -673,6 +679,14 @@ src/
 │  │  ├─ restoreText.ts
 │  │  ├─ inspectTokens.ts
 │  │  └─ tokenFactory.ts
+│  ├─ mapping/
+│  │  ├─ create.ts
+│  │  ├─ crypto.ts
+│  │  ├─ opfsRepository.ts
+│  │  ├─ reapply.ts
+│  │  ├─ snapshot.ts
+│  │  ├─ types.ts
+│  │  └─ validate.ts
 │  ├─ detection/
 │  │  ├─ mergeCandidates.ts
 │  │  ├─ regex/
@@ -817,7 +831,7 @@ src/
 
 - Web Crypto APIによるAES-GCM/PBKDF2のEnvelope暗号化
 - 一覧用平文インデックスと暗号化マスク対応表ファイルの分離
-- 一時ファイル、バックアップ、起動時復旧、リビジョン競合検出
+- 一時ファイル、バックアップ、書き込み検証、ロールバック、リビジョン競合検出（孤立・一時ファイルの起動時検出は実装確認メモに記載の未達項目）
 - Web Locks APIが利用可能な場合の保存・削除・インデックス更新の排他制御
 - OPFS非対応時の保存機能だけの縮退
 

@@ -73,6 +73,7 @@
 - [Storage API利用方針](docs/storage-api-policy.md)
 - [プライバシー説明](docs/privacy.md)
 - [マスク対応表の保存・再利用ガイド](docs/local-work-history-guide.md)
+- [マスク対応表の実装確認メモ](docs/local-work-history-implementation-status.md)
 - [ADR-004: ユーザーデータの永続保存境界](docs/adr-004-user-data-persistence.md)
 - [マスキング前テキスト正規化 追加機能要件](docs/text-normalization-requirements.md)
 - [マスキング前テキスト正規化 詳細設計](docs/text-normalization-design.md)
