@@ -683,6 +683,12 @@ export default function App() {
     dispatch({ type: "loadMaskMapping", mapping });
   }
 
+  function handleMappingDeleted(mappingId: string) {
+    if (state.mapping?.mappingId === mappingId) {
+      dispatch({ type: "clearMaskMappingReference" });
+    }
+  }
+
   function closeMappingLibrary() {
     setMappingLibraryOpen(false);
     window.requestAnimationFrame(() => headerMenuButtonRef.current?.focus());
@@ -701,6 +707,7 @@ export default function App() {
       await deleteAllMaskMappings();
       setMappingDeleteAllConfirmOpen(false);
       setMappingLibraryRefreshKey((key) => key + 1);
+      dispatch({ type: "clearMaskMappingReference" });
       dispatch({ type: "setNotice", value: "保存済みの対応表をすべて削除しました。現在の作業は消去していません。" });
     } catch {
       setMappingDeleteAllConfirmOpen(false);
@@ -1491,6 +1498,7 @@ export default function App() {
         <MaskMappingLibraryDialog
           onClose={closeMappingLibrary}
           onDeleteAll={requestDeleteAllSavedMappings}
+          onDeleted={handleMappingDeleted}
           onError={(message) => dispatch({ type: "setNotice", value: message })}
           onLoaded={handleMappingLoaded}
           refreshKey={mappingLibraryRefreshKey}

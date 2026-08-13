@@ -101,6 +101,7 @@ export type AppAction =
   | { type: "setRestoreExpanded"; value: boolean }
   | { type: "loadMaskMapping"; mapping: MaskMapping }
   | { type: "markMaskMappingSaved"; mapping: LoadedMaskMapping }
+  | { type: "clearMaskMappingReference" }
   | { type: "setNotice"; value?: string }
   | { type: "clearSession" };
 
@@ -279,6 +280,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case "markMaskMappingSaved":
       return { ...state, mapping: action.mapping };
+
+    case "clearMaskMappingReference":
+      return { ...state, mapping: undefined };
 
     case "setNotice":
       return { ...state, notice: action.value };

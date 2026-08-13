@@ -175,11 +175,12 @@ type PendingMappingDelete = {
 export function MaskMappingLibraryDialog(props: {
   onClose: () => void;
   onDeleteAll: (count: number) => void;
+  onDeleted?: (mappingId: string) => void;
   onError: (message: string) => void;
   onLoaded: (mapping: MaskMapping) => void;
   refreshKey: number;
 }) {
-  const { onClose, onDeleteAll, onError, onLoaded, refreshKey } = props;
+  const { onClose, onDeleteAll, onDeleted, onError, onLoaded, refreshKey } = props;
   const reportError = useRef(onError);
   useEffect(() => {
     reportError.current = onError;
@@ -267,6 +268,7 @@ export function MaskMappingLibraryDialog(props: {
     setDeleteError(undefined);
     try {
       await deleteMaskMapping(target.item.mappingId);
+      onDeleted?.(target.item.mappingId);
       deleteReturnFocusRef.current = closeButtonRef.current;
       setPendingDelete(undefined);
       await refresh();

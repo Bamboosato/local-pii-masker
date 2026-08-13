@@ -57,21 +57,24 @@ const loadedMapping: MaskMapping = {
 function renderLibrary(options?: {
   list?: MappingListItem[];
   onDeleteAll?: (count: number) => void;
+  onDeleted?: (mappingId: string) => void;
   onLoaded?: (mapping: MaskMapping) => void;
 }) {
   repositoryMock.listMaskMappings.mockResolvedValue(options?.list ?? [mappingItem]);
   const onDeleteAll = options?.onDeleteAll ?? vi.fn();
+  const onDeleted = options?.onDeleted ?? vi.fn();
   const onLoaded = options?.onLoaded ?? vi.fn();
   render(
     <MaskMappingLibraryDialog
       onClose={vi.fn()}
       onDeleteAll={onDeleteAll}
+      onDeleted={onDeleted}
       onError={vi.fn()}
       onLoaded={onLoaded}
       refreshKey={0}
     />,
   );
-  return { onDeleteAll, onLoaded };
+  return { onDeleteAll, onDeleted, onLoaded };
 }
 
 describe("MaskMappingLibraryDialog", () => {
@@ -121,11 +124,12 @@ describe("MaskMappingLibraryDialog", () => {
 
   it("個別削除は行のその他メニューから確認し、管理画面を空状態へ更新する", async () => {
     const user = userEvent.setup();
+    const onDeleted = vi.fn();
     repositoryMock.listMaskMappings
       .mockResolvedValueOnce([mappingItem])
       .mockResolvedValueOnce([]);
     repositoryMock.deleteMaskMapping.mockResolvedValue(undefined);
-    renderLibrary();
+    renderLibrary({ onDeleted });
 
     await user.click(await screen.findByRole("button", { name: `${mappingItem.name}のその他の操作` }));
     await user.click(screen.getByRole("menuitem", { name: "対応表を削除" }));
@@ -135,6 +139,7 @@ describe("MaskMappingLibraryDialog", () => {
     await user.click(screen.getByRole("button", { name: "削除" }));
 
     await waitFor(() => expect(screen.getByText("保存済みの対応表はありません。")).toBeInTheDocument());
+    expect(onDeleted).toHaveBeenCalledWith(mappingItem.mappingId);
     expect(screen.queryByRole("button", { name: `${mappingItem.name}を開く` })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "保存済み対応表をすべて削除" })).not.toBeInTheDocument();
   });
