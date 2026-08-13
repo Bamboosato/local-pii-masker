@@ -97,6 +97,8 @@ describe("MaskMappingLibraryDialog", () => {
 
     expect(screen.getByRole("heading", { name: "対応表を開く" })).toBeInTheDocument();
     const passphrase = screen.getByLabelText("パスフレーズ");
+    expect(passphrase).toHaveClass("dialog-input");
+    expect(passphrase).toHaveAttribute("type", "password");
     expect(passphrase).toHaveFocus();
     expect(screen.getByRole("button", { name: "対応表を開く" })).toBeDisabled();
 
@@ -133,7 +135,8 @@ describe("MaskMappingLibraryDialog", () => {
 
     await user.click(await screen.findByRole("button", { name: `${mappingItem.name}のその他の操作` }));
     await user.click(screen.getByRole("menuitem", { name: "対応表を削除" }));
-    expect(screen.getByRole("heading", { name: `「${mappingItem.name}」を削除しますか？` })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "対応表を削除しますか？" })).toBeInTheDocument();
+    expect(screen.getByText(`「${mappingItem.name}」を削除します。`)).toBeInTheDocument();
     expect(screen.getByText("この操作は取り消せません。現在の作業には影響しません。")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "削除" }));
@@ -224,6 +227,10 @@ describe("MaskMappingSaveDialog", () => {
     renderSaveDialog();
 
     expect(screen.getByRole("radio", { name: "既存の対応表を上書き" })).toBeChecked();
+    expect(screen.getByLabelText("対応表名")).toHaveClass("dialog-input");
+    expect(screen.getByLabelText("対応表名")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("パスフレーズ（12文字以上）")).toHaveClass("dialog-input");
+    expect(screen.getByLabelText("パスフレーズ（確認）")).toHaveClass("dialog-input");
     await user.clear(screen.getByLabelText("対応表名"));
     await user.type(screen.getByLabelText("対応表名"), "変更後の対応表");
     await user.type(screen.getByLabelText("パスフレーズ（12文字以上）"), "new-passphrase");

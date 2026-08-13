@@ -137,22 +137,24 @@ export function MaskMappingSaveDialog(props: {
             <label htmlFor="mapping-save-name">対応表名</label>
             <input
               autoFocus
+              className="dialog-input"
               id="mapping-save-name"
               maxLength={200}
               onChange={(event) => setName(event.target.value)}
               ref={nameInputRef}
+              type="text"
               value={name}
             />
             <small>対応表名は暗号化されません。氏名、住所などの個人情報を入力しないでください。</small>
           </div>
           <div className="field mapping-field">
             <label htmlFor="mapping-save-passphrase">パスフレーズ（12文字以上）</label>
-            <input id="mapping-save-passphrase" autoComplete="new-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
+            <input className="dialog-input" id="mapping-save-passphrase" autoComplete="new-password" onChange={(event) => setPassphrase(event.target.value)} type="password" value={passphrase} />
           </div>
           {isOverwrite ? <p className="mapping-storage-note">入力したパスフレーズで上書きします。</p> : null}
           <div className="field mapping-field">
             <label htmlFor="mapping-save-confirmation">パスフレーズ（確認）</label>
-            <input id="mapping-save-confirmation" autoComplete="new-password" onChange={(event) => setConfirmation(event.target.value)} type="password" value={confirmation} />
+            <input className="dialog-input" id="mapping-save-confirmation" autoComplete="new-password" onChange={(event) => setConfirmation(event.target.value)} type="password" value={confirmation} />
           </div>
           {error ? <p className="mapping-error" role="alert">{error}</p> : null}
         </div>
@@ -577,7 +579,7 @@ function MaskMappingOpenDialog(props: {
         aria-describedby={error ? "mapping-open-description mapping-open-error" : "mapping-open-description"}
         aria-labelledby="mapping-open-title"
         aria-modal="true"
-        className="modal compact mapping-open-modal"
+        className="modal mapping-open-modal"
         onSubmit={submit}
         ref={dialogRef}
         role="dialog"
@@ -594,6 +596,7 @@ function MaskMappingOpenDialog(props: {
             <input
               autoComplete="current-password"
               autoFocus
+              className="dialog-input"
               disabled={busy}
               onChange={(event) => setPassphrase(event.target.value)}
               ref={passphraseRef}
@@ -640,7 +643,7 @@ function MaskMappingDeleteConfirmDialog(props: {
         aria-describedby={props.error ? "mapping-delete-description mapping-delete-error" : "mapping-delete-description"}
         aria-labelledby="mapping-delete-title"
         aria-modal="true"
-        className="modal compact clear-confirm-modal"
+        className="modal compact confirmation-modal clear-confirm-modal"
         onSubmit={(event) => {
           event.preventDefault();
           if (!props.busy) {
@@ -652,11 +655,14 @@ function MaskMappingDeleteConfirmDialog(props: {
         tabIndex={-1}
       >
         <div className="modal-header">
-          <h2 id="mapping-delete-title">「{props.item.name}」を削除しますか？</h2>
+          <h2 id="mapping-delete-title">対応表を削除しますか？</h2>
           <button aria-label="閉じる" className="icon-button" disabled={props.busy} onClick={props.onCancel} type="button"><X size={22} /></button>
         </div>
         <div className="modal-body">
-          <p id="mapping-delete-description">この操作は取り消せません。現在の作業には影響しません。</p>
+          <p id="mapping-delete-description">
+            <span className="confirmation-target">「{props.item.name}」を削除します。</span>
+            <span className="confirmation-note">この操作は取り消せません。現在の作業には影響しません。</span>
+          </p>
           {props.error ? <p className="mapping-error" id="mapping-delete-error" role="alert">{props.error}</p> : null}
         </div>
         <div className="modal-footer">

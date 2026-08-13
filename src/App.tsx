@@ -1520,12 +1520,16 @@ export default function App() {
         <ConfirmDialog
           confirmLabel="保存済み対応表をすべて削除"
           danger
+          dangerIcon="trash"
           dangerTitle="保存済み対応表をすべて削除します"
           onCancel={() => setMappingDeleteAllConfirmOpen(false)}
           onConfirm={() => void removeAllSavedMappings()}
-          title={`保存済み対応表${mappingDeleteAllCount}件をすべて削除しますか？`}
+          title="すべての対応表を削除しますか？"
         >
-          この操作は取り消せません。現在の作業には影響しません。
+          <>
+            <span className="confirmation-target">保存済み対応表{mappingDeleteAllCount}件を削除します。</span>
+            <span className="confirmation-note">この操作は取り消せません。現在の作業には影響しません。</span>
+          </>
         </ConfirmDialog>
       ) : null}
 
@@ -1955,7 +1959,7 @@ function ManualAddDialog(props: {
         <div className="modal-body">
           <label className="field">
             <span>対象の文字列</span>
-            <input readOnly value={props.selectedText} />
+            <input className="dialog-input" readOnly type="text" value={props.selectedText} />
           </label>
           <div className="info-callout">
             <Info size={18} />
@@ -2101,8 +2105,10 @@ function RelateEntriesDialog(props: {
               <span>復元時の代表表記</span>
               <input
                 aria-label="復元時の代表表記"
+                className="dialog-input"
                 onChange={(event) => props.onRestorationTextChange(event.target.value)}
                 required
+                type="text"
                 value={props.restorationText}
               />
             </label>
@@ -2237,6 +2243,7 @@ function ConfirmDialog(props: {
   children: ReactNode;
   confirmLabel: string;
   danger?: boolean;
+  dangerIcon?: "eraser" | "trash";
   dangerTitle?: string;
   onCancel: () => void;
   onConfirm: () => void;
@@ -2257,7 +2264,7 @@ function ConfirmDialog(props: {
         aria-labelledby="confirm-title"
         aria-describedby="confirm-description"
         aria-modal="true"
-        className={props.danger ? "modal compact clear-confirm-modal" : "modal compact"}
+        className={props.danger ? "modal compact confirmation-modal clear-confirm-modal" : "modal compact confirmation-modal"}
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}
@@ -2293,7 +2300,9 @@ function ConfirmDialog(props: {
             title={props.danger ? props.dangerTitle ?? props.confirmLabel : props.confirmLabel}
             type="button"
           >
-            {props.danger ? <Eraser size={18} /> : <Copy size={18} />}
+            {props.danger ? (
+              props.dangerIcon === "trash" ? <Trash2 size={18} /> : <Eraser size={18} />
+            ) : <Copy size={18} />}
             {props.confirmLabel}
           </button>
         </div>
