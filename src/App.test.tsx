@@ -54,10 +54,10 @@ describe("App", () => {
   it("ヘッダーはデータ取扱表示と必要時だけ有効なメニューに集約する", () => {
     render(<App />);
 
-    expect(screen.getByText("ローカル処理・保存なし")).toBeInTheDocument();
+    expect(screen.getByText("ローカル処理・外部送信なし")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "メニュー" })).toBeDisabled();
     expect(
-      screen.queryByRole("menuitem", { name: "すべて消去" }),
+      screen.queryByRole("menuitem", { name: "現在の作業を消去" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "プライバシー境界" }),
@@ -65,6 +65,34 @@ describe("App", () => {
     expect(
       screen.queryByRole("button", { name: "再計算" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("ヘッダーメニューをマスク対応表と現在の作業の2グループに分ける", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    setEditorText(screen.getByLabelText("原文"), "山田です");
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+
+    const mappingGroup = screen.getByRole("group", { name: "マスク対応表" });
+    expect(
+      within(mappingGroup).getByRole("menuitem", { name: "対応表を保存" }),
+    ).toBeInTheDocument();
+    expect(
+      within(mappingGroup).getByRole("menuitem", { name: "保存済み対応表を管理" }),
+    ).toBeInTheDocument();
+    expect(
+      within(mappingGroup).queryByRole("menuitem", { name: "対応表を削除" }),
+    ).not.toBeInTheDocument();
+
+    const currentWorkGroup = screen.getByRole("group", { name: "現在の作業" });
+    expect(
+      within(currentWorkGroup).getByRole("menuitem", { name: "テキストを正規化" }),
+    ).toBeInTheDocument();
+    expect(
+      within(currentWorkGroup).getByRole("menuitem", { name: "現在の作業を消去" }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll(".header-menu-separator")).toHaveLength(1);
   });
 
   it("表示中の操作ボタンにホバー説明を持つ", () => {
@@ -1210,8 +1238,8 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "自動検出" }));
     await screen.findByRole("button", { name: "中止" });
     await user.click(screen.getByRole("button", { name: "メニュー" }));
-    await user.click(screen.getByRole("menuitem", { name: "すべて消去" }));
-    await user.click(screen.getByRole("button", { name: "すべて消去" }));
+    await user.click(screen.getByRole("menuitem", { name: "現在の作業を消去" }));
+    await user.click(screen.getByRole("button", { name: "現在の作業を消去" }));
 
     await waitFor(() => expect(receivedSignal?.aborted).toBe(true));
     expect(receivedSignal?.reason).toBe("session-cleared");
@@ -1535,8 +1563,8 @@ describe("App", () => {
 
     setEditorText(screen.getByLabelText("原文"), "山田です");
     await user.click(screen.getByRole("button", { name: "メニュー" }));
-    await user.click(screen.getByRole("menuitem", { name: "すべて消去" }));
-    await user.click(screen.getByRole("button", { name: "すべて消去" }));
+    await user.click(screen.getByRole("menuitem", { name: "現在の作業を消去" }));
+    await user.click(screen.getByRole("button", { name: "現在の作業を消去" }));
 
     expect(getEditorText(screen.getByLabelText("原文"))).toBe("");
     expect(screen.getByText("文字数: 0 / 30,000")).toBeInTheDocument();
@@ -1548,21 +1576,21 @@ describe("App", () => {
 
     setEditorText(screen.getByLabelText("原文"), "山田です");
     await user.click(screen.getByRole("button", { name: "メニュー" }));
-    await user.click(screen.getByRole("menuitem", { name: "すべて消去" }));
+    await user.click(screen.getByRole("menuitem", { name: "現在の作業を消去" }));
 
     const dialog = screen.getByRole("dialog", {
-      name: "入力内容をすべて消去しますか？",
+      name: "現在の作業を消去しますか？",
     });
     expect(dialog).toHaveClass("clear-confirm-modal");
     expect(within(dialog).getByText(
-      "入力した文章、マスク対象、復元内容がすべて消去されます。この操作は取り消せません。",
+      "原文、現在のマスク対象、復元入力など、画面上のインメモリ作業だけを初期化します。保存済みの対応表は削除されません。",
     )).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "キャンセル" })).not.toHaveClass(
       "large",
     );
-    const confirmButton = within(dialog).getByRole("button", { name: "すべて消去" });
+    const confirmButton = within(dialog).getByRole("button", { name: "現在の作業を消去" });
     expect(confirmButton).not.toHaveClass("large");
-    expect(confirmButton).toHaveAttribute("title", "入力内容をすべて消去します");
+    expect(confirmButton).toHaveAttribute("title", "現在の画面上の作業を消去します");
   });
 });
 

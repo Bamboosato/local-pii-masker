@@ -4,6 +4,7 @@ export type TokenInspection = {
   knownPresent: string[];
   absent: string[];
   unknown: string[];
+  naturalCandidates?: string[];
 };
 
 // Do not allow a nested opening bracket so Markdown links such as
@@ -13,6 +14,7 @@ const TOKEN_PATTERN = /\[(?!\[)[^\]\s]+_\d+\]/g;
 export function inspectTokens(
   response: string,
   entries: Pick<MaskEntry, "token">[],
+  referenceText?: string,
 ): TokenInspection {
   const knownTokenList = [...new Set(entries.map((entry) => entry.token))];
   const knownTokens = new Set(knownTokenList);
@@ -28,5 +30,16 @@ export function inspectTokens(
     knownPresent,
     absent,
     unknown,
+    ...(referenceText === undefined
+      ? {}
+      : {
+          naturalCandidates: knownTokenList.filter(
+            (token) => countToken(response, token) > countToken(referenceText, token),
+          ),
+        }),
   };
+}
+
+function countToken(text: string, token: string): number {
+  return text.split(token).length - 1;
 }

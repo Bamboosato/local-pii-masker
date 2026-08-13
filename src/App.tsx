@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   Copy,
+  FolderOpen,
   Eraser,
   Eye,
   EyeOff,
@@ -11,6 +12,7 @@ import {
   Maximize2,
   Minimize2,
   Search,
+  Save,
   ShieldCheck,
   Trash2,
   X,
@@ -53,6 +55,11 @@ import {
 } from "./components/OriginalTextEditor";
 import { PwaStatus, type PwaModelState } from "./components/PwaStatus";
 import { TextNormalizationDialog } from "./components/TextNormalizationDialog";
+import {
+  MaskMappingLibraryDialog,
+  MaskMappingSaveDialog,
+} from "./components/MaskMappingDialogs";
+import { useDialogFocus } from "./components/useDialogFocus";
 import type { DetectionCandidate } from "./domain/detection/mergeCandidates";
 import { enrichPersonCandidates } from "./domain/detection/enrichPersonCandidates";
 import { extendHonorificCandidates } from "./domain/detection/extendHonorificCandidates";
@@ -67,6 +74,12 @@ import { countOccurrences, findOccurrences } from "./domain/mask/findOccurrences
 import { buildHighlightSegments } from "./domain/mask/highlightText";
 import { buildMaskSegments } from "./domain/mask/maskText";
 import { createMaskToken } from "./domain/mask/tokenFactory";
+import {
+  deleteAllMaskMappings,
+  isMappingStorageSupported,
+} from "./domain/mapping/opfsRepository";
+import { createMaskMappingFingerprint } from "./domain/mapping/snapshot";
+import type { MaskMapping } from "./domain/mapping/types";
 import { normalizeText } from "./domain/normalization/normalizeText";
 import { useTextNormalization } from "./hooks/useTextNormalization";
 import {
@@ -160,6 +173,12 @@ export default function App() {
   const [unlinkDialogEntryId, setUnlinkDialogEntryId] = useState<string>();
   const [copyConfirmOpen, setCopyConfirmOpen] = useState(false);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [mappingSaveOpen, setMappingSaveOpen] = useState(false);
+  const [mappingLibraryOpen, setMappingLibraryOpen] = useState(false);
+  const [mappingLibraryRefreshKey, setMappingLibraryRefreshKey] = useState(0);
+  const [mappingDeleteAllConfirmOpen, setMappingDeleteAllConfirmOpen] = useState(false);
+  const [mappingDeleteAllCount, setMappingDeleteAllCount] = useState(0);
+  const [pendingLoadedMapping, setPendingLoadedMapping] = useState<MaskMapping>();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
   const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
@@ -167,6 +186,7 @@ export default function App() {
   const [showDetectionProgress, setShowDetectionProgress] = useState(false);
   const [restoreInputsExpanded, setRestoreInputsExpanded] = useState(false);
   const [restoreTextareaHeight, setRestoreTextareaHeight] = useState<number>();
+  const mappingStorageSupported = isMappingStorageSupported();
   const normalization = useTextNormalization();
   const detectionAbortRef = useRef<AbortController | undefined>(undefined);
   const latestDetectionMergeContextRef = useRef({
@@ -196,6 +216,13 @@ export default function App() {
   const counts = selectSessionCounts(state);
   const visibleEntries = selectVisibleEntries(state);
   const activeEntries = selectActiveEntries(state.entries);
+  const currentMappingFingerprint = createMaskMappingFingerprint(
+    state.entries,
+    state.occurrenceMaskingMode,
+  );
+  const hasUnsavedMappingChanges = state.mapping
+    ? state.mapping.fingerprint !== currentMappingFingerprint
+    : activeEntries.length > 0;
   const restoration = selectRestoredResponse(state);
   const tokenInspection = selectTokenInspection(state);
   const unlinkDialogEntry = unlinkDialogEntryId
@@ -368,6 +395,19 @@ export default function App() {
 
     return () => window.clearTimeout(timeout);
   }, [state.notice]);
+
+  useEffect(() => {
+    if (!hasUnsavedMappingChanges) {
+      return;
+    }
+
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedMappingChanges]);
 
   useEffect(() => {
     if (!isDetecting) {
@@ -582,6 +622,97 @@ export default function App() {
     }
     setHeaderMenuOpen(false);
     normalization.open(state.originalText, state.originalRevision);
+  }
+
+  function openMappingSaveDialog() {
+    setHeaderMenuOpen(false);
+    if (!mappingStorageSupported) {
+      dispatch({ type: "setNotice", value: "このブラウザでは対応表の保存を利用できません。現在の作業は一時利用できます。" });
+      return;
+    }
+    if (activeEntries.length === 0 && !state.mapping) {
+      dispatch({ type: "setNotice", value: "保存する有効なマスク対応がありません。" });
+      return;
+    }
+    setMappingSaveOpen(true);
+  }
+
+  function openMappingLibrary() {
+    setHeaderMenuOpen(false);
+    if (!mappingStorageSupported) {
+      dispatch({ type: "setNotice", value: "このブラウザでは保存済み対応表を利用できません。現在の作業は一時利用できます。" });
+      return;
+    }
+    setMappingLibraryOpen(true);
+  }
+
+  function requestDeleteAllSavedMappings(count: number) {
+    setMappingDeleteAllCount(count);
+    setMappingDeleteAllConfirmOpen(true);
+  }
+
+  function handleMappingSaved(mapping: MaskMapping) {
+    dispatch({
+      type: "markMaskMappingSaved",
+      mapping: {
+        mappingId: mapping.mappingId,
+        name: mapping.name,
+        createdAt: mapping.createdAt,
+        updatedAt: mapping.updatedAt,
+        revision: mapping.revision,
+        fingerprint: createMaskMappingFingerprint(
+          state.entries,
+          state.occurrenceMaskingMode,
+        ),
+      },
+    });
+    setMappingSaveOpen(false);
+    dispatch({ type: "setNotice", value: "マスク対応表を暗号化して保存しました。" });
+  }
+
+  function handleMappingLoaded(mapping: MaskMapping) {
+    setMappingLibraryOpen(false);
+    if (state.externalResponse.trim().length > 0) {
+      dispatch({ type: "setNotice", value: "復元する文章を空にしてから対応表を開いてください。" });
+      return;
+    }
+    if (state.entries.length > 0) {
+      setPendingLoadedMapping(mapping);
+      return;
+    }
+    dispatch({ type: "loadMaskMapping", mapping });
+  }
+
+  function handleMappingDeleted(mappingId: string) {
+    if (state.mapping?.mappingId === mappingId) {
+      dispatch({ type: "clearMaskMappingReference" });
+    }
+  }
+
+  function closeMappingLibrary() {
+    setMappingLibraryOpen(false);
+    window.requestAnimationFrame(() => headerMenuButtonRef.current?.focus());
+  }
+
+  function applyPendingLoadedMapping() {
+    if (!pendingLoadedMapping) {
+      return;
+    }
+    dispatch({ type: "loadMaskMapping", mapping: pendingLoadedMapping });
+    setPendingLoadedMapping(undefined);
+  }
+
+  async function removeAllSavedMappings() {
+    try {
+      await deleteAllMaskMappings();
+      setMappingDeleteAllConfirmOpen(false);
+      setMappingLibraryRefreshKey((key) => key + 1);
+      dispatch({ type: "clearMaskMappingReference" });
+      dispatch({ type: "setNotice", value: "保存済みの対応表をすべて削除しました。現在の作業は消去していません。" });
+    } catch {
+      setMappingDeleteAllConfirmOpen(false);
+      dispatch({ type: "setNotice", value: "保存済みの対応表を削除できませんでした。" });
+    }
   }
 
   function applyNormalization(
@@ -808,13 +939,13 @@ export default function App() {
             tabIndex={0}
           >
             <ShieldCheck aria-hidden="true" size={14} />
-            ローカル処理・保存なし
+            ローカル処理・外部送信なし
             <span
               className="privacy-tooltip"
               id="privacy-status-details"
               role="tooltip"
             >
-              公開モデル資材を取得する場合がありますが、入力内容は送信・保存されません。再読み込みまたは終了すると作業内容は失われます。
+              公開モデル資材を取得する場合があります。原文や検出値は外部へ送信されません。デフォルトではユーザーデータを永続保存せず、明示操作時だけマスク対応表を暗号化してブラウザ内に保存します。
             </span>
           </span>
         </div>
@@ -827,57 +958,85 @@ export default function App() {
               aria-haspopup="menu"
               aria-label="メニュー"
               className="icon-button header-menu-trigger"
-              disabled={!hasSessionData}
+              disabled={!hasSessionData && !mappingStorageSupported}
               onClick={() => setHeaderMenuOpen((open) => !open)}
               ref={headerMenuButtonRef}
-              title="セッション操作メニューを開く"
+              title="マスク対応表と現在の作業のメニューを開く"
               type="button"
             >
               <EllipsisVertical aria-hidden="true" size={20} />
             </button>
             {headerMenuOpen ? (
               <div
-                aria-label="セッション操作"
+                aria-label="マスク対応表と現在の作業の操作"
                 className="header-menu-popover"
                 id="header-session-menu"
                 role="menu"
               >
-                <div className="header-menu-tooltip-anchor" role="none">
+                <div aria-labelledby="header-mask-mapping-group" className="header-menu-group" role="group">
+                  <div className="header-menu-group-label" id="header-mask-mapping-group">マスク対応表</div>
                   <button
-                    aria-describedby="normalization-menu-tooltip"
-                    aria-disabled={normalizationAvailability.state !== "enabled"}
                     className="header-menu-item"
-                    onClick={openNormalizationDialog}
-                    ref={normalizationMenuItemRef}
+                    disabled={!mappingStorageSupported || (activeEntries.length === 0 && !state.mapping)}
+                    onClick={openMappingSaveDialog}
                     role="menuitem"
+                    title={mappingStorageSupported ? "マスク対象とマスク文字列の対応関係だけを暗号化して保存します" : "このブラウザでは対応表の保存を利用できません"}
                     type="button"
                   >
-                    <Eraser aria-hidden="true" size={16} />
-                    テキストを正規化
+                    <Save aria-hidden="true" size={16} />
+                    対応表を保存
                   </button>
-                  <span
-                    className="normalization-menu-tooltip"
-                    id="normalization-menu-tooltip"
-                    role="tooltip"
+                  <button
+                    className="header-menu-item"
+                    disabled={!mappingStorageSupported}
+                    onClick={openMappingLibrary}
+                    role="menuitem"
+                    title="保存済み対応表の一覧・開く・削除する操作を表示します"
+                    type="button"
                   >
-                    {normalizationTooltipMessage}
-                  </span>
+                    <FolderOpen aria-hidden="true" size={16} />
+                    保存済み対応表を管理
+                  </button>
                 </div>
                 <div aria-hidden="true" className="header-menu-separator" role="separator" />
-                <button
-                  className="header-menu-item danger"
-                  onClick={() => {
-                    setHeaderMenuOpen(false);
-                    setClearConfirmOpen(true);
-                  }}
-                  ref={clearMenuItemRef}
-                  role="menuitem"
-                  title="入力内容とマスク対象をすべて消去します"
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" size={16} />
-                  すべて消去
-                </button>
+                <div aria-labelledby="header-current-work-group" className="header-menu-group" role="group">
+                  <div className="header-menu-group-label" id="header-current-work-group">現在の作業</div>
+                  <div className="header-menu-tooltip-anchor" role="none">
+                    <button
+                      aria-describedby="normalization-menu-tooltip"
+                      aria-disabled={normalizationAvailability.state !== "enabled"}
+                      className="header-menu-item"
+                      onClick={openNormalizationDialog}
+                      ref={normalizationMenuItemRef}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <Eraser aria-hidden="true" size={16} />
+                      テキストを正規化
+                    </button>
+                    <span
+                      className="normalization-menu-tooltip"
+                      id="normalization-menu-tooltip"
+                      role="tooltip"
+                    >
+                      {normalizationTooltipMessage}
+                    </span>
+                  </div>
+                  <button
+                    className="header-menu-item danger"
+                    onClick={() => {
+                      setHeaderMenuOpen(false);
+                      setClearConfirmOpen(true);
+                    }}
+                    ref={clearMenuItemRef}
+                    role="menuitem"
+                    title="現在の画面上の作業だけを消去します"
+                    type="button"
+                  >
+                    <Trash2 aria-hidden="true" size={16} />
+                    現在の作業を消去
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -1185,6 +1344,9 @@ export default function App() {
           <div className="restore-summary">
             既知: {tokenInspection.knownPresent.length} / 未出現:{" "}
             {tokenInspection.absent.length} / 不明: {tokenInspection.unknown.length}
+            {tokenInspection.naturalCandidates?.length ? (
+              <> / 要確認: {tokenInspection.naturalCandidates.length}</>
+            ) : null}
           </div>
         </div>
         {state.restoreExpanded ? (
@@ -1299,8 +1461,9 @@ export default function App() {
 
       {clearConfirmOpen ? (
         <ConfirmDialog
-          confirmLabel="すべて消去"
+          confirmLabel="現在の作業を消去"
           danger
+          dangerTitle="現在の画面上の作業を消去します"
           onCancel={() => {
             setClearConfirmOpen(false);
             window.requestAnimationFrame(() =>
@@ -1314,9 +1477,59 @@ export default function App() {
             setEntrySearchOpen(false);
             setClearConfirmOpen(false);
           }}
-          title="入力内容をすべて消去しますか？"
+          title="現在の作業を消去しますか？"
         >
-          入力した文章、マスク対象、復元内容がすべて消去されます。この操作は取り消せません。
+          原文、現在のマスク対象、復元入力など、画面上のインメモリ作業だけを初期化します。保存済みの対応表は削除されません。
+        </ConfirmDialog>
+      ) : null}
+
+      {mappingSaveOpen ? (
+        <MaskMappingSaveDialog
+          entries={state.entries}
+          existing={state.mapping}
+          onClose={() => setMappingSaveOpen(false)}
+          onError={(message) => dispatch({ type: "setNotice", value: message })}
+          onSaved={handleMappingSaved}
+          occurrenceMaskingMode={state.occurrenceMaskingMode}
+        />
+      ) : null}
+
+      {mappingLibraryOpen ? (
+        <MaskMappingLibraryDialog
+          onClose={closeMappingLibrary}
+          onDeleteAll={requestDeleteAllSavedMappings}
+          onDeleted={handleMappingDeleted}
+          onError={(message) => dispatch({ type: "setNotice", value: message })}
+          onLoaded={handleMappingLoaded}
+          refreshKey={mappingLibraryRefreshKey}
+        />
+      ) : null}
+
+      {pendingLoadedMapping ? (
+        <ConfirmDialog
+          confirmLabel="対応表を適用"
+          onCancel={() => setPendingLoadedMapping(undefined)}
+          onConfirm={applyPendingLoadedMapping}
+          title="現在のマスク対象を置き換えますか？"
+        >
+          保存済みの対応表を現在の原文へ適用します。原文、外部回答、保存済み対応表そのものは変更しません。
+        </ConfirmDialog>
+      ) : null}
+
+      {mappingDeleteAllConfirmOpen ? (
+        <ConfirmDialog
+          confirmLabel="保存済み対応表をすべて削除"
+          danger
+          dangerIcon="trash"
+          dangerTitle="保存済み対応表をすべて削除します"
+          onCancel={() => setMappingDeleteAllConfirmOpen(false)}
+          onConfirm={() => void removeAllSavedMappings()}
+          title="すべての対応表を削除しますか？"
+        >
+          <>
+            <span className="confirmation-target">保存済み対応表{mappingDeleteAllCount}件を削除します。</span>
+            <span className="confirmation-note">この操作は取り消せません。現在の作業には影響しません。</span>
+          </>
         </ConfirmDialog>
       ) : null}
 
@@ -1746,7 +1959,7 @@ function ManualAddDialog(props: {
         <div className="modal-body">
           <label className="field">
             <span>対象の文字列</span>
-            <input readOnly value={props.selectedText} />
+            <input className="dialog-input" readOnly type="text" value={props.selectedText} />
           </label>
           <div className="info-callout">
             <Info size={18} />
@@ -1892,8 +2105,10 @@ function RelateEntriesDialog(props: {
               <span>復元時の代表表記</span>
               <input
                 aria-label="復元時の代表表記"
+                className="dialog-input"
                 onChange={(event) => props.onRestorationTextChange(event.target.value)}
                 required
+                type="text"
                 value={props.restorationText}
               />
             </label>
@@ -2028,16 +2243,31 @@ function ConfirmDialog(props: {
   children: ReactNode;
   confirmLabel: string;
   danger?: boolean;
+  dangerIcon?: "eraser" | "trash";
+  dangerTitle?: string;
   onCancel: () => void;
   onConfirm: () => void;
   title: string;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useDialogFocus({
+    dialogRef,
+    initialFocusRef: cancelButtonRef,
+    onEscape: props.onCancel,
+  });
+
   return (
     <div className="modal-backdrop">
       <div
         aria-labelledby="confirm-title"
-        className={props.danger ? "modal compact clear-confirm-modal" : "modal compact"}
+        aria-describedby="confirm-description"
+        aria-modal="true"
+        className={props.danger ? "modal compact confirmation-modal clear-confirm-modal" : "modal compact confirmation-modal"}
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <div className="modal-header">
           <h2 id="confirm-title">{props.title}</h2>
@@ -2052,12 +2282,13 @@ function ConfirmDialog(props: {
           </button>
         </div>
         <div className="modal-body">
-          <p>{props.children}</p>
+          <p id="confirm-description">{props.children}</p>
         </div>
         <div className="modal-footer">
           <button
             className="button button-ghost"
             onClick={props.onCancel}
+            ref={cancelButtonRef}
             title="操作をキャンセルします"
             type="button"
           >
@@ -2066,10 +2297,12 @@ function ConfirmDialog(props: {
           <button
             className={props.danger ? "button button-danger" : "button button-primary"}
             onClick={props.onConfirm}
-            title={props.danger ? "入力内容をすべて消去します" : props.confirmLabel}
+            title={props.danger ? props.dangerTitle ?? props.confirmLabel : props.confirmLabel}
             type="button"
           >
-            {props.danger ? <Eraser size={18} /> : <Copy size={18} />}
+            {props.danger ? (
+              props.dangerIcon === "trash" ? <Trash2 size={18} /> : <Eraser size={18} />
+            ) : <Copy size={18} />}
             {props.confirmLabel}
           </button>
         </div>

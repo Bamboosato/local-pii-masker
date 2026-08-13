@@ -772,6 +772,26 @@ describe("appReducer", () => {
     expect(deleted.entries).toHaveLength(0);
     expect(deleted.normalizationLockReason).toBe("candidate_registered");
   });
+
+  it("保存済み対応表を削除した後は現在の作業を残して新規保存扱いにする", () => {
+    const state: AppState = {
+      ...initialAppState,
+      originalText: "山田",
+      mapping: {
+        mappingId: "mapping-1",
+        name: "既存の対応表",
+        createdAt: 1,
+        updatedAt: 2,
+        revision: 1,
+        fingerprint: "fingerprint-1",
+      },
+    };
+
+    const next = appReducer(state, { type: "clearMaskMappingReference" });
+
+    expect(next.originalText).toBe(state.originalText);
+    expect(next.mapping).toBeUndefined();
+  });
 });
 
 function createSequentialId(): () => string {

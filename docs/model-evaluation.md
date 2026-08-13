@@ -191,9 +191,12 @@ Chrome Worker実測：
 - 本番プレビューの24リクエストはすべてGETで、入力文字列はURLへ含まれなかった
 - 外部通信先はHugging Faceとモデル配信に使われるXetだけで、原文・候補・対応表の送信はなかった
 - ONNX RuntimeのWASM/MJSはViteビルドへ取り込み、同一オリジンから取得する。`cdn.jsdelivr.net`への実行時依存は除去した
-- LocalStorage、SessionStorage、IndexedDB、Cookieは空で、Cache Storageにはモデル、Tokenizer、ONNX Runtime資材だけが保存された
+- 保存操作を行わない検証ではLocalStorage、SessionStorage、IndexedDB、Cookieにユーザーデータがなく、Cache Storageにはモデル、Tokenizer、ONNX Runtime資材だけが保存された
+- 明示保存を行う検証では、機密データが暗号化されたOPFSセッションファイルだけに保存され、Cache Storage、Service Worker、ネットワーク、Consoleへ出ないことを確認する。`index.json`は許可された一覧用メタデータだけを含む
 
 Phase 7では、NERモデルを当面Hugging Face Hubから取得し、`jiting/xlm-roberta-ner-japanese_onnx`の取得リビジョン`8d70fc4`を固定する。公開モデル資材のキャッシュはTransformers.jsのブラウザキャッシュを所有者とし、Service Workerのアプリシェルキャッシュとは分離する。オフラインでモデルが未取得・破損・容量超過の場合は、NERを利用不可として形式検出と手動追加へ縮退する。
+
+マスク対応表の暗号化、OPFS、復旧、競合、一覧メタデータ境界は[マスク対応表のローカル保存要件](local-work-history-requirements.md)と[Storage API利用方針](storage-api-policy.md)を参照する。
 
 100文書PoCとChrome Worker実測の範囲では現行モデルを維持する。次は200～300文書の最終確認用データによる評価を優先する。8GB級PC、macOS Chrome、初回取得失敗・低速回線の確認は後続フェーズへ延期する。
 

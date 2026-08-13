@@ -25,6 +25,8 @@
   --radius: 4px;
   --section-header-height: 52px;
   --compact-control-height: 32px;
+  --dialog-control-height: 48px;
+  --dialog-inline-padding: 24px;
   --workspace-footer-height: 44px;
   --empty-guidance-color: #5f6b7a;
   --empty-guidance-font-size: 16px;
@@ -284,11 +286,14 @@ button:disabled {
 }
 
 .header-menu-popover {
+  box-sizing: border-box;
+  width: max-content;
   position: absolute;
   z-index: 30;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 168px;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
@@ -299,6 +304,7 @@ button:disabled {
 .header-menu-item {
   display: flex;
   width: 100%;
+  box-sizing: border-box;
   min-height: 36px;
   align-items: center;
   gap: 8px;
@@ -309,6 +315,19 @@ button:disabled {
   font-weight: 700;
   padding: 0 10px;
   text-align: left;
+  white-space: nowrap;
+}
+
+.header-menu-group {
+  padding: 2px 0;
+}
+
+.header-menu-group-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 5px 10px 3px;
 }
 
 .header-menu-item.danger {
@@ -357,7 +376,7 @@ button:disabled {
 
 .header-menu-separator {
   height: 1px;
-  margin: 4px 0;
+  margin: 4px 6px;
   background: var(--line-soft);
 }
 
@@ -1257,7 +1276,180 @@ button:disabled {
 }
 
 .modal.compact {
-  width: min(460px, calc(100vw - 32px));
+  width: min(480px, calc(100vw - 32px));
+}
+
+.mapping-modal {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.mapping-open-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.mapping-storage-note,
+.mapping-error {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.mapping-storage-note {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.mapping-error {
+  color: var(--danger-strong);
+  font-weight: 700;
+}
+
+.mapping-field {
+  gap: 8px;
+}
+
+.mapping-field small {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.mapping-save-mode-fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.mapping-save-mode-fieldset legend {
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mapping-save-mode-fieldset label {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.mapping-library-body {
+  gap: 14px;
+}
+
+.mapping-library-footer {
+  justify-content: flex-end;
+}
+
+.mapping-list {
+  display: grid;
+  max-height: 300px;
+  gap: 8px;
+  overflow: auto;
+}
+
+.mapping-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.mapping-list-details {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.mapping-list-details strong,
+.mapping-list-details small {
+  overflow-wrap: anywhere;
+}
+
+.mapping-list-details small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.mapping-list-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.mapping-open-button {
+  min-width: 64px;
+}
+
+.mapping-row-menu {
+  position: relative;
+}
+
+.mapping-row-menu-trigger {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.mapping-row-menu-popover {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 152px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  padding: 4px;
+}
+
+.mapping-row-menu-popover.is-open-upward {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.mapping-row-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  padding: 0 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.mapping-row-menu-item.is-danger {
+  color: var(--danger-strong);
+  font-weight: 800;
+}
+
+.mapping-library-description {
+  color: var(--text-muted) !important;
+  font-size: 13px;
+  line-height: 1.5 !important;
+}
+
+.mapping-open-name {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.mapping-library-danger-action {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
 }
 
 .normalization-backdrop {
@@ -1524,53 +1716,111 @@ button:disabled {
 
 .modal-header {
   border-bottom: 1px solid var(--line);
-  padding: 24px 28px;
+  padding: 20px var(--dialog-inline-padding);
 }
 
 .normalization-modal .modal-header {
-  padding: 7px 20px;
+  padding: 20px var(--dialog-inline-padding);
 }
 
 .normalization-modal .modal-header h2 {
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .modal-header h2 {
   margin: 0;
   color: #000;
-  font-size: 28px;
-  line-height: 1.2;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.375;
+  overflow-wrap: anywhere;
 }
 
 .modal-body {
   display: grid;
-  gap: 22px;
+  gap: 20px;
   min-height: 0;
   overflow: auto;
-  padding: 28px;
+  padding: 20px var(--dialog-inline-padding) 24px;
 }
 
 .modal-body p {
   margin: 0;
   color: #334155;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 .modal-footer {
   justify-content: flex-end;
-  gap: 16px;
+  gap: 12px;
   border-top: 1px solid var(--line);
-  padding: 20px 28px;
+  padding: 16px var(--dialog-inline-padding) 20px;
 }
 
 .modal-footer .button {
-  min-height: var(--compact-control-height);
-  height: var(--compact-control-height);
-  padding: 0 14px;
+  min-height: var(--dialog-control-height);
+  height: auto;
+  padding: 0 16px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.modal .icon-button {
+  flex: 0 0 var(--dialog-control-height);
+  width: var(--dialog-control-height);
+  height: var(--dialog-control-height);
+}
+
+.modal .field input:not([type="radio"]),
+.modal .field select,
+.modal .dialog-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--dialog-control-height);
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: #111827;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 10px 14px;
+}
+
+.modal .field input:not([type="radio"]):focus-visible,
+.modal .field select:focus-visible,
+.modal .dialog-input:focus-visible {
+  border-color: var(--blue);
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.confirmation-target,
+.confirmation-note {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.confirmation-target {
+  font-weight: 700;
+}
+
+.confirmation-note {
+  margin-top: 8px;
 }
 
 .modal.clear-confirm-modal {
   width: min(520px, calc(100vw - 32px));
+}
+
+.modal.confirmation-modal .modal-header h2 {
+  font-size: 22px;
+  line-height: 1.4;
 }
 
 .relation-modal {
@@ -1695,11 +1945,11 @@ button:disabled {
 
 .normalization-modal .modal-footer {
   gap: 12px;
-  padding: 10px 20px;
+  padding: 16px var(--dialog-inline-padding) 20px;
 }
 
 .normalization-cancel-button {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .normalization-apply-button {
@@ -1708,21 +1958,11 @@ button:disabled {
 
 .field {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   color: #374151;
-  font-weight: 700;
-}
-
-.field input,
-.field select {
-  height: 64px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: #111827;
-  font-size: 20px;
-  font-weight: 800;
-  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .field strong {
@@ -1900,5 +2140,30 @@ button:disabled {
   .entry-list.is-empty .empty-state {
     flex: 0 0 auto;
     padding: 18px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-menu-popover {
+    width: min(260px, calc(100vw - 24px));
+    min-width: 0;
+  }
+
+  .modal-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modal-footer .button {
+    width: 100%;
+  }
+
+  .mapping-list-item {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .mapping-list-actions {
+    justify-content: flex-end;
   }
 }
