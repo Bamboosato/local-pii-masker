@@ -6,8 +6,40 @@ import {
   selectSessionCounts,
   selectVisibleEntries,
 } from "./selectors";
+import { createMaskMappingSnapshot } from "../domain/mapping/snapshot";
 
 describe("appReducer", () => {
+  it("対応表の読込時は原文・外部回答を保持して復元欄を閉じる", () => {
+    const state = appReducer({ ...initialAppState, restoreExpanded: true, externalResponse: "合成回答", originalText: "検証太郎" }, {
+      type: "addManualEntry", value: { id: "entry-1", selectedText: "検証太郎", category: "PERSON" },
+    });
+    const mapping = createMaskMappingSnapshot({ mappingId: "mapping-1", name: "合成検証", createdAt: 1, updatedAt: 2, revision: 1, occurrenceMaskingMode: "contextual_ambiguous_surnames", entries: state.entries });
+    const loaded = appReducer(state, { type: "loadMaskMapping", mapping });
+    expect(loaded.restoreExpanded).toBe(false);
+    expect(loaded.originalText).toBe("検証太郎");
+    expect(loaded.externalResponse).toBe("合成回答");
+    expect(selectRestoredResponse({ ...loaded, externalResponse: loaded.entries[0].token })).toBe("検証太郎");
+  });
+  it("関連付け前の情報が欠落した状態で解除・推測補正を行わない", () => {
+    const state = appReducer({ ...initialAppState, originalText: "検証太郎" }, { type: "addManualEntry", value: { id: "entry-1", selectedText: "検証太郎", category: "PERSON" } });
+    state.entries[0] = { ...state.entries[0], relatedGroupId: "legacy" };
+    const next = appReducer(state, { type: "unlinkRelatedEntry", id: "entry-1" });
+    expect(next.entries).toEqual(state.entries);
+    expect(next.notice).toContain("解除できません");
+  });
+  it("関連付けの保存を拒否し、解除→保存→再読込→復元で各表記を維持する", () => {
+    let state = { ...initialAppState, originalText: "検証太郎と検証" };
+    for (const [id, selectedText] of [["entry-1", "検証太郎"], ["entry-2", "検証"]]) {
+      state = appReducer(state, { type: "addManualEntry", value: { id, selectedText, category: "PERSON" } });
+    }
+    state = appReducer(state, { type: "relateEntries", ids: ["entry-1", "entry-2"], groupId: "related-1", mode: "new", restorationText: "検証太郎" });
+    const snapshot = () => createMaskMappingSnapshot({ mappingId: "mapping-1", name: "合成検証", createdAt: 1, updatedAt: 2, revision: 1, occurrenceMaskingMode: "contextual_ambiguous_surnames", entries: state.entries });
+    expect(snapshot).toThrow("関連付け");
+    state = appReducer(state, { type: "unlinkRelatedGroup", id: "entry-1" });
+    const loaded = appReducer({ ...initialAppState, originalText: state.originalText }, { type: "loadMaskMapping", mapping: JSON.parse(JSON.stringify(snapshot())) });
+    expect(new Set(loaded.entries.map((entry) => entry.token)).size).toBe(2);
+    expect(selectRestoredResponse({ ...loaded, externalResponse: selectMaskedText(loaded) })).toBe("検証太郎と検証");
+  });
   it("手動追加後に同一文字列の全出現を有効なマスク対象にする", () => {
     const withText = appReducer(initialAppState, {
       type: "setOriginalText",

@@ -156,7 +156,7 @@ Centralize normalization and matching logic. Do not duplicate it in UI component
 - PERSON association is explicit, preserves entries per original string, and shares a token and representative restoration text. New groups require at least two enabled, unassociated PERSON entries; adding to an existing group requires at least one. Block association and unlinking while the external response contains non-whitespace text.
 - Enable/disable operations on an associated entry affect the whole group. Follow FR-17a and AC-07b for association and unlinking behavior.
 - Loading a saved mapping re-searches the current original text; it must not restore an original document or a work session. Clearing the current work must not delete saved mappings. Deleting saved mappings must not automatically clear the current work.
-- Persisted mapping uniqueness follows the storage requirements. Current validator and save/load/unlink gaps are recorded in the status reports; do not treat those gaps as approved exceptions or silently relax the requirements.
+- Persisted mapping v1 requires unique entry IDs, normalized targets and tokens. Reject associated mappings on both save and load; v1 cannot preserve pre-association tokens and restoration strings. Keep old rejected files intact. Persisting associations requires separately approved requirements and a schema revision.
 
 ## 6. Data model direction
 
@@ -369,6 +369,10 @@ Cover the acceptance criteria in `docs/requirements.md` and `docs/ui-design.md`,
 - explicit mapping save/load/deletion and unsaved-change handling, without restoring the original work session
 
 For persistence changes, verify the complete save → load → unlink → restore flow as well as isolated functions. Include corrupt/missing files, rollback, unsupported OPFS, and concurrent updates where relevant. Use the documented gaps to guide regression coverage rather than claiming that existing passing tests prove those gaps are resolved.
+
+Keep ciphertext immutable per revision and preserve backup indexes with the exact encrypted files they reference. A corrupt/missing index must not silently become an empty store. Backup recovery is read-only; never overwrite or delete old files automatically. Expose unreferenced and temporary file counts, report partial deletion failures, and allow retry. Web Locks are mandatory for writes; without them, allow reads only. Revision checks alone are not atomic exclusion. Do not resurrect deleted mappings from recovery indexes.
+
+Model inference readiness and public cache completeness are separate states. Use the dedicated custom-cache adapter and pinned public-resource fetch boundary. Cache failures must not abort otherwise successful online inference or expose exception text. Clear only the current model's allowlisted assets after explicit confirmation; never clear the entire origin or OPFS. Verify real NER after a new Worker/offline reload, or report failed-cache fallback separately. `RUN_REAL_NER_E2E=1` opts into the large public download test; do not claim successful offline NER from a simulated test or fallback result.
 
 ### Network/privacy verification
 

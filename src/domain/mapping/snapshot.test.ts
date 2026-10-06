@@ -22,6 +22,13 @@ function entry(overrides: Partial<MaskEntry> = {}): MaskEntry {
 }
 
 describe("mask mapping snapshot", () => {
+  it.each([
+    { id: "entry-1", originalText: "検証花子", normalizedText: "検証花子", token: "[人名_2]" },
+    { id: "entry-2", originalText: "山田太郎", normalizedText: "山田太郎", token: "[人名_2]" },
+    { id: "entry-2", originalText: "検証花子", normalizedText: "検証花子", token: "[人名_1]" },
+  ])("ID・正規化対象・トークンのいずれかが重複する保存を拒否する: %j", (duplicate) => {
+    expect(() => createMaskMappingSnapshot({ mappingId: "mapping-1", name: "合成検証", createdAt: 1, updatedAt: 2, revision: 0, occurrenceMaskingMode: "contextual_ambiguous_surnames", entries: [entry(), entry(duplicate)] })).toThrow("一意");
+  });
   it("有効な対応だけを安定した順序で保存し、原文や派生値を含めない", () => {
     const mapping = createMaskMappingSnapshot({
       mappingId: "mapping-1",
@@ -80,7 +87,7 @@ describe("mask mapping snapshot", () => {
     expect(reapplied[0]).not.toHaveProperty("start");
   });
 
-  it("同一関連付けの対象は1つのトークンを共有できる", () => {
+  it("保存形式v1は関連付けの共有トークンを拒否し、解除後の保存を促す", () => {
     expect(() => parseMaskMapping({
       schemaVersion: 1,
       mappingId: "mapping-1",
@@ -93,7 +100,7 @@ describe("mask mapping snapshot", () => {
         { id: "entry-1", targetText: "山田", normalizedTargetText: "山田", token: "[人名_1]", restorationText: "山田太郎", category: "PERSON", sources: ["manual"], relationId: "group-1", manual: true },
         { id: "entry-2", targetText: "山田太郎", normalizedTargetText: "山田太郎", token: "[人名_1]", restorationText: "山田太郎", category: "PERSON", sources: ["ner"], relationId: "group-1", manual: false },
       ],
-    })).not.toThrow();
+    })).toThrow("関連付け");
   });
 
   it("関連付けなしの同一トークンや、1対象への複数トークンを許可しない", () => {

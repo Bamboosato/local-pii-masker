@@ -56,6 +56,22 @@ describe("PwaStatus", () => {
     );
   });
 
+  it("推論成功とキャッシュ失敗を別々に示し、公開モデルだけを削除する操作を提供する", async () => {
+    mockServiceWorker(mockRegistration());
+    const clear = vi.fn();
+    const user = userEvent.setup();
+    render(<PwaStatus hasSessionData modelState="available" cacheStatus={{ state: "partial", issue: "internal" }} onClearModelCache={clear} />);
+    expect(await screen.findByRole("status", { name: "PWA状態" })).toHaveTextContent("モデルキャッシュ未完了");
+    expect(screen.getByText(/容量不足とは断定できません/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "モデルキャッシュを削除" }));
+    expect(clear).toHaveBeenCalledOnce();
+  });
+  it("AI検出中はキャッシュ削除を禁止する", async () => {
+    mockServiceWorker(mockRegistration());
+    render(<PwaStatus hasSessionData modelState="available" cacheStatus={{ state: "partial", issue: "quota" }} modelBusy onClearModelCache={vi.fn()} />);
+    expect(await screen.findByRole("button", { name: "モデルキャッシュを削除" })).toBeDisabled();
+  });
+
   it("編集中は更新を適用せず延期する", async () => {
     const waiting = { postMessage: vi.fn() } as unknown as ServiceWorker;
     mockServiceWorker(mockRegistration(waiting));
