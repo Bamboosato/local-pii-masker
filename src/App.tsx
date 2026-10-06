@@ -67,7 +67,9 @@ import { refineDetectionCandidates } from "./domain/detection/refineDetectionCan
 import {
   NerDetectionCancelledError,
   runNerDetection,
+  resetNerWorker,
 } from "./domain/detection/ner/runNerDetection";
+import { clearPublicModelCache, inspectPublicModelCache, type ModelCacheStatus } from "./domain/detection/ner/modelCache";
 import type { NerDetectionProgress } from "./domain/detection/ner/types";
 import { runRegexDetection } from "./domain/detection/regex/runRegexDetection";
 import { countOccurrences, findOccurrences } from "./domain/mask/findOccurrences";
@@ -77,6 +79,7 @@ import { createMaskToken } from "./domain/mask/tokenFactory";
 import {
   deleteAllMaskMappings,
   isMappingStorageSupported,
+  inspectMappingStorage,
 } from "./domain/mapping/opfsRepository";
 import { createMaskMappingFingerprint } from "./domain/mapping/snapshot";
 import type { MaskMapping } from "./domain/mapping/types";
@@ -183,10 +186,32 @@ export default function App() {
   const [entrySearchOpen, setEntrySearchOpen] = useState(false);
   const [detectionPhase, setDetectionPhase] = useState<DetectionPhase>("idle");
   const [modelState, setModelState] = useState<PwaModelState>("unknown");
+  const [modelCacheStatus, setModelCacheStatus] = useState<ModelCacheStatus>({ state: "unknown" });
+  const [modelCacheClearOpen, setModelCacheClearOpen] = useState(false);
+  const [modelCacheClearing, setModelCacheClearing] = useState(false);
   const [showDetectionProgress, setShowDetectionProgress] = useState(false);
   const [restoreInputsExpanded, setRestoreInputsExpanded] = useState(false);
   const [restoreTextareaHeight, setRestoreTextareaHeight] = useState<number>();
   const mappingStorageSupported = isMappingStorageSupported();
+  useEffect(() => {
+    let disposed = false;
+    void inspectPublicModelCache().then((status) => {
+      if (!disposed) setModelCacheStatus((current) => current.state === "unknown" ? status : current);
+    });
+    return () => { disposed = true; };
+  }, []);
+  useEffect(() => {
+    if (!mappingStorageSupported) return;
+    let disposed = false;
+    void inspectMappingStorage().then((inventory) => {
+      if (!disposed && (inventory.recovery || inventory.unreferencedFiles > 0 || inventory.temporaryFiles > 0)) {
+        dispatch({ type: "setNotice", value: "保存領域に復旧または残存ファイルの確認が必要です。保存済み対応表の管理を開いて確認してください。データは自動削除しません。" });
+      }
+    }).catch(() => {
+      if (!disposed) dispatch({ type: "setNotice", value: "保存領域を確認できませんでした。現在の作業は引き続き利用できます。" });
+    });
+    return () => { disposed = true; };
+  }, [mappingStorageSupported]);
   const normalization = useTextNormalization();
   const detectionAbortRef = useRef<AbortController | undefined>(undefined);
   const latestDetectionMergeContextRef = useRef({
@@ -711,6 +736,7 @@ export default function App() {
       dispatch({ type: "setNotice", value: "保存済みの対応表をすべて削除しました。現在の作業は消去していません。" });
     } catch {
       setMappingDeleteAllConfirmOpen(false);
+      setMappingLibraryRefreshKey((key) => key + 1);
       dispatch({ type: "setNotice", value: "保存済みの対応表を削除できませんでした。" });
     }
   }
@@ -810,6 +836,7 @@ export default function App() {
           onProgress: (progress) => {
             setDetectionPhase(toDetectionPhase(progress));
             setModelState(progress.phase === "loading" ? "loading" : "available");
+            if (progress.cache) setModelCacheStatus(progress.cache);
           },
         });
         setModelState("available");
@@ -950,7 +977,7 @@ export default function App() {
           </span>
         </div>
         <div className="header-actions">
-          <PwaStatus hasSessionData={hasSessionData} modelState={modelState} />
+          <PwaStatus hasSessionData={hasSessionData} modelState={modelState} cacheStatus={modelCacheStatus} modelBusy={isDetecting || modelCacheClearing} onClearModelCache={() => setModelCacheClearOpen(true)} />
           <div className="header-menu" ref={headerMenuRef}>
             <button
               aria-controls="header-session-menu"
@@ -1077,7 +1104,7 @@ export default function App() {
                 <>
                   <button
                     className="button button-primary"
-                    disabled={state.originalText.trim().length === 0}
+                    disabled={state.originalText.trim().length === 0 || modelCacheClearing}
                     onClick={() => {
                       if (isDetecting) {
                         abortActiveDetection("manual");
@@ -1527,11 +1554,31 @@ export default function App() {
           title="すべての対応表を削除しますか？"
         >
           <>
-            <span className="confirmation-target">保存済み対応表{mappingDeleteAllCount}件を削除します。</span>
+            <span className="confirmation-target">{mappingDeleteAllCount > 0 ? `保存済み対応表${mappingDeleteAllCount}件と、過去版・未参照・一時ファイルを削除します。` : "一覧に登録されていない保存データ・一時ファイルを含め、対応表の保存領域をすべて削除します。"}</span>
             <span className="confirmation-note">この操作は取り消せません。現在の作業には影響しません。</span>
           </>
         </ConfirmDialog>
       ) : null}
+
+      {modelCacheClearOpen ? <ConfirmDialog
+        confirmLabel="モデルキャッシュを削除"
+        danger
+        onCancel={() => setModelCacheClearOpen(false)}
+        onConfirm={() => {
+          if (isDetecting || modelCacheClearing) return;
+          setModelCacheClearOpen(false);
+          setModelCacheClearing(true);
+          resetNerWorker();
+          void clearPublicModelCache().then(async () => {
+            setModelState("unknown");
+            setModelCacheStatus(await inspectPublicModelCache());
+            dispatch({ type: "setNotice", value: "現在のモデルの公開キャッシュを削除しました。オンラインで自動検出すると再取得します。" });
+          }).catch(() => {
+            dispatch({ type: "setNotice", value: "モデルキャッシュの削除を完了できませんでした。保存済み対応表と現在の作業は保持しています。" });
+          }).finally(() => setModelCacheClearing(false));
+        }}
+        title="モデルキャッシュを削除しますか？"
+      >現在のモデル資材だけを削除します。現在の作業、保存済み対応表、アプリのオフライン資材は保持します。AI検出にはオンラインでの再取得が必要です。</ConfirmDialog> : null}
 
       {normalization.state.open ? (
         <TextNormalizationDialog

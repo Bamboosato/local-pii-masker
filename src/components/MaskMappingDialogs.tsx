@@ -3,9 +3,12 @@ import { type FormEvent, type RefObject, useEffect, useRef, useState } from "rea
 import { createMaskMappingForSave } from "../domain/mapping/create";
 import {
   deleteMaskMapping,
+  inspectMappingStorage,
+  isMappingStorageWritable,
   listMaskMappings,
   loadMaskMapping,
   type MappingListItem,
+  type MappingStorageInventory,
   MappingStorageError,
   saveMaskMapping,
 } from "../domain/mapping/opfsRepository";
@@ -34,6 +37,7 @@ export function MaskMappingSaveDialog(props: {
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
   const isOverwrite = saveMode === "overwrite" && props.existing !== undefined;
+  const writable = isMappingStorageWritable();
 
   useDialogFocus({
     dialogRef,
@@ -100,6 +104,7 @@ export function MaskMappingSaveDialog(props: {
         </div>
         <div className="modal-body">
           <p className="mapping-storage-note">マスク対応表だけを暗号化して保存します。</p>
+          {!writable ? <p role="alert">タブ間の排他制御を利用できないため、対応表は読込専用です。</p> : null}
           {props.existing ? (
             <fieldset className="mapping-save-mode-fieldset">
               <legend>保存方法</legend>
@@ -160,7 +165,7 @@ export function MaskMappingSaveDialog(props: {
         </div>
         <div className="modal-footer">
           <button className="button button-ghost" disabled={saving} onClick={props.onClose} type="button">キャンセル</button>
-          <button className="button button-primary" disabled={saving} type="submit">
+          <button className="button button-primary" disabled={saving || !writable} type="submit">
             {saving ? <LoaderCircle className="loading-spinner" size={18} /> : <KeyRound size={18} />}
             {saving ? "保存中…" : isOverwrite ? "上書き保存" : "新規に保存"}
           </button>
@@ -188,6 +193,7 @@ export function MaskMappingLibraryDialog(props: {
     reportError.current = onError;
   }, [onError]);
   const [items, setItems] = useState<MappingListItem[]>([]);
+  const [inventory, setInventory] = useState<MappingStorageInventory>();
   const [busy, setBusy] = useState(true);
   const [loadedRefreshKey, setLoadedRefreshKey] = useState(-1);
   const [error, setError] = useState<string>();
@@ -201,6 +207,7 @@ export function MaskMappingLibraryDialog(props: {
   async function refresh() {
     setBusy(true);
     try {
+      setInventory(await inspectMappingStorage());
       setItems(await listMaskMappings());
       setError(undefined);
     } catch (cause) {
@@ -214,7 +221,10 @@ export function MaskMappingLibraryDialog(props: {
 
   useEffect(() => {
     let disposed = false;
-    void listMaskMappings()
+    void inspectMappingStorage().then((nextInventory) => {
+      if (!disposed) setInventory(nextInventory);
+      return listMaskMappings();
+    })
       .then((nextItems) => {
         if (!disposed) {
           setItems(nextItems);
@@ -278,6 +288,7 @@ export function MaskMappingLibraryDialog(props: {
       const message = cause instanceof MappingStorageError ? cause.message : "対応表を削除できませんでした。";
       setDeleteError(message);
       reportError.current(message);
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -292,6 +303,7 @@ export function MaskMappingLibraryDialog(props: {
           error={error}
           focusMappingId={focusMappingId}
           items={items}
+          inventory={inventory}
           onClose={onClose}
           onDeleteAll={onDeleteAll}
           onDeleteRequest={requestDelete}
@@ -330,6 +342,7 @@ function MaskMappingLibraryView(props: {
   error?: string;
   focusMappingId?: string;
   items: MappingListItem[];
+  inventory?: MappingStorageInventory;
   onClose: () => void;
   onDeleteAll: (count: number) => void;
   onDeleteRequest: (item: MappingListItem, trigger: HTMLElement | null) => void;
@@ -342,6 +355,7 @@ function MaskMappingLibraryView(props: {
     error,
     focusMappingId,
     items,
+    inventory,
     onClose,
     onDeleteAll,
     onDeleteRequest,
@@ -416,7 +430,12 @@ function MaskMappingLibraryView(props: {
             対応表を開くと、現在の原文へマスク対応を適用します。
           </p>
           {busy && items.length === 0 ? <p role="status">一覧を読み込んでいます…</p> : null}
-          {!busy && items.length === 0 ? <p className="muted">保存済みの対応表はありません。</p> : null}
+          {!busy && !error && items.length === 0 ? <p className="muted">保存済みの対応表はありません。</p> : null}
+          {inventory ? <p className="mapping-storage-note" role="status">
+            保存領域：暗号化ファイル{inventory.encryptedFiles}件／未参照{inventory.unreferencedFiles}件／一時ファイル{inventory.temporaryFiles}件。残存ファイルは自動削除しません。
+            {inventory.recovery ? "一覧の復旧が必要です。バックアップから読める対応表は開けますが、保存・個別削除は停止しています。" : ""}
+            {!isMappingStorageWritable() ? "このブラウザでは読込専用です。" : ""}
+          </p> : null}
           {items.length > 0 ? (
             <div className="mapping-list" role="list">
               {items.map((item, itemIndex) => {
@@ -463,7 +482,7 @@ function MaskMappingLibraryView(props: {
                           aria-haspopup="menu"
                           aria-label={`${item.name}のその他の操作`}
                           className="icon-button mapping-row-menu-trigger"
-                          disabled={busy}
+                          disabled={busy || !inventory?.writable}
                           onClick={() => setMenuOpenId(isMenuOpen ? undefined : item.mappingId)}
                           ref={(element) => {
                             if (element) {
@@ -508,11 +527,11 @@ function MaskMappingLibraryView(props: {
               })}
             </div>
           ) : null}
-          {items.length > 0 ? (
+          {items.length > 0 || (inventory?.encryptedFiles ?? 0) > 0 || (inventory?.temporaryFiles ?? 0) > 0 ? (
             <div className="mapping-library-danger-action">
               <button
                 className="button button-danger-outline"
-                disabled={busy}
+                disabled={busy || !isMappingStorageWritable()}
                 onClick={() => onDeleteAll(items.length)}
                 type="button"
               >
@@ -565,7 +584,7 @@ function MaskMappingOpenDialog(props: {
     try {
       props.onLoaded(await props.onLoad(normalizedPassphrase));
     } catch {
-      const message = "対応表を開けませんでした。パスフレーズを確認してください。";
+      const message = "対応表を開けませんでした。パスフレーズ、保存データの破損、対応形式を確認してください。関連付けを含む旧対応表は変更せず保持します。";
       setError(message);
       requestAnimationFrame(() => passphraseRef.current?.focus());
     } finally {

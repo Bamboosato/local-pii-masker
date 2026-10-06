@@ -269,6 +269,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ),
         },
         activeTextView: "original",
+        restoreExpanded: false,
         selectedEntryId: undefined,
         selectedEntryIds: [],
         entryFilter: "enabled",
@@ -525,6 +526,9 @@ function unlinkRelatedEntries(
     (entry) => entry.relatedGroupId === target.relatedGroupId,
   );
   const shouldBreakGroup = scope === "group" || groupEntries.length <= 2;
+  if (groupEntries.some((entry) => entry.relatedOriginalToken === undefined || entry.relatedOriginalRestorationText === undefined)) {
+    return { ...state, notice: "関連付け前の対応情報がないため解除できません。対応表を変更せず、元の作業で確認してください。" };
+  }
   const entriesToUnlink = new Set(
     shouldBreakGroup
       ? groupEntries.map((entry) => entry.id)

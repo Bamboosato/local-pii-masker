@@ -12,6 +12,7 @@
   },
   "include": [
     "config/**/*.ts",
+    "scripts/security/**/*.ts",
     "playwright.dev.config.ts",
     "playwright.config.ts",
     "vite.config.ts",

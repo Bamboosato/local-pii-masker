@@ -177,7 +177,7 @@ async function main() {
       node: process.version,
       platform: platform(),
       architecture: arch(),
-      transformersJs: "4.2.0",
+      transformersJs: env.version,
     },
     corpus: {
       path: options.corpusPath,

@@ -53,6 +53,8 @@ flowchart LR
     MD[ONNX NER Model]
     ME[Mask Engine]
     RE[Restore Engine]
+    MR[Mask Mapping Repository]
+    OP[OPFS]
     CB[Clipboard]
 
     U --> UI
@@ -67,6 +69,8 @@ flowchart LR
     ST --> RE
     RE --> UI
     UI --> CB
+    UI <--> MR
+    MR <--> OP
 ```
 
 ### 3.1 UI層
@@ -80,6 +84,7 @@ flowchart LR
 - マスクを含む文章の入力
 - マスクを復元した文章とトークン検査結果の表示
 - セッション消去
+- マスク対応表の保存、一覧、読み込み、個別削除、全削除
 - マスキング前テキスト正規化の起動、前後確認、適用
 - 曖昧姓に対する文脈付き出現箇所マスク方式の固定適用
 
@@ -93,6 +98,7 @@ flowchart LR
 - UI状態
 - 原文リビジョン
 - 正規化ロック理由
+- 読み込んだ対応表の識別情報と永続化対象フィンガープリント
 
 状態はReactコンポーネントへ分散させず、`useReducer`または同等の一方向データフローで管理する。
 
@@ -190,6 +196,8 @@ export type MaskEntry = {
   restorationText: string;
   token: string;
   relatedGroupId?: string;
+  relatedOriginalRestorationText?: string;
+  relatedOriginalToken?: string;
   category: MaskCategory;
   sources: DetectionSource[];
   confidence?: number;
@@ -281,40 +289,11 @@ const entryKey = normalizedOriginalText;
 
 ### 7.2 基本方式
 
-MVPでは対象数が限定的であることを前提に、長さ降順で候補を評価する最長一致走査から開始する。
+現行実装は`src/domain/mask/maskText.ts`の`buildMaskSegments`で、NFC正規化した原文を1回走査する。有効かつ`approved`の項目を`normalizedText`の長さ降順、同長時はトークン順で評価し、文脈付き判定を通った最長一致を採用する。プレビューとコピー文字列は同じセグメントから生成する。
 
 文脈付きモードでは、最長一致走査の各候補位置について、候補が自動検出の曖昧な一文字姓かを確認する。該当する場合は、一般語パターン辞書、人名ラベル、敬称、姓名の連続、箇条書き、NERの人名結果を同じ原文位置で評価する。一般語パターンだけが一致した場合はその出現箇所を走査対象から除外し、人名文脈または判定不能の場合はマスクする。一般語パターン辞書は姓辞書と分離し、`src/domain/reference/singleSurnameCommonWordRules.ts` の `SINGLE_SURNAME_COMMON_WORD_RULES` で管理する。各ルールは姓、パターン、`prefix`/`literal` の種別、任意の説明を持つ。
 
-```ts
-type ActiveMask = Pick<MaskEntry, "originalText" | "token">;
-
-export function maskText(text: string, entries: ActiveMask[]): string {
-  const sorted = [...entries]
-    .filter((entry) => entry.originalText.length > 0)
-    .sort((a, b) => b.originalText.length - a.originalText.length);
-
-  let output = "";
-  let position = 0;
-
-  while (position < text.length) {
-    const matched = sorted.find((entry) =>
-      text.startsWith(entry.originalText, position),
-    );
-
-    if (matched) {
-      output += matched.token;
-      position += matched.originalText.length;
-      continue;
-    }
-
-    const codePoint = String.fromCodePoint(text.codePointAt(position)!);
-    output += codePoint;
-    position += codePoint.length;
-  }
-
-  return output;
-}
-```
+有効状態や文脈判定を省いた擬似コードを実装の正本にしない。実装と境界条件は`maskText.ts`、`contextualMasking.ts`および対応する単体テストを参照する。
 
 対象数や原文長によって性能が不足する場合は、TrieまたはAho-Corasick法への置き換えを検討する。アルゴリズム変更後も、同じ受入テストを維持する。
 
@@ -327,27 +306,25 @@ export function maskText(text: string, entries: ActiveMask[]): string {
 ### 8.1 要件
 
 - 原文中の通常文字列と衝突しにくい
-- セッション内で一意
+- セッション内で一意（明示的な同一人物関連付けではグループ内で共有）
 - カテゴリを識別できる
 - 外部AIによる分割・装飾・翻訳が起きにくい
 - 正規表現で厳密に検出できる
 
-初期候補：
+現行の表示・コピー形式：
 
 ```text
-[[MASK_PERSON_A7F31C]]
-[[MASK_ADDRESS_19B204]]
+[人名_1]
+[住所_1]
 ```
 
-想定パターン：
+検証・検査用パターン（カテゴリ表示名以外の未知トークンも検査する）：
 
 ```regex
-\[\[MASK_[A-Z_]+_[A-F0-9]{6,}\]\]
+\[(?!\[)[^\]\s]+_\d+\]
 ```
 
-連番だけでは、複数セッションの文章を混在させた場合や原文との衝突が起こりやすいため、ランダム識別子を含める。
-
-`crypto.randomUUID()`または`crypto.getRandomValues()`を使用し、暗号用途ではなく衝突回避用途として利用する。
+`createMaskToken`はカテゴリごとに1から連番を探索し、原文に含まれる文字列と既存項目のトークンを避ける。項目IDや対応表IDは別に生成するため、トークンにランダムIDは含めない。別セッション間の一意性は保証せず、異なる作業の回答を混在させない。保存済み対応表を開いた場合は保存されたトークンを維持する。
 
 ## 9. 検出パイプライン
 
@@ -582,7 +559,7 @@ type WorkerResponse =
 
 「セッションモード」はユーザーデータの保存方針を指す。公開モデル資材まで毎回破棄することは要求しない。
 
-Phase 7では、Service Workerが管理するキャッシュをアプリシェルに限定する。NERモデル、Tokenizer、ONNX Runtimeなどの公開モデル資材は、まずTransformers.jsのブラウザキャッシュを所有者とし、Service Workerとの二重キャッシュを避ける。アプリキャッシュは現行版と更新待ち版、モデル資材は固定リビジョンの1版だけを保持する。
+Service Workerはアプリ資産と同一オリジンにバンドルしたONNX RuntimeのMJS/WASMを保持する。Hugging FaceのNERモデル・TokenizerはTransformers.jsへ接続した専用アダプターがCache Storageを管理し、Service Workerへ渡さない。新規取得は固定リビジョンに限定する。既存旧版の自動削除は未実装で、明示的なモデル削除も現在の4資材だけを対象とする。
 
 ## 13. ネットワーク境界
 
@@ -635,6 +612,8 @@ stateDiagram-v2
 
 ## 15. エラー設計
 
+推論可否とモデルキャッシュ取得状態を分ける。`modelCache.ts`を`env.customCache`へ接続し、固定モデル・リビジョンの4資材だけを許可する。キャッシュの読み書き失敗を限定したコードへ変換してオンライン推論を継続する。必要ファイルの存在だけで再起動後のオフライン成功を保証しない。モデル専用削除はOPFS・アプリシェルを扱わない。
+
 エラーは、ユーザーデータを含まないコードと一般化したメッセージで管理する。
 
 | コード例 | 内容 | 復旧方針 |
@@ -654,39 +633,56 @@ stateDiagram-v2
 
 ログへ原文、候補文字列、マスクを復元した文章を出力しない。
 
-## 16. ディレクトリ構成案
+## 16. 現行ディレクトリ構成（主要部分）
 
 ```text
 src/
+├─ App.tsx
+├─ main.tsx
+├─ styles.css
 ├─ app/
-│  ├─ App.tsx
+│  ├─ normalizationAvailability.ts
 │  ├─ reducer.ts
 │  └─ selectors.ts
 ├─ components/
-│  ├─ TextWorkspace/
-│  ├─ EntityPanel/
-│  ├─ ModelStatus/
-│  └─ RestoreWorkspace/
+│  ├─ OriginalTextEditor.tsx
+│  ├─ TextNormalizationDialog.tsx
+│  ├─ MaskMappingDialogs.tsx
+│  ├─ PwaStatus.tsx
+│  └─ useDialogFocus.ts
 ├─ domain/
 │  ├─ mask/
 │  │  ├─ maskText.ts
 │  │  ├─ restoreText.ts
 │  │  ├─ inspectTokens.ts
 │  │  └─ tokenFactory.ts
+│  ├─ mapping/
+│  │  ├─ create.ts
+│  │  ├─ crypto.ts
+│  │  ├─ opfsRepository.ts
+│  │  ├─ reapply.ts
+│  │  ├─ snapshot.ts
+│  │  ├─ types.ts
+│  │  └─ validate.ts
 │  ├─ detection/
 │  │  ├─ mergeCandidates.ts
 │  │  ├─ regex/
-│  │  ├─ ner/
-│  │  └─ types.ts
-│  └─ normalization/
-│     ├─ shared/
-│     ├─ detection/
-│     └─ document/
+│  │  └─ ner/
+│  ├─ normalization/
+│  │  ├─ normalizeText.ts
+│  │  ├─ detection/
+│  │  └─ document/
+│  └─ types.ts
 ├─ hooks/
-└─ tests/
+│  └─ useTextNormalization.ts
+└─ pwa/
+   ├─ pwaClient.ts
+   └─ service-worker.template.js.txt
 ```
 
 ドメインロジックをReactコンポーネントから分離し、純粋関数として単体テスト可能にする。
+
+単体・コンポーネントテストは対象ファイルの近くの`*.test.ts(x)`、ブラウザ試験は`e2e/`と`e2e-dev/`、評価・性能・ソース監査は`scripts/`に置く。UIの一部は現在`App.tsx`内にあり、上記は将来のコンポーネント分割を完了したことを示さない。現行の実装と未達事項は[実装・文書の照合結果](implementation-status.md)を参照する。
 
 ## 17. 実装フェーズ
 
@@ -817,8 +813,8 @@ src/
 
 - Web Crypto APIによるAES-GCM/PBKDF2のEnvelope暗号化
 - 一覧用平文インデックスと暗号化マスク対応表ファイルの分離
-- 一時ファイル、バックアップ、起動時復旧、リビジョン競合検出
-- Web Locks APIが利用可能な場合の保存・削除・インデックス更新の排他制御
+- 一時ファイル検証、revision別の暗号化ファイル、旧ファイルと旧一覧の対になったバックアップ、読込専用の復旧、起動時・管理画面での残存件数表示
+- Web Locks APIによる読込・保存・削除の排他制御とrevision競合検出。Web Locks未対応時は読込専用
 - OPFS非対応時の保存機能だけの縮退
 
 詳細は[Storage API利用方針](storage-api-policy.md)と[マスク対応表のローカル保存要件](local-work-history-requirements.md)を正本とする。

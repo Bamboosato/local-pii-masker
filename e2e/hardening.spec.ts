@@ -107,7 +107,8 @@ test("メニューから正規化Workerの結果を確認して原文へ適用�
     const cancel = rect(".normalization-cancel-button");
     const apply = rect(".normalization-apply-button");
     const footerElement = root.querySelector<HTMLElement>(".modal-footer");
-    const mainActions = document.querySelector<HTMLElement>(".tab-actions");
+    const headerElement = root.querySelector<HTMLElement>(".modal-header");
+    const titleElement = headerElement?.querySelector<HTMLElement>("h2");
     return {
       modeWidth: mode?.width ?? 0,
       beforeWidth: before?.width ?? 0,
@@ -117,14 +118,22 @@ test("メニューから正規化Workerの結果を確認して原文へ適用�
       applyHeight: apply?.height ?? 0,
       footerPaddingTop: Number.parseFloat(getComputedStyle(footerElement ?? root).paddingTop),
       footerPaddingBottom: Number.parseFloat(getComputedStyle(footerElement ?? root).paddingBottom),
-      mainActionPaddingBottom: Number.parseFloat(getComputedStyle(mainActions ?? root).paddingBottom),
+      headerPaddingTop: Number.parseFloat(getComputedStyle(headerElement ?? root).paddingTop),
+      headerPaddingBottom: Number.parseFloat(getComputedStyle(headerElement ?? root).paddingBottom),
+      titleFontSize: Number.parseFloat(getComputedStyle(titleElement ?? root).fontSize),
     };
   });
   expect(Math.abs(layout.modeWidth - layout.beforeWidth)).toBeLessThanOrEqual(1);
-  expect(layout.headerHeight).toBeLessThanOrEqual(52);
-  expect(layout.footerHeight).toBeLessThanOrEqual(54);
-  expect(Math.abs(layout.footerPaddingTop - layout.mainActionPaddingBottom)).toBeLessThanOrEqual(1);
-  expect(Math.abs(layout.footerPaddingBottom - layout.mainActionPaddingBottom)).toBeLessThanOrEqual(1);
+  // The shared dialog design introduced with mapping storage supersedes the
+  // original compact normalization header/footer dimensions.
+  expect(layout.headerHeight).toBeLessThanOrEqual(90);
+  expect(layout.headerPaddingTop).toBe(20);
+  expect(layout.headerPaddingBottom).toBe(20);
+  expect(layout.titleFontSize).toBe(24);
+  expect(layout.footerHeight).toBeLessThanOrEqual(86);
+  expect(layout.footerPaddingTop).toBe(16);
+  expect(layout.footerPaddingBottom).toBe(20);
+  expect(layout.applyHeight).toBe(48);
   expect(Math.abs(layout.cancelHeight - layout.applyHeight)).toBeLessThanOrEqual(1);
   await expect(dialog.getByLabel("正規化後")).toContainText("氏名:山田 太郎");
 

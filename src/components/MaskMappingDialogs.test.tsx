@@ -11,6 +11,8 @@ const repositoryMock = vi.hoisted(() => ({
   listMaskMappings: vi.fn(),
   loadMaskMapping: vi.fn(),
   saveMaskMapping: vi.fn(),
+  inspectMappingStorage: vi.fn().mockResolvedValue({ encryptedFiles: 1, unreferencedFiles: 0, temporaryFiles: 0, writable: true, recovery: false }),
+  isMappingStorageWritable: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock("../domain/mapping/opfsRepository", async (importOriginal) => {
@@ -61,6 +63,7 @@ function renderLibrary(options?: {
   onLoaded?: (mapping: MaskMapping) => void;
 }) {
   repositoryMock.listMaskMappings.mockResolvedValue(options?.list ?? [mappingItem]);
+  repositoryMock.inspectMappingStorage.mockResolvedValue({ encryptedFiles: (options?.list ?? [mappingItem]).length, unreferencedFiles: 0, temporaryFiles: 0, writable: true, recovery: false });
   const onDeleteAll = options?.onDeleteAll ?? vi.fn();
   const onDeleted = options?.onDeleted ?? vi.fn();
   const onLoaded = options?.onLoaded ?? vi.fn();
@@ -118,7 +121,7 @@ describe("MaskMappingLibraryDialog", () => {
     await user.type(screen.getByLabelText("パスフレーズ"), "abcdefghijkl");
     await user.click(screen.getByRole("button", { name: "対応表を開く" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("対応表を開けませんでした。パスフレーズを確認してください。");
+    expect(await screen.findByRole("alert")).toHaveTextContent("パスフレーズ、保存データの破損、対応形式を確認してください");
     expect(screen.getByRole("heading", { name: "対応表を開く" })).toBeInTheDocument();
     expect(screen.queryByText("PBKDF2の反復回数が不正です。")).not.toBeInTheDocument();
     expect(screen.queryByText("山田太郎")).not.toBeInTheDocument();
@@ -138,6 +141,7 @@ describe("MaskMappingLibraryDialog", () => {
     expect(screen.getByRole("heading", { name: "対応表を削除しますか？" })).toBeInTheDocument();
     expect(screen.getByText(`「${mappingItem.name}」を削除します。`)).toBeInTheDocument();
     expect(screen.getByText("この操作は取り消せません。現在の作業には影響しません。")).toBeInTheDocument();
+    repositoryMock.inspectMappingStorage.mockResolvedValue({ encryptedFiles: 0, unreferencedFiles: 0, temporaryFiles: 0, writable: true, recovery: false });
 
     await user.click(screen.getByRole("button", { name: "削除" }));
 

@@ -120,6 +120,10 @@ function getWorker(): Worker {
   return worker;
 }
 
+export function resetNerWorker(): void {
+  if (worker) discardWorker(worker);
+}
+
 function discardWorker(currentWorker: Worker) {
   currentWorker.terminate();
 

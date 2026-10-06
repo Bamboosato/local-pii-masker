@@ -57,51 +57,22 @@ export function validateMappingForCurrentMode(mapping: MaskMapping): void {
 export function validateMappingUniqueness(
   entries: PersistedMaskMappingEntry[],
 ): void {
-  const targetToToken = new Map<string, string>();
-  const tokenToMapping = new Map<string, Pick<PersistedMaskMappingEntry, "relationId" | "restorationText" | "category">>();
-  const relationToMapping = new Map<string, Pick<PersistedMaskMappingEntry, "token" | "restorationText" | "category">>();
+  const targets = new Set<string>();
+  const tokens = new Set<string>();
+  const ids = new Set<string>();
 
   for (const entry of entries) {
     const target = entry.normalizedTargetText;
-    const targetToken = targetToToken.get(target);
-
-    if (targetToken && targetToken !== entry.token) {
+    if (targets.has(target) || tokens.has(entry.token) || ids.has(entry.id)) {
       throw new MaskMappingValidationError("対応表のマスク対応が一意ではありません。");
     }
-
-    const tokenMapping = tokenToMapping.get(entry.token);
-    if (
-      tokenMapping &&
-      (tokenMapping.relationId !== entry.relationId ||
-        tokenMapping.restorationText !== entry.restorationText ||
-        tokenMapping.category !== entry.category)
-    ) {
-      throw new MaskMappingValidationError("対応表のマスク対応が一意ではありません。");
-    }
-
+    // v1 cannot preserve the pre-association tokens/restoration strings.
     if (entry.relationId) {
-      const relationMapping = relationToMapping.get(entry.relationId);
-      if (
-        relationMapping &&
-        (relationMapping.token !== entry.token ||
-          relationMapping.restorationText !== entry.restorationText ||
-          relationMapping.category !== entry.category)
-      ) {
-        throw new MaskMappingValidationError("対応表の関連付けが一意ではありません。");
-      }
-      relationToMapping.set(entry.relationId, {
-        token: entry.token,
-        restorationText: entry.restorationText,
-        category: entry.category,
-      });
+      throw new MaskMappingValidationError("関連付けを解除してから対応表を保存してください。この形式では関連付けを保存できません。");
     }
-
-    targetToToken.set(target, entry.token);
-    tokenToMapping.set(entry.token, {
-      relationId: entry.relationId,
-      restorationText: entry.restorationText,
-      category: entry.category,
-    });
+    targets.add(target);
+    tokens.add(entry.token);
+    ids.add(entry.id);
   }
 }
 
