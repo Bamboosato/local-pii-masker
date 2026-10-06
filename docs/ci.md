@@ -45,6 +45,7 @@ GitHubのブランチ保護で`Dependency audit`と`Verify`をGitHub Actions由�
 ## 依存更新時の確認
 
 - lockfileの変更対象と監査結果を確認し、不要なメジャー更新や無関係なパッケージ更新を避ける。
+- lockfileの再生成にはCIと同じnpm版を使い、任意依存も記録する。初回導入ではWindows/npm 11.6.2の更新結果に`@emnapi/runtime`が欠落し、Ubuntu/npm 11.19.0の`npm ci`が停止した。npm 11.19.0の`install --package-lock-only --ignore-scripts`で補完した。通常CIの`npm ci`を`npm install`へ置き換えて不整合を隠さない。
 - Transformers.jsの更新では、直接指定する`onnxruntime-web`をTransformers.jsが要求する版に正確にそろえる。配信するWASM/MJSと推論コードの不一致を`runtimeDependencies.test.ts`で検出する。
 - `test:security`、lint、typecheck、単体/統合テスト、build、対象E2Eを実施する。監査が失敗する条件は合成レポートで再現し、実ネットワーク断に依存するフレークを避ける。
 - NER runtime変更時は本番プレビューで実モデルの読込・推論・マスク反映を確認する。モデル評価結果には実行したTransformers.jsの版を出力し、古い測定値の版を上書きしない。
