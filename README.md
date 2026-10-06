@@ -126,12 +126,19 @@ npm run dev
 | `npm run build` | 型チェックとVite本番ビルド |
 | `npm run test:e2e` | ビルド後のChromium E2E |
 | `npm run test:e2e:edge` | ビルド後のインストール済みMicrosoft Edge E2E |
-| `npm run test:e2e:dev` | Vite開発サーバーの疎通・NER失敗時の継続 |
+| `npm run test:e2e:dev` | React Refreshを含む画面起動・開発用CSP |
 | `npm run benchmark:core` | 合成1,000文字・10,000文字の形式検出とマスク生成（NER時間を含まない） |
 | `npm run evaluate:ner -- --model jiting/xlm-roberta-ner-japanese_onnx --device cpu --dtype q8 --output <result.json>` | 合成コーパスによるNER評価（結果はリポジトリ外へ出力） |
-| `npm run audit:dependencies` | npm依存パッケージの脆弱性監査 |
+| `npm run test:security` | ソースプライバシー、依存監査の失敗判定、NER用ONNX Runtimeの版一致 |
+| `npm run audit:dependencies` | 本番依存・全依存を監査。全重大度で失敗し、`.security-audit/`へJSON証跡を保存 |
 
 Chromium E2Eの初回実行前は`npx playwright install chromium`でブラウザを準備します。同一実機のブラウザスクリプトは並列実行しません。E2Eのトレース・失敗時スクリーンショットは`output/playwright/test-results/`、HTMLレポートは`output/playwright/report/`へ出力します。テストには合成データだけを使用してください。E2EはNER失敗を模した継続確認を含みますが、公開モデルを実際に取得する精度・性能評価の代わりにはなりません。
+
+## CIと依存関係監査
+
+[GitHub ActionsのCI](.github/workflows/ci.yml)は、`main`へのPR・pushで基本検証と依存監査を別ジョブとして実行します。Node.js 24と`npm ci`を使用し、lint・型チェック・単体/統合テスト・ビルド・開発サーバーと本番プレビューのChromium E2Eを確認します。月曜日09:00 JSTの週次実行は依存監査のみで、手動実行も可能です。週次実行と手動実行はワークフローがデフォルトブランチへ反映されてから有効になります。
+
+監査は本番依存と開発依存を含む全体に対して行い、脆弱性、監査通信失敗、不正な応答を失敗として扱います。現在の監査例外はありません。監査結果と合成データだけを使ったブラウザー証跡は14日間保存します。必須チェック、検証の対象外、更新手順は[CI・依存関係監査](docs/ci.md)を参照してください。
 
 ## ライセンス
 

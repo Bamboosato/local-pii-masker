@@ -16,7 +16,7 @@ Local PII MaskerのMVPで使用する日本語固有表現抽出（NER）モデ�
 | MVP採用モデル | `jiting/xlm-roberta-ner-japanese_onnx` |
 | 採用状態 | 選定用100文書と未見100文書、Chrome Worker実測を完了し、MVP採用を決定 |
 | 構造化PII | NERへ依存せず、正規表現・検査ロジックを使用 |
-| 現在の実装バージョン | `@huggingface/transformers` 4.2.0 |
+| 現在の実装バージョン | `@huggingface/transformers` 4.3.0（2026-10-06の依存脆弱性対応）。過去の精度・性能評価は記録時点の4.2.0 |
 | Phase 3初期設定 | `device: "wasm"` / `dtype: "q8"` |
 
 Transformers.jsは`token-classification`パイプラインを提供している。採用モデルはTransformers.js用のONNX重みを持ち、モデルカードにブラウザ側の読み込み例が掲載されている。

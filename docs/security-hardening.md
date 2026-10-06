@@ -89,6 +89,8 @@ NERは専用Worker内で実行し、ONNX Runtimeの`numThreads`を`1`へ固定�
 
 ## 7. 実行コマンド
 
+継続検証のGitHub Actions、全重大度の依存監査、必須チェックとE2Eの対象外は[CI・依存関係監査](ci.md)を参照する。2026年10月6日に監査ポリシーを追加し、従来のHigh以上の終了判定から本番・全依存の厳格な判定へ変更した。
+
 ```bash
 npm test
 npm run audit:dependencies

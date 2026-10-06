@@ -385,6 +385,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run audit:dependencies
 ```
 
 If a script does not exist, do not claim it passed. Add a conventional script only when it is part of the requested setup or required for repeatable verification.
@@ -397,6 +398,10 @@ Report:
 - material manual checks
 
 ## 13. Dependency policy
+
+CI uses Node.js 24 and `npm ci`. Run `npm run test:security` and `npm run audit:dependencies` for dependency or audit-policy changes. The audit gate checks production and full dependency reports and fails on every reported severity, unavailable audits, malformed reports, or timeouts. There are no current exceptions; do not hide findings with an audit-level threshold, omit development dependencies from the full check, or treat network failure as a pass. See `docs/ci.md` for CI scope and merge checks.
+
+When updating Transformers.js, keep the directly pinned `onnxruntime-web` assets at the exact version required by that installed Transformers.js release. The runtime compatibility test guards this boundary; also verify real browser-local NER for runtime changes rather than relying only on mocked model failures. Historical evaluation results keep their original runtime version, while new evaluation output reads `env.version` dynamically.
 
 Before adding a dependency:
 

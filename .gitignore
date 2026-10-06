@@ -149,3 +149,4 @@ output/playwright/
 playwright-report/
 test-results/
 .vercel
+.security-audit/
