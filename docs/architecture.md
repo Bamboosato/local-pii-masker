@@ -196,6 +196,8 @@ export type MaskEntry = {
   restorationText: string;
   token: string;
   relatedGroupId?: string;
+  relatedOriginalRestorationText?: string;
+  relatedOriginalToken?: string;
   category: MaskCategory;
   sources: DetectionSource[];
   confidence?: number;
@@ -287,40 +289,11 @@ const entryKey = normalizedOriginalText;
 
 ### 7.2 基本方式
 
-MVPでは対象数が限定的であることを前提に、長さ降順で候補を評価する最長一致走査から開始する。
+現行実装は`src/domain/mask/maskText.ts`の`buildMaskSegments`で、NFC正規化した原文を1回走査する。有効かつ`approved`の項目を`normalizedText`の長さ降順、同長時はトークン順で評価し、文脈付き判定を通った最長一致を採用する。プレビューとコピー文字列は同じセグメントから生成する。
 
 文脈付きモードでは、最長一致走査の各候補位置について、候補が自動検出の曖昧な一文字姓かを確認する。該当する場合は、一般語パターン辞書、人名ラベル、敬称、姓名の連続、箇条書き、NERの人名結果を同じ原文位置で評価する。一般語パターンだけが一致した場合はその出現箇所を走査対象から除外し、人名文脈または判定不能の場合はマスクする。一般語パターン辞書は姓辞書と分離し、`src/domain/reference/singleSurnameCommonWordRules.ts` の `SINGLE_SURNAME_COMMON_WORD_RULES` で管理する。各ルールは姓、パターン、`prefix`/`literal` の種別、任意の説明を持つ。
 
-```ts
-type ActiveMask = Pick<MaskEntry, "originalText" | "token">;
-
-export function maskText(text: string, entries: ActiveMask[]): string {
-  const sorted = [...entries]
-    .filter((entry) => entry.originalText.length > 0)
-    .sort((a, b) => b.originalText.length - a.originalText.length);
-
-  let output = "";
-  let position = 0;
-
-  while (position < text.length) {
-    const matched = sorted.find((entry) =>
-      text.startsWith(entry.originalText, position),
-    );
-
-    if (matched) {
-      output += matched.token;
-      position += matched.originalText.length;
-      continue;
-    }
-
-    const codePoint = String.fromCodePoint(text.codePointAt(position)!);
-    output += codePoint;
-    position += codePoint.length;
-  }
-
-  return output;
-}
-```
+有効状態や文脈判定を省いた擬似コードを実装の正本にしない。実装と境界条件は`maskText.ts`、`contextualMasking.ts`および対応する単体テストを参照する。
 
 対象数や原文長によって性能が不足する場合は、TrieまたはAho-Corasick法への置き換えを検討する。アルゴリズム変更後も、同じ受入テストを維持する。
 
@@ -333,27 +306,25 @@ export function maskText(text: string, entries: ActiveMask[]): string {
 ### 8.1 要件
 
 - 原文中の通常文字列と衝突しにくい
-- セッション内で一意
+- セッション内で一意（明示的な同一人物関連付けではグループ内で共有）
 - カテゴリを識別できる
 - 外部AIによる分割・装飾・翻訳が起きにくい
 - 正規表現で厳密に検出できる
 
-初期候補：
+現行の表示・コピー形式：
 
 ```text
-[[MASK_PERSON_A7F31C]]
-[[MASK_ADDRESS_19B204]]
+[人名_1]
+[住所_1]
 ```
 
-想定パターン：
+検証・検査用パターン（カテゴリ表示名以外の未知トークンも検査する）：
 
 ```regex
-\[\[MASK_[A-Z_]+_[A-F0-9]{6,}\]\]
+\[(?!\[)[^\]\s]+_\d+\]
 ```
 
-連番だけでは、複数セッションの文章を混在させた場合や原文との衝突が起こりやすいため、ランダム識別子を含める。
-
-`crypto.randomUUID()`または`crypto.getRandomValues()`を使用し、暗号用途ではなく衝突回避用途として利用する。
+`createMaskToken`はカテゴリごとに1から連番を探索し、原文に含まれる文字列と既存項目のトークンを避ける。項目IDや対応表IDは別に生成するため、トークンにランダムIDは含めない。別セッション間の一意性は保証せず、異なる作業の回答を混在させない。保存済み対応表を開いた場合は保存されたトークンを維持する。
 
 ## 9. 検出パイプライン
 
@@ -660,19 +631,23 @@ stateDiagram-v2
 
 ログへ原文、候補文字列、マスクを復元した文章を出力しない。
 
-## 16. ディレクトリ構成案
+## 16. 現行ディレクトリ構成（主要部分）
 
 ```text
 src/
+├─ App.tsx
+├─ main.tsx
+├─ styles.css
 ├─ app/
-│  ├─ App.tsx
+│  ├─ normalizationAvailability.ts
 │  ├─ reducer.ts
 │  └─ selectors.ts
 ├─ components/
-│  ├─ TextWorkspace/
-│  ├─ EntityPanel/
-│  ├─ ModelStatus/
-│  └─ RestoreWorkspace/
+│  ├─ OriginalTextEditor.tsx
+│  ├─ TextNormalizationDialog.tsx
+│  ├─ MaskMappingDialogs.tsx
+│  ├─ PwaStatus.tsx
+│  └─ useDialogFocus.ts
 ├─ domain/
 │  ├─ mask/
 │  │  ├─ maskText.ts
@@ -690,17 +665,22 @@ src/
 │  ├─ detection/
 │  │  ├─ mergeCandidates.ts
 │  │  ├─ regex/
-│  │  ├─ ner/
-│  │  └─ types.ts
-│  └─ normalization/
-│     ├─ shared/
-│     ├─ detection/
-│     └─ document/
+│  │  └─ ner/
+│  ├─ normalization/
+│  │  ├─ normalizeText.ts
+│  │  ├─ detection/
+│  │  └─ document/
+│  └─ types.ts
 ├─ hooks/
-└─ tests/
+│  └─ useTextNormalization.ts
+└─ pwa/
+   ├─ pwaClient.ts
+   └─ service-worker.template.js.txt
 ```
 
 ドメインロジックをReactコンポーネントから分離し、純粋関数として単体テスト可能にする。
+
+単体・コンポーネントテストは対象ファイルの近くの`*.test.ts(x)`、ブラウザ試験は`e2e/`と`e2e-dev/`、評価・性能・ソース監査は`scripts/`に置く。UIの一部は現在`App.tsx`内にあり、上記は将来のコンポーネント分割を完了したことを示さない。現行の実装と未達事項は[実装・文書の照合結果](implementation-status.md)を参照する。
 
 ## 17. 実装フェーズ
 

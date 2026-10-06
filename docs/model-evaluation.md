@@ -40,7 +40,7 @@ jiting/xlm-roberta-ner-japanese_onnx
 
 元モデルのラベル：
 
-| ラベル | 意味 | MVPでの扱い候補 |
+| ラベル | 意味 | 現行MVPでの写像 |
 | --- | --- | --- |
 | `PER` | 人名 | `PERSON` |
 | `ORG` | 一般組織 | `ORGANIZATION` |
@@ -48,8 +48,8 @@ jiting/xlm-roberta-ner-japanese_onnx
 | `ORG-O` | その他組織 | `ORGANIZATION` |
 | `LOC` | 地名 | Phase 3初期実装では`ADDRESS` |
 | `INS` | 施設 | Phase 3初期実装では`ADDRESS` |
-| `PRD` | 製品 | `SECRET`または対象外 |
-| `EVT` | イベント | `OTHER`または対象外 |
+| `PRD` | 製品 | `OTHER` |
+| `EVT` | イベント | `OTHER` |
 
 `LOC`と`INS`は住所専用ラベルではない。都道府県、市区町村、施設名、建物名、番地を含む住所全体の検出精度は別途評価する。Phase 3初期実装では、住所文脈での見落としを避けるため暫定的に`ADDRESS`へ写像する。
 
@@ -177,7 +177,7 @@ Chrome Worker実測：
 
 10,000文字を複数回処理してもタブクラッシュはなく、2回目以降に継続的なメモリ増加は確認されなかった。プロセス値は測定時点の定常値であり、瞬間的なピーク値ではない。8GB級PCやmacOSでのメモリ余裕は別途確認する。
 
-30,000文字上限候補の追加実測（2026年8月12日、Windows 11 / 14論理CPU / 31.5GB RAM、ローカルVite開発サーバー、WASM / Q8、合成文字列30,000文字）：
+現行入力上限30,000文字の追加実測（2026年8月12日、Windows 11 / 14論理CPU / 31.5GB RAM、ローカルVite開発サーバー、WASM / Q8、合成文字列30,000文字）：
 
 | ブラウザ | 入力反映 | 自動検出 | UIタイマー最大遅延 | JSヒープ使用量 | ブラウザプロセス群 | 結果 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
@@ -192,13 +192,13 @@ Chrome Worker実測：
 - 外部通信先はHugging Faceとモデル配信に使われるXetだけで、原文・候補・対応表の送信はなかった
 - ONNX RuntimeのWASM/MJSはViteビルドへ取り込み、同一オリジンから取得する。`cdn.jsdelivr.net`への実行時依存は除去した
 - 保存操作を行わない検証ではLocalStorage、SessionStorage、IndexedDB、Cookieにユーザーデータがなく、Cache Storageにはモデル、Tokenizer、ONNX Runtime資材だけが保存された
-- 明示保存を行う検証では、機密データが暗号化されたOPFSセッションファイルだけに保存され、Cache Storage、Service Worker、ネットワーク、Consoleへ出ないことを確認する。`index.json`は許可された一覧用メタデータだけを含む
+- 明示保存を行う追加検証では、機密データが暗号化されたOPFS対応表ファイルだけに保存され、Cache Storage、Service Worker、ネットワーク、Consoleへ出ないことを確認する。`index.json`は許可された一覧用メタデータだけを含む。この追加検証の受入完了を、上記のNER実測から推定しない
 
 Phase 7では、NERモデルを当面Hugging Face Hubから取得し、`jiting/xlm-roberta-ner-japanese_onnx`の取得リビジョン`8d70fc4`を固定する。公開モデル資材のキャッシュはTransformers.jsのブラウザキャッシュを所有者とし、Service Workerのアプリシェルキャッシュとは分離する。オフラインでモデルが未取得・破損・容量超過の場合は、NERを利用不可として形式検出と手動追加へ縮退する。
 
 マスク対応表の暗号化、OPFS、復旧、競合、一覧メタデータ境界は[マスク対応表のローカル保存要件](local-work-history-requirements.md)と[Storage API利用方針](storage-api-policy.md)を参照する。
 
-100文書PoCとChrome Worker実測の範囲では現行モデルを維持する。次は200～300文書の最終確認用データによる評価を優先する。8GB級PC、macOS Chrome、初回取得失敗・低速回線の確認は後続フェーズへ延期する。
+この100文書PoC時点では現行モデルを維持し、次の未見データ評価へ進めた。最終の採用判断は3.7に記載する。8GB級PC、macOS Chrome、初回取得失敗・低速回線の確認は後続フェーズへ延期する。
 
 ### 3.7 未見100文書による最終確認（2026年7月14日）
 
@@ -256,14 +256,14 @@ const detector = await pipeline(
   "token-classification",
   "jiting/xlm-roberta-ner-japanese_onnx",
   {
-    device: "webgpu",
-    // 実際に利用可能なdtypeはモデルリポジトリとPoCで確認する。
+    device: "wasm",
     dtype: "q8",
+    revision: "8d70fc4",
   },
 );
 ```
 
-ただし、初期候補モデルは旧形式の`model_quantized.onnx`を含むため、Transformers.js 4.2.0での`dtype`解決、デフォルト選択、WebGPU・WASM双方の互換性を実機確認する。
+これは現行Workerの設定例である。採用モデルの旧形式`model_quantized.onnx`はWASM / q8で利用している。WebGPUへの切替は未採用であり、モデル・Transformers.js・dtype・配信リビジョンを変更する場合は取得ファイルと互換性を再評価する。
 
 評価時は以下を記録する。
 
