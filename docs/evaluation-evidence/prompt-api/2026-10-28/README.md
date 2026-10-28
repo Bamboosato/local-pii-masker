@@ -2,6 +2,8 @@
 
 保存ブランチ：`codex/prompt-api-poc-not-adopted-20261028`。基準HEADは`b42980ab156ad07cd3d310e27d483d978e237406`。実装・テスト・文書を含む研究用チェックポイントであり、本番採用・公開・マージを示さない。
 
+GitHubへの保存時は、`vercel.json`の`git.deploymentEnabled`でこのブランチだけを`false`にし、自動プレビューデプロイを抑止する。mainと他ブランチは未指定のまま維持する。[Vercelの設定仕様](https://vercel.com/docs/project-configuration/git-configuration#git.deploymentenabled)を参照。ブランチpushに対するGitHub Actionsも、既存の`push.branches: [main]`により実行対象外となる。PR・マージ・手動デプロイは行わない。
+
 **今回の採用は見送り。** 最終78件の進行条件を満たす案がなく、NER併用へ進んでいない。[評価報告](../../../prompt-api-poc-report.md)と[評価仕様](../../../prompt-api-source-id-evaluation.md)を参照。
 
 ## 保存対象
