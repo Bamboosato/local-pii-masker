@@ -1,5 +1,9 @@
 # Local PII Masker MVP要件定義
 
+2026-10-27承認の限定拡張として、[Prompt API追加検出PoC](local-pii-masker-prompt-api-poc-requirements-v0.1.md)を実装する。Chrome内の追加抽出に限り、一時候補は自動有効化せず明示選択後に適用する。既存Regex・NER候補の初期有効化規則と外部生成AI API連携の対象外方針は維持する。保存互換と検出元表示は追加要件DET-05、競合・警告・状態変更はDET-06に従う。
+
+2026-10-28承認の後続調査では、[sourceId評価仕様](prompt-api-source-id-evaluation.md)に従い、評価専用の参照ID出力とAPI条件比較を認める。通常画面の出力スキーマ・保存形式・既存NERは維持し、評価上の改善を確認する前に自動採用しない。
+
 ## 1. 文書情報
 
 | 項目 | 内容 |

@@ -1,0 +1,1272 @@
+{
+  "schemaVersion": "priority-evaluation-1",
+  "at": "2026-10-28T01:34:32.026Z",
+  "environment": {
+    "id": "priority-20261028-1034-start",
+    "observedAtUtc": "2026-10-28T01:34:30.6273962Z",
+    "browserVersion": "156.0.8078.48",
+    "modelVersion": "2025.8.8.1141",
+    "model": "nano_v3_gpu_low_tier_model",
+    "backend": "GPU",
+    "state": "Ready",
+    "crashCount": "0/3",
+    "brokerFile": "priority-broker-start.yml",
+    "brokerSHA256": "F87EDF095B5DADEE81A1211ACAC986418A4AE3AFD5C7BFE28E9CBE1B685D070A",
+    "loadControl": "One measured job; other host activity not controlled",
+    "chromeConfigSHA256": "4CA3D1608E0A4430CF57B1133E89B892D0C1C211FAB1E8CFE2AE3CFEEA4D1BA4"
+  },
+  "environmentHash": "63ddccc6a5797f037abd74de0ba202f72bbeac07616b29f0c8096851d99a061a",
+  "sourceHashes": {
+    "src/domain/detection/prompt/adapter.ts": "88ae00b083bae9a48b6d8899f87dd0cdb3e2b4b54d47fadfdfd481507ff260c3",
+    "src/domain/detection/prompt/config.ts": "ca1d1eebcb9ad5a0348b6192ae4406ab862c013c128c027af4753eb159916e6f",
+    "src/domain/detection/prompt/run.ts": "0172b3ca37a5f94ce896041910af92ab78f7c740766b6948da44ca4fbb7a363b",
+    "src/domain/detection/prompt/validation.ts": "f1a4490742f283c991284dd3fc1e3d24759ca25965cea4f64245f208d39863ba",
+    "src/domain/detection/prompt/chunks.ts": "962268184ed0ae371bd56356a30ff94d10c271494fba3d4a39eea6a05bd4a820",
+    "src/domain/detection/prompt/sourceQuotes.ts": "eb438ea335da38e25b80686dfe0e40e082c40ef1f1c607fb7952b71f81f85b7c",
+    "src/domain/detection/prompt/formattingBudget.ts": "cc138ee714fb3c55e7e4ec702ee226d947bef0d9c44a62bee3fa661be40be08d",
+    "experiments/prompt-api/corpusV2.ts": "f06a3e5176fc8de917e9362016d0cd5916d3974ac0fbfcfabe33639eb7354d00",
+    "experiments/prompt-api/sourceId.ts": "ebbf0c234b1cca640982cc51573d295d87439569207cb26cfc89c37736d3655e",
+    "experiments/prompt-api/priorityEvaluation.ts": "6da49016f0885655358cda5403e8684691eb71dcd7c15a1460702d025a541b53",
+    "experiments/prompt-api/priorityPlan.ts": "b43925b7670a42565a92a48f24c1e90fddcd3a26f6b5576adca1b43a74469400",
+    "experiments/prompt-api/runPriority.ts": "4b253c29e7acd85a2c6c1983e63db325f93cec1915fe90f6fbee8a1c99ef6c40"
+  },
+  "sourceHash": "bf60d9404ddd398ab735c04befa2b418ac5172d4baf3c782a21f05a83b904c84",
+  "phase": "all",
+  "plan": [
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-schema-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-none-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-quote-enum-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-schema-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-none-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-quote-enum-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-schema-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-none-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-quote-enum-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-schema-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-none-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 1,
+      "variant": {
+        "id": "diagnostic-quote-enum-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-none-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-quote-enum-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-schema-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-none-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-quote-enum-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-schema-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-none-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-quote-enum-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-schema-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-none-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-quote-enum-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 2,
+      "variant": {
+        "id": "diagnostic-schema-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-quote-enum-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-schema-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-none-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-quote-enum-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-schema-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-none-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-repeated-minimal"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-quote-enum-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-schema-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-none-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-quote-enum-fresh",
+        "format": "evidence-v1",
+        "sessionMode": "fresh",
+        "constraint": "quote-enum",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-schema-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "diagnostic",
+      "repeat": 3,
+      "variant": {
+        "id": "diagnostic-none-clone",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "none",
+        "omitSchemaInput": true
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-5"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-5"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-6"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-6"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-5"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-5"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-6"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-6"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-5"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-5"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-6"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-positive-6"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-1"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-2"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-3"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-4"
+    },
+    {
+      "phase": "quality",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-negative-4"
+    },
+    {
+      "phase": "long",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-varied-1000"
+    },
+    {
+      "phase": "long",
+      "repeat": 1,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-varied-1000"
+    },
+    {
+      "phase": "long",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-varied-1000"
+    },
+    {
+      "phase": "long",
+      "repeat": 2,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-varied-1000"
+    },
+    {
+      "phase": "long",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-evidence-v1",
+        "format": "evidence-v1",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-varied-1000"
+    },
+    {
+      "phase": "long",
+      "repeat": 3,
+      "variant": {
+        "id": "quality-source-id-v2",
+        "format": "source-id-v2",
+        "sessionMode": "clone",
+        "constraint": "schema",
+        "omitSchemaInput": false
+      },
+      "documentId": "development-v2-varied-1000"
+    }
+  ],
+  "planHash": "0a2def57a3d6c2496f76ea36bc5f64caaa4b0af531ba06dba7cc8e2791ea6627",
+  "rowWatchdogMs": 180000,
+  "os": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) Ultra 7 155U",
+    "logicalCpus": 14
+  },
+  "status": "done",
+  "stopReason": "",
+  "completed": 102
+}

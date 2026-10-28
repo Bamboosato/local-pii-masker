@@ -53,7 +53,8 @@ function toPersistedEntry(entry: MaskEntry): PersistedMaskMappingEntry {
     token: entry.token,
     restorationText: entry.restorationText,
     category: entry.category,
-    sources: [...entry.sources].sort(),
+    // v1 has no Prompt API provenance. regex preserves contextual surname protection.
+    sources: [...new Set(entry.sources.map((source) => source === "prompt-api" ? "regex" as const : source))].sort(),
     ...(entry.relatedGroupId ? { relationId: entry.relatedGroupId } : {}),
     manual: entry.sources.includes("manual"),
   };

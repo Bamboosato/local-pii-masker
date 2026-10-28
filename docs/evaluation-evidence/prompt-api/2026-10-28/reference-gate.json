@@ -1,0 +1,14 @@
+{
+  "version": "reference-gate-v1",
+  "eligible": [],
+  "reasons": [
+    "short-regression",
+    "no-material-changed-input-gain",
+    "reference-whole:long-regression",
+    "reference-whole-512:long-incomplete"
+  ],
+  "measuredRows": 78,
+  "sourceHash": "72f9ee33ef84ee06a946b36c6080e931980ec961b006a14470a02d69e1c3945c",
+  "nerCombinationExecuted": false,
+  "adoptionDecision": "not-adopted-this-round"
+}

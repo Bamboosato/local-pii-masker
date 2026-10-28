@@ -54,6 +54,7 @@ import {
   type OriginalTextEditorHandle,
 } from "./components/OriginalTextEditor";
 import { PwaStatus, type PwaModelState } from "./components/PwaStatus";
+import { AdditionalDetectionPanel } from "./components/AdditionalDetectionPanel";
 import { TextNormalizationDialog } from "./components/TextNormalizationDialog";
 import {
   MaskMappingLibraryDialog,
@@ -813,6 +814,7 @@ export default function App() {
     }
 
     setShowDetectionProgress(false);
+    dispatch({ type: "beginDetection" });
     setDetectionPhase("regex");
     dispatch({ type: "setNotice" });
     const detectionText = state.originalText;
@@ -1151,6 +1153,18 @@ export default function App() {
             </div>
           </div>
 
+          <AdditionalDetectionPanel
+            key={`${state.originalRevision}:${state.additionalContextVersion}`}
+            text={state.originalText}
+            entries={state.entries}
+            mode={state.occurrenceMaskingMode}
+            ready={!isDetecting && state.successfulDetectionRevision === state.originalRevision}
+            onApply={(candidates) => dispatch({ type: "applyAdditionalCandidates", candidates, expectedRevision: state.originalRevision, expectedContextVersion: state.additionalContextVersion, createId: createEntryId })}
+            onInspect={(range) => {
+              flushSync(() => dispatch({ type: "setActiveTextView", value: "original" }));
+              originalEditorRef.current?.scrollToRange(range);
+            }}
+          />
           <div className="editor-frame">
             {state.activeTextView === "original" ? (
               <div

@@ -54,4 +54,44 @@ GitHubのブランチ保護で`Dependency audit`と`Verify`をGitHub Actions由�
 
 Windows上の本番プレビューで合成文の実モデルNERを確認し、AI候補5件とマスク6件が表示された。観測した23要求はアプリ配信元・Hugging Faceの公開資材配信元へのGETのみで、合成マーカー混入0件、pageerror 0件だった。モデル応答のブラウザーキャッシュ追加警告1件があり、オフライン実NERの受入成功とはしない。この短文確認を精度・性能の再評価と混同しない。
 
+## 2026-10-27 開発依存5パッケージの監査修正
+
+Prompt API PoCの検証時に検出した全依存5パッケージ（High 3 / Moderate 2）を、互換性を保つ範囲で修正版へ更新した。いずれも開発依存の経路であり、実アプリからの攻撃到達を実証したという意味ではない。既知の脆弱版を導入ツリーから除き、厳格な監査を再実行する方針とした。
+
+| パッケージ | 更新前 → 更新後 | 依存経路・修正境界 |
+| --- | --- | --- |
+| vite | 8.1.4 → 8.1.6 | 直接の開発依存。Vite 8.1系のサーバー・launch-editor修正 |
+| vitest | 4.1.11 → 4.1.12 | 直接の開発依存。内部のexact版依存も同時更新 |
+| @vitest/mocker | 4.1.11 → 4.1.12 | Vitest経由。Windowsバックスラッシュを含むredirect境界の修正 |
+| undici | 7.30.0 → 7.30.1 | jsdom経由。EventSource等の修正版 |
+| zod | 4.4.3 → 4.6.7 | eslint-plugin-react-hooks経由。修正境界4.6.6以降を既存範囲で解決 |
+
+修正境界の一次資料：[Vite](https://github.com/advisories/GHSA-9jrq-w75r-8gcw)、[Vitest/mocker](https://github.com/advisories/GHSA-xp26-3454-mjgp)、[undici](https://github.com/advisories/GHSA-4qv8-2p9j-2685)、[zod](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)。個別アドバイザリーの重大度と、同じパッケージに対する複数検出を含むnpm監査の重大度は区別する。
+
+`package.json`の変更はVite/Vitestの下限だけ。lockfileの変更は対象パッケージとVitest内部の11パッケージに限定し、既存項目の削除・本番依存の変更・overrides・監査例外追加はない。React、Transformers.js、ONNX Runtime Web、モデルリビジョンを維持する。導入済み版とlockfileの一致、脆弱版の重複が残らないこと、既存のpeer/engine範囲、Linux/Windows用の任意依存の記録を確認した。追加の回帰テストファイルは作らず、既存の監査ゲートと動作検査を再実行した。
+
+### 検証観点と結果
+
+先に、機能（マスク・復元・PoC）、非機能（通信・保存・CSP）、データ（lockfile・暗号保存・キャッシュ分離）、UI（通常操作・キーボード・a11y）の観点を設定。正常系、異常系、境界値、状態遷移は既存テスト群で確認し、同一実機のブラウザーは逐次実行した。
+
+| コマンド・確認 | 結果 |
+| --- | --- |
+| `npm run lint` / `npm run typecheck` | 成功 |
+| `npm run test:security` | 3ファイル・19件成功。全重大度・不正レポート・通信失敗を失敗にする既存監査ポリシーも維持 |
+| `npm run audit:dependencies` | production/fullとも全重大度0件、成功。元の5パッケージ検出は再現しない |
+| `npm test -- --maxWorkers=2` | 51ファイル・494件成功。メモリ負荷を抑えて実行 |
+| `npm run build` | Vite 8.1.6で成功。既存の500 kB超チャンク警告あり |
+| `npx playwright test --config=playwright.dev.config.ts` | 開発用CSP・合成評価画面の2件成功 |
+| `npx playwright test e2e/hardening.spec.ts e2e/pwa.spec.ts e2e/mapping-storage.spec.ts e2e/prompt-api.spec.ts --project=chrome` | 12件成功 |
+| 同上 `--project=msedge` | 12件成功。Chromeとは逐次実行 |
+| Cドライブの専用一時領域で `npm ci --ignore-scripts --os=linux --cpu=x64 --libc=glibc --no-audit --no-fund` | npm 11.19.1で299パッケージのクリーン導入成功。Linux用Rolldown/Lightning CSSも解決。lockfile不整合・任意依存欠落による導入失敗は再現しない |
+
+Viteの配信・ビルドとVitest/jsdom/ESLintの更新に合わせ、開発用CSP、本番ヘッダー、正規化Worker、入力の通信・Storage・Console非混入、NER障害時の継続、a11y、Service Worker、アプリのオフライン起動、公開キャッシュ分離、実OPFSの保存・上書き・再読込・復元・削除、追加AIの確認フローを対象に選んだ。大容量モデルを使うE2Eは対象外とした。
+
+### 検証境界と容量
+
+Windows、Node.js 24.22.1、npm 11.19.1で実施した。DockerのLinuxエンジンが利用できないため、実Ubuntu上の`npm ci`・ネイティブ実行は未実施。Linux指定のクリーン導入はWindows上でインストールスクリプトを無効にしたlockfile検査であり、Ubuntuのビルド成功と同一視しない。実Ubuntuの確認は将来のCI実行で必要となる。
+
+Dドライブ上の既存node_modulesを全削除・再導入せず、11パッケージの差替えに留めた。クリーン導入は空き容量のあるCドライブの一時領域で行い、検査後の依存コピーを削除した。削除対象は今回作成した専用ディレクトリに限定し、既存データ・他プロジェクトのキャッシュには触れていない。最終確認の空き容量はC約23.02 GiB、D約1.95 GiB。実NER・Gemini Nanoの大容量モデル取得は行わず、実モデル精度・速度・オフライン推論の再検証はしていない。本番公開・デプロイ・マージは行っていない。
+
 CI導入前のE2Eでは、正規化ダイアログの旧寸法検査1件が失敗した。保存対応時のコミット`716077e`で共通寸法へ変更済みだったため、UIを変えずに旧設計文書と期待値を同期した。ヘッダー・フッターの余白、タイトル、操作ボタンの寸法を引き続き明示的に検査する。

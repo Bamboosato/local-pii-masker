@@ -78,6 +78,8 @@ export default defineConfig(({ command }) => {
       headers: buildSecurityHeaders(),
     },
     server: {
+      // Browser download artifacts can be locked on Windows; they are not source files.
+      watch: { ignored: ["**/output/playwright/**"] },
       headers: buildSecurityHeaders({
         allowDevelopmentScripts: true,
         allowDevelopmentSockets: true,

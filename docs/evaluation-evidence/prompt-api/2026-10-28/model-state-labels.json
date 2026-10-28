@@ -1,0 +1,131 @@
+{
+  "version": "model-state-labels-1",
+  "observations": [
+    {
+      "source": "output/playwright/priority-broker-start.yml",
+      "sourceSHA256": "f87edf095b5dadee81a1211acac986418a4ae3afd5c7bfe28e9cbe1b685d070a",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/priority-broker-after-main.yml",
+      "sourceSHA256": "f87edf095b5dadee81a1211acac986418a4ae3afd5c7bfe28e9cbe1b685d070a",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/priority-broker-legacy-start.yml",
+      "sourceSHA256": "6e05ccccb4c3602880a3de2692c539465c65083c8902be516683aa9820e24724",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/priority-broker-schema-retry.yml",
+      "sourceSHA256": "120d2225daa008ccef772209abaecffe451ffa4535398a725d6028ec3902f470",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 1/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/priority-broker-final.yml",
+      "sourceSHA256": "ece9337451d01bfcd4f77d7343fad392d3735e2a121ee3c8b68b885f3e12368a",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/followup-broker-start.yml",
+      "sourceSHA256": "650608ae07e0936d7e0e529b627bcf2a8b6a3017b31c9f6729cba70e7f33443d",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/followup-broker-final.yml",
+      "sourceSHA256": "c1344558f2de57f7d1f828450bc309c27805caeec38abec40d3bb362c3e39517",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/reference-broker-start.yml",
+      "sourceSHA256": "f102003ab513ba3382d1c983fa9c1883231ecdb20d924b55f89766062e300a61",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    },
+    {
+      "source": "output/playwright/reference-broker-final.yml",
+      "sourceSHA256": "2be55c4dbe5262f36636836e5b045c6f9daa3f42928bb01fc11dd2e57948ca58",
+      "transformation": "whitelisted-display-labels-only",
+      "labels": [
+        "Model crash count (current/maximum): 0/3",
+        "nano_v3_gpu_component",
+        "2025.8.8.1141",
+        "Ready",
+        "GPU (fastest inference)",
+        "nano_v3_gpu_low_tier_model",
+        "4,072.13 MiB"
+      ]
+    }
+  ]
+}

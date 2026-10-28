@@ -13,6 +13,7 @@ import { createMaskToken } from "../domain/mask/tokenFactory";
 import type { LoadedMaskMapping, MaskMapping } from "../domain/mapping/types";
 import { reapplyMaskMapping } from "../domain/mapping/reapply";
 import { createMaskMappingFingerprint } from "../domain/mapping/snapshot";
+import { classifyAdditionalCandidates, type AdditionalCandidate } from "../domain/detection/prompt/validation";
 
 export type TextView = "original" | "masked";
 export type EntryFilter = "enabled" | "disabled";
@@ -28,6 +29,8 @@ export type AppState = MaskSession & {
   entrySearch: string;
   restoreExpanded: boolean;
   originalRevision: number;
+  additionalContextVersion: number;
+  successfulDetectionRevision?: number;
   normalizationLockReason?: NormalizationLockReason;
   notice?: string;
   mapping?: LoadedMaskMapping;
@@ -44,11 +47,14 @@ export const initialAppState: AppState = {
   entrySearch: "",
   restoreExpanded: false,
   originalRevision: 0,
+  additionalContextVersion: 0,
 };
 
 const MANUAL_PROMOTION_STEP = 1;
 
 export type AppAction =
+  | { type: "beginDetection" }
+  | { type: "applyAdditionalCandidates"; candidates: AdditionalCandidate[]; expectedRevision: number; expectedContextVersion: number; createId: () => string }
   | { type: "setOriginalText"; value: string }
   | {
       type: "applyNormalizedOriginal";
@@ -107,12 +113,20 @@ export type AppAction =
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "beginDetection":
+      return { ...state, successfulDetectionRevision: undefined, additionalContextVersion: state.additionalContextVersion + 1 };
+    case "applyAdditionalCandidates": {
+      if (action.expectedRevision !== state.originalRevision || action.expectedContextVersion !== state.additionalContextVersion || state.successfulDetectionRevision !== state.originalRevision) return state;
+      const candidates = classifyAdditionalCandidates(action.candidates, state.entries).filter((candidate) => candidate.status === "new");
+      return { ...state, entries: mergeCandidates({ originalText: state.originalText, entries: state.entries, candidates: candidates.map((candidate) => ({ originalText: candidate.text, category: candidate.category, source: "prompt-api" })), createId: action.createId }) };
+    }
     case "setOriginalText": {
       const originalText = normalizeText(action.value);
 
       return {
         ...state,
         originalText,
+        successfulDetectionRevision: originalText === state.originalText ? state.successfulDetectionRevision : undefined,
         entries: recalculateOccurrences(originalText, state.entries),
         originalRevision:
           originalText === state.originalText
@@ -198,6 +212,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         entries,
+        successfulDetectionRevision: action.outcome === "success" ? state.originalRevision : undefined,
         normalizationLockReason:
           state.normalizationLockReason ??
           (shouldLock
@@ -257,6 +272,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         entries,
+        additionalContextVersion: state.additionalContextVersion + 1,
+        successfulDetectionRevision: undefined,
         mapping: {
           mappingId: action.mapping.mappingId,
           name: action.mapping.name,
@@ -289,7 +306,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, notice: action.value };
 
     case "clearSession":
-      return { ...initialAppState };
+      return { ...initialAppState, additionalContextVersion: state.additionalContextVersion + 1 };
 
     default:
       return state;

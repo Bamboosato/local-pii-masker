@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>追加AI検出 合成データ評価</title></head>
+<body><main><h1>追加AI検出 合成データ評価</h1>
+<p>開発サーバー専用。合成データだけでA/B/Cを逐次比較します。実文書の入力欄はありません。モデル準備は別操作です。NERの資材取得が必要な場合もあるため、空き容量を確認してください。</p>
+<p><label>ソースコミット <input id="commit" placeholder="git rev-parse HEAD と未コミット差分の有無"></label></p>
+<p><label>CPU・RAM・GPU・OS・Chrome完全版・モデル版 <input id="hardware" size="90" placeholder="取得できない情報は不明と記入"></label></p>
+<p><label>評価セット <select id="dataset"><option value="development">調整用100文書</option><option value="final">最終確認100文書（プロンプト調整には使わない）</option><option value="long">長文 1,000 / 10,000 / 30,000文字</option></select></label></p>
+<p><button id="prepare">追加AIモデルを準備</button> <button id="run">A/B/Cを各3回評価</button> <button id="stop" disabled>中止</button> <button id="export" disabled>合成評価結果をJSON出力</button></p>
+<p role="status" id="status">待機中。実モデルの利用可否を確認してから準備してください。</p><pre id="results"></pre>
+</main><script type="module" src="./main.ts"></script></body></html>

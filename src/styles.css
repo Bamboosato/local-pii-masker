@@ -2167,3 +2167,9 @@ button:disabled {
     justify-content: flex-end;
   }
 }
+/* Keep the optional review list bounded so the text editor remains reachable. */
+.additional-detection { margin: 0.5rem 1rem; flex: 0 0 auto; max-height: 38vh; overflow: auto; font-size: 0.85rem; }
+.additional-detection summary { cursor: pointer; font-weight: 600; }
+.additional-detection p { margin: 0.5rem 0; overflow-wrap: anywhere; }
+.additional-candidates { padding-left: 1.5rem; }
+.additional-candidates li { margin: 0.8rem 0; overflow-wrap: anywhere; }

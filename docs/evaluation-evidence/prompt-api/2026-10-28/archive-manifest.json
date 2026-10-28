@@ -1,0 +1,409 @@
+{
+  "version": "prompt-api-evidence-archive-1",
+  "createdAtUtc": "2026-10-28T05:47:27.5184758Z",
+  "measuredRows": 345,
+  "warmupRows": 10,
+  "excludedMeasuredRows": 0,
+  "adoptionDecision": "not-adopted-this-round",
+  "runtimeSourceFilesMatchFinalEvaluation": true,
+  "runs": [
+    {
+      "id": "priority-v2-run-1",
+      "measuredRows": 102,
+      "completeRows": 91,
+      "warmupRows": 1,
+      "sourceHash": "bf60d9404ddd398ab735c04befa2b418ac5172d4baf3c782a21f05a83b904c84"
+    },
+    {
+      "id": "priority-legacy-run-1",
+      "measuredRows": 6,
+      "completeRows": 0,
+      "warmupRows": 1,
+      "sourceHash": "ee86928d2faeb8e6a17bb7c058c0a794831f3c650f9dbe6cfa379869bfadfee0"
+    },
+    {
+      "id": "priority-schema-run-2",
+      "measuredRows": 9,
+      "completeRows": 2,
+      "warmupRows": 1,
+      "sourceHash": "c916c08958338f5d4a74c42f649c961beb73db0e31d933aef5e4705690078521"
+    },
+    {
+      "id": "followup-minimize-1",
+      "measuredRows": 12,
+      "completeRows": 6,
+      "warmupRows": 1,
+      "sourceHash": "390fabd6aa9931114aeb326a97094f21fe13f5ad5752e807d12f58dab726c336"
+    },
+    {
+      "id": "followup-minimize-sentences-1",
+      "measuredRows": 9,
+      "completeRows": 7,
+      "warmupRows": 1,
+      "sourceHash": "390fabd6aa9931114aeb326a97094f21fe13f5ad5752e807d12f58dab726c336"
+    },
+    {
+      "id": "followup-minimize-boundary-1",
+      "measuredRows": 9,
+      "completeRows": 6,
+      "warmupRows": 1,
+      "sourceHash": "9fcf74475045cdd73375863e25537ba6f7decf70a7d135990fb00e60a2cb911e"
+    },
+    {
+      "id": "followup-negative-1",
+      "measuredRows": 60,
+      "completeRows": 60,
+      "warmupRows": 1,
+      "sourceHash": "9fcf74475045cdd73375863e25537ba6f7decf70a7d135990fb00e60a2cb911e"
+    },
+    {
+      "id": "followup-negative-brief-1",
+      "measuredRows": 60,
+      "completeRows": 60,
+      "warmupRows": 1,
+      "sourceHash": "ff841694c6f1cb3e51f14eba37775a9ef2d0b50d32b5f96fd9bbf26142efa22f"
+    },
+    {
+      "id": "reference-short-1",
+      "measuredRows": 60,
+      "completeRows": 60,
+      "warmupRows": 1,
+      "sourceHash": "72f9ee33ef84ee06a946b36c6080e931980ec961b006a14470a02d69e1c3945c"
+    },
+    {
+      "id": "reference-long-1",
+      "measuredRows": 18,
+      "completeRows": 17,
+      "warmupRows": 1,
+      "sourceHash": "72f9ee33ef84ee06a946b36c6080e931980ec961b006a14470a02d69e1c3945c"
+    }
+  ],
+  "files": [
+    {
+      "path": "priority-v2-run-1/manifest.json",
+      "source": "output/playwright/priority-v2-run-1/manifest.json",
+      "bytes": 33732,
+      "sha256": "6572b219cc4ebb3a04f5ff6127998d40ae5c4529b701ac6af1cdffa636113e0e",
+      "sourceSHA256": "6572b219cc4ebb3a04f5ff6127998d40ae5c4529b701ac6af1cdffa636113e0e",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-v2-run-1/rows.jsonl",
+      "source": "output/playwright/priority-v2-run-1/rows.jsonl",
+      "bytes": 372153,
+      "sha256": "a2657b448c6819efb4fbfcf0dc7e0b49c1029cbbda472a083e403a655ad75c64",
+      "sourceSHA256": "a2657b448c6819efb4fbfcf0dc7e0b49c1029cbbda472a083e403a655ad75c64",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-v2-run-1/warmup.json",
+      "source": "output/playwright/priority-v2-run-1/warmup.json",
+      "bytes": 3016,
+      "sha256": "8881b3bdc86b9c4dec27ffdc94c425a0493775f6a22f74d253de868991bb547e",
+      "sourceSHA256": "8881b3bdc86b9c4dec27ffdc94c425a0493775f6a22f74d253de868991bb547e",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-legacy-run-1/manifest.json",
+      "source": "output/playwright/priority-legacy-run-1/manifest.json",
+      "bytes": 21305,
+      "sha256": "fc25e7cf5f077f95189f1f5b319d69952da8bfd38de5fd87f1c8a26b4bf189c4",
+      "sourceSHA256": "fc25e7cf5f077f95189f1f5b319d69952da8bfd38de5fd87f1c8a26b4bf189c4",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-legacy-run-1/rows.jsonl",
+      "source": "output/playwright/priority-legacy-run-1/rows.jsonl",
+      "bytes": 24466,
+      "sha256": "1b5eef7fc00763882732f0a47f3ea3adf42ef0710b9aea6f7588dca3171959fc",
+      "sourceSHA256": "1b5eef7fc00763882732f0a47f3ea3adf42ef0710b9aea6f7588dca3171959fc",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-legacy-run-1/warmup.json",
+      "source": "output/playwright/priority-legacy-run-1/warmup.json",
+      "bytes": 3059,
+      "sha256": "dfc523aa34a46867cb49cb501b8b119fcc56b270751d3a1b364812e7b44fc0ef",
+      "sourceSHA256": "dfc523aa34a46867cb49cb501b8b119fcc56b270751d3a1b364812e7b44fc0ef",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-schema-run-2/manifest.json",
+      "source": "output/playwright/priority-schema-run-2/manifest.json",
+      "bytes": 22690,
+      "sha256": "794a6fcc2e8eca86b1b609d0c3c5c1781fada751d99cf43c7d1943ace47efd1a",
+      "sourceSHA256": "794a6fcc2e8eca86b1b609d0c3c5c1781fada751d99cf43c7d1943ace47efd1a",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-schema-run-2/rows.jsonl",
+      "source": "output/playwright/priority-schema-run-2/rows.jsonl",
+      "bytes": 35392,
+      "sha256": "75cd0090b0754e14beee772d0c8add62a8dc85a6cb0bbd4c6868ba5037b45412",
+      "sourceSHA256": "75cd0090b0754e14beee772d0c8add62a8dc85a6cb0bbd4c6868ba5037b45412",
+      "transformation": "none"
+    },
+    {
+      "path": "priority-schema-run-2/warmup.json",
+      "source": "output/playwright/priority-schema-run-2/warmup.json",
+      "bytes": 3036,
+      "sha256": "3887b5e81912b775d00c2d926ebb72f1c8b4851a2b7f2273ff4f0f38fa1223b1",
+      "sourceSHA256": "3887b5e81912b775d00c2d926ebb72f1c8b4851a2b7f2273ff4f0f38fa1223b1",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-1/manifest.json",
+      "source": "output/playwright/followup-minimize-1/manifest.json",
+      "bytes": 24021,
+      "sha256": "daa119aef0d2d43556aac3d3e5f90508ab7b6d3aa63e22d16ad426c6be546e0e",
+      "sourceSHA256": "daa119aef0d2d43556aac3d3e5f90508ab7b6d3aa63e22d16ad426c6be546e0e",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-1/rows.jsonl",
+      "source": "output/playwright/followup-minimize-1/rows.jsonl",
+      "bytes": 53805,
+      "sha256": "71acebe916469e9038f0cf3989a7f9e8994e1d84f3c6c6776f32b4924ff2be65",
+      "sourceSHA256": "71acebe916469e9038f0cf3989a7f9e8994e1d84f3c6c6776f32b4924ff2be65",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-1/warmup.json",
+      "source": "output/playwright/followup-minimize-1/warmup.json",
+      "bytes": 3639,
+      "sha256": "fa575bbd34da2bae3dc9a112118d16629ea733cdf92ec40737c1d364e5c667d4",
+      "sourceSHA256": "fa575bbd34da2bae3dc9a112118d16629ea733cdf92ec40737c1d364e5c667d4",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-1/readiness.json",
+      "source": "output/playwright/followup-minimize-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-sentences-1/manifest.json",
+      "source": "output/playwright/followup-minimize-sentences-1/manifest.json",
+      "bytes": 22986,
+      "sha256": "e27da3bb296e45f5d08afca8db1a8224f26be36f894d84d6b395321004aa6056",
+      "sourceSHA256": "e27da3bb296e45f5d08afca8db1a8224f26be36f894d84d6b395321004aa6056",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-sentences-1/rows.jsonl",
+      "source": "output/playwright/followup-minimize-sentences-1/rows.jsonl",
+      "bytes": 39484,
+      "sha256": "77a4e865d2f887e11278ad305f958268d5dbbf1765c96b75eec126aeee31aa5d",
+      "sourceSHA256": "77a4e865d2f887e11278ad305f958268d5dbbf1765c96b75eec126aeee31aa5d",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-sentences-1/warmup.json",
+      "source": "output/playwright/followup-minimize-sentences-1/warmup.json",
+      "bytes": 3630,
+      "sha256": "5e08a6522f40e445bbef8549f840aaaabe7e3e26a6e76593a0ce2ef5a75d02dd",
+      "sourceSHA256": "5e08a6522f40e445bbef8549f840aaaabe7e3e26a6e76593a0ce2ef5a75d02dd",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-sentences-1/readiness.json",
+      "source": "output/playwright/followup-minimize-sentences-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-boundary-1/manifest.json",
+      "source": "output/playwright/followup-minimize-boundary-1/manifest.json",
+      "bytes": 22946,
+      "sha256": "873ee5b71e271fcddadb97cfed567f0a371eab36b87132d0cedd33af6d7c9f89",
+      "sourceSHA256": "873ee5b71e271fcddadb97cfed567f0a371eab36b87132d0cedd33af6d7c9f89",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-boundary-1/rows.jsonl",
+      "source": "output/playwright/followup-minimize-boundary-1/rows.jsonl",
+      "bytes": 39878,
+      "sha256": "2e11f5662ae7addd0d2ac63bbbab559bb16e9e3c1c4439b45103d53bf5738033",
+      "sourceSHA256": "2e11f5662ae7addd0d2ac63bbbab559bb16e9e3c1c4439b45103d53bf5738033",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-boundary-1/warmup.json",
+      "source": "output/playwright/followup-minimize-boundary-1/warmup.json",
+      "bytes": 3658,
+      "sha256": "addfa6d04aff3d25bf25c1645b98b427ba6ffb022f2b2a602db5fda8f484e945",
+      "sourceSHA256": "addfa6d04aff3d25bf25c1645b98b427ba6ffb022f2b2a602db5fda8f484e945",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-minimize-boundary-1/readiness.json",
+      "source": "output/playwright/followup-minimize-boundary-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-1/manifest.json",
+      "source": "output/playwright/followup-negative-1/manifest.json",
+      "bytes": 39366,
+      "sha256": "16f03ac677a492a9f5e2559d71d41c709f82313044e473e93ed1cf9e621fb056",
+      "sourceSHA256": "16f03ac677a492a9f5e2559d71d41c709f82313044e473e93ed1cf9e621fb056",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-1/rows.jsonl",
+      "source": "output/playwright/followup-negative-1/rows.jsonl",
+      "bytes": 255966,
+      "sha256": "0c57d01639c7a0e4a54bb819aad45178dd0f66dfdf879ec96ff1a72bb749a7bc",
+      "sourceSHA256": "0c57d01639c7a0e4a54bb819aad45178dd0f66dfdf879ec96ff1a72bb749a7bc",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-1/warmup.json",
+      "source": "output/playwright/followup-negative-1/warmup.json",
+      "bytes": 3599,
+      "sha256": "ec46e2b6843aa4b78cecdb7692c526b3ddf99327683d6e29c3c8fe3fddbcbd2b",
+      "sourceSHA256": "ec46e2b6843aa4b78cecdb7692c526b3ddf99327683d6e29c3c8fe3fddbcbd2b",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-1/readiness.json",
+      "source": "output/playwright/followup-negative-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-brief-1/manifest.json",
+      "source": "output/playwright/followup-negative-brief-1/manifest.json",
+      "bytes": 39360,
+      "sha256": "b642e378d460a29707d508f81ef4a1eb7bcd4023f3096dbd07767c6d70b6cb0b",
+      "sourceSHA256": "b642e378d460a29707d508f81ef4a1eb7bcd4023f3096dbd07767c6d70b6cb0b",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-brief-1/rows.jsonl",
+      "source": "output/playwright/followup-negative-brief-1/rows.jsonl",
+      "bytes": 259400,
+      "sha256": "6d9eac368bbb864550eed66ccbe5509b5474c916937c2d4494d5dd55726d96c1",
+      "sourceSHA256": "6d9eac368bbb864550eed66ccbe5509b5474c916937c2d4494d5dd55726d96c1",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-brief-1/warmup.json",
+      "source": "output/playwright/followup-negative-brief-1/warmup.json",
+      "bytes": 3673,
+      "sha256": "96ba48cf4430b3b7e59b64166334650ca8ee9b5d2ee33579ab8d8d1033ea26d5",
+      "sourceSHA256": "96ba48cf4430b3b7e59b64166334650ca8ee9b5d2ee33579ab8d8d1033ea26d5",
+      "transformation": "none"
+    },
+    {
+      "path": "followup-negative-brief-1/readiness.json",
+      "source": "output/playwright/followup-negative-brief-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-short-1/manifest.json",
+      "source": "output/playwright/reference-short-1/manifest.json",
+      "bytes": 42338,
+      "sha256": "16d8edbf60f9dade250bb0d57190215d83355c3d602da9628efaf2fafa9365e3",
+      "sourceSHA256": "16d8edbf60f9dade250bb0d57190215d83355c3d602da9628efaf2fafa9365e3",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-short-1/rows.jsonl",
+      "source": "output/playwright/reference-short-1/rows.jsonl",
+      "bytes": 260796,
+      "sha256": "70e4acfc383f242a9fb29e4d6613b7330293f62cd9d29a4db0d30703b5e71248",
+      "sourceSHA256": "70e4acfc383f242a9fb29e4d6613b7330293f62cd9d29a4db0d30703b5e71248",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-short-1/warmup.json",
+      "source": "output/playwright/reference-short-1/warmup.json",
+      "bytes": 3656,
+      "sha256": "4e95de8dd253c527acdac50f86957db02893285bbee9742b245c2f12619b7a26",
+      "sourceSHA256": "4e95de8dd253c527acdac50f86957db02893285bbee9742b245c2f12619b7a26",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-short-1/readiness.json",
+      "source": "output/playwright/reference-short-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-long-1/manifest.json",
+      "source": "output/playwright/reference-long-1/manifest.json",
+      "bytes": 26599,
+      "sha256": "73e405a2f02680d288ff80693c718f58ac5a5e3412f54df5f7a50f0a4619d4b7",
+      "sourceSHA256": "73e405a2f02680d288ff80693c718f58ac5a5e3412f54df5f7a50f0a4619d4b7",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-long-1/rows.jsonl",
+      "source": "output/playwright/reference-long-1/rows.jsonl",
+      "bytes": 79804,
+      "sha256": "d3baacacc7dc568074d38380ec76fdcc6168fc7d9f391489753843caf1c07bdf",
+      "sourceSHA256": "d3baacacc7dc568074d38380ec76fdcc6168fc7d9f391489753843caf1c07bdf",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-long-1/warmup.json",
+      "source": "output/playwright/reference-long-1/warmup.json",
+      "bytes": 3689,
+      "sha256": "4218fffa18ee54abdeac2e2a0c029eee83a1e8d23baad8a0e4e82f4d1e2ec291",
+      "sourceSHA256": "4218fffa18ee54abdeac2e2a0c029eee83a1e8d23baad8a0e4e82f4d1e2ec291",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-long-1/readiness.json",
+      "source": "output/playwright/reference-long-1/readiness.json",
+      "bytes": 28,
+      "sha256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "sourceSHA256": "ffaa2f3a48c9a54d872221dd5552a4b936b5be24587ce275b5fbdd1963b5457a",
+      "transformation": "none"
+    },
+    {
+      "path": "reference-gate.json",
+      "source": "output/playwright/reference-gate.json",
+      "bytes": 407,
+      "sha256": "4592d68208618a65d4420052d098af8856a8bdcdfb17899de4da300f5cf6700e",
+      "sourceSHA256": "4592d68208618a65d4420052d098af8856a8bdcdfb17899de4da300f5cf6700e",
+      "transformation": "none"
+    },
+    {
+      "path": "excluded-trials/priority-schema-run-1.json",
+      "source": "output/playwright/priority-schema-run-1/excluded.json",
+      "bytes": 184,
+      "sha256": "169a1ef36da0ec23cb96afbdd3985430290a3db78f65d89dcd9ebb1f71a04940",
+      "sourceSHA256": "169a1ef36da0ec23cb96afbdd3985430290a3db78f65d89dcd9ebb1f71a04940",
+      "transformation": "none"
+    },
+    {
+      "path": "model-state-labels.json",
+      "bytes": 4482,
+      "sha256": "6cbd433976e21b44f1de71cd9d494240ed9d1863d8a6302c0ccb27fb874b60da",
+      "transformation": "derived-summary",
+      "source": "See source hashes inside file"
+    },
+    {
+      "path": "verification-summary.json",
+      "bytes": 2101,
+      "sha256": "4fb0c792f4f6a0e19d3d84a902ca53a780a14e5af1ae4b44394d379e620fded3",
+      "transformation": "derived-summary",
+      "source": "See source hashes inside file"
+    }
+  ]
+}

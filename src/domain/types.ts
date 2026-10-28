@@ -10,7 +10,7 @@ export type MaskCategory =
   | "SECRET"
   | "OTHER";
 
-export type DetectionSource = "regex" | "ner" | "manual";
+export type DetectionSource = "regex" | "ner" | "manual" | "prompt-api";
 
 export type OccurrenceMaskingMode =
   | "global"
@@ -72,9 +72,10 @@ export const CATEGORY_LABELS: Record<MaskCategory, string> = {
 };
 
 export const SOURCE_LABELS: Record<DetectionSource, string> = {
-  regex: "形式",
+  regex: "形式・互換",
   ner: "AI検出",
   manual: "手動",
+  "prompt-api": "追加AI検出",
 };
 
 export const NORMALIZATION_RULE_LABELS: Record<

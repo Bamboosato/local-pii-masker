@@ -1,0 +1,50 @@
+{
+  "version": "preservation-verification-1",
+  "runtimeSourceHash": "72f9ee33ef84ee06a946b36c6080e931980ec961b006a14470a02d69e1c3945c",
+  "runtimeSourceFilesMatch": true,
+  "basis": "Previously completed final checks; preservation adds metadata and documentation only",
+  "checks": [
+    {
+      "command": "npm run lint",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-lint.log",
+      "sourceSHA256": "068ac7ed633416d6f072fbde08a989232d9c27ae81503a6ec58135eafabfbbde"
+    },
+    {
+      "command": "npm run typecheck",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-typecheck.log",
+      "sourceSHA256": "45128ebb7d3786a1f22526f11cd23aaf9a1f0aa6ba5b00785a9ac7e7a2dc6be3"
+    },
+    {
+      "command": "npm run test",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-test.log",
+      "sourceSHA256": "0b7ca9fe9b1cb70c715fa5f0b7026329105053b40cbabafd7cf41dcf397ee849"
+    },
+    {
+      "command": "npm run build",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-build.log",
+      "sourceSHA256": "61e91cc7a759ed9af917948746ad944574764f55fce10044d8018d68dfccb366"
+    },
+    {
+      "command": "npm run test:security",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-test-security.log",
+      "sourceSHA256": "22f58fc33129d24d90c7e3a4f70f10e88cfa243fa4348848062922744e2eba17"
+    },
+    {
+      "command": "npm run audit:dependencies",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-audit-dependencies.log",
+      "sourceSHA256": "8012646c7f82d26d22939608d5a0490b774eca119f33482ca2a52bee82557a80"
+    },
+    {
+      "command": "node node_modules/@playwright/test/cli.js test --config=playwright.dev.config.ts e2e-dev/prompt-evaluation.spec.ts --reporter=list",
+      "reportedExitCode": 0,
+      "source": "output/playwright/reference-final-e2e-dev.log",
+      "sourceSHA256": "be8c389c8c16be2feafbe92a5395acb5570bd7e825f0f980fe0f08a7e967a07a"
+    }
+  ]
+}

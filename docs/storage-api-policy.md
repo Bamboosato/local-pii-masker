@@ -1,5 +1,7 @@
 # Storage API 利用方針
 
+2026-10-27追加PoC: Prompt APIのプロンプト・生応答・根拠・位置・未適用候補は保存しない。適用済み対応の明示保存だけ既存OPFS Repositoryを使い、v1 snapshot時にメモリ内検出元 `prompt-api` を `regex` へ写像する。Chrome管理のモデル領域はアプリのOPFS/Cache Storageと別管理であり、既存モデルキャッシュ削除操作では削除しない。詳細は[追加要件DET-05](local-pii-masker-prompt-api-poc-requirements-v0.1.md)。
+
 ## 1. 原則
 
 Local PII Maskerは、ユーザーデータの保存先を明示操作時のOPFSに限定する。デフォルトではユーザーデータを永続保存しない。保存する場合も、原文を含む作業セッションではなく、マスク対応表だけを暗号化して保存する。

@@ -102,6 +102,7 @@ export function MaskMappingSaveDialog(props: {
             <X size={22} />
           </button>
         </div>
+        <p>追加AI検出の検出元は互換保存され、読み直すと形式・互換と表示されます。</p>
         <div className="modal-body">
           <p className="mapping-storage-note">マスク対応表だけを暗号化して保存します。</p>
           {!writable ? <p role="alert">タブ間の排他制御を利用できないため、対応表は読込専用です。</p> : null}

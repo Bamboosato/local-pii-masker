@@ -700,7 +700,7 @@ describe("App", () => {
       await within(managementPanel).findByText("yamada@example.com"),
     ).toBeInTheDocument();
     expect(within(managementPanel).getByText("090-1234-5678")).toBeInTheDocument();
-    expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
+    expect(within(managementPanel).getAllByText("形式・互換")).toHaveLength(2);
     expect(
       within(managementPanel).getAllByRole("article", { name: /、有効$/ }),
     ).toHaveLength(2);
@@ -1058,7 +1058,7 @@ describe("App", () => {
     expect(within(managementPanel).getByText("[その他_1]")).toBeInTheDocument();
     expect(within(managementPanel).queryByText("住所")).not.toBeInTheDocument();
     expect(within(managementPanel).queryByText("その他")).not.toBeInTheDocument();
-    expect(within(managementPanel).getAllByText("形式")).toHaveLength(2);
+    expect(within(managementPanel).getAllByText("形式・互換")).toHaveLength(2);
     expect(
       within(managementPanel).getAllByRole("article", { name: /、有効$/ }),
     ).toHaveLength(2);
@@ -1079,7 +1079,7 @@ describe("App", () => {
     expect(
       await within(managementPanel).findByText("yamada@example.com"),
     ).toBeInTheDocument();
-    expect(within(managementPanel).getByText("形式")).toBeInTheDocument();
+    expect(within(managementPanel).getByText("形式・互換")).toBeInTheDocument();
     expect(
       screen.getByText(
         "AI検出に失敗しました。形式検出のみ完了：追加1件、更新0件。",
@@ -1175,7 +1175,7 @@ describe("App", () => {
 
     expect(within(card).getByText("[組織_1]")).toBeInTheDocument();
     expect(within(card).queryByText("組織")).not.toBeInTheDocument();
-    expect(within(card).getByText("形式")).toBeInTheDocument();
+    expect(within(card).getByText("形式・互換")).toBeInTheDocument();
     expect(within(card).getByText("改行結合")).toBeInTheDocument();
     expect(await screen.findByText(/AI検出に失敗しました/)).toBeInTheDocument();
   });

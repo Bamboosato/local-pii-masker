@@ -1,0 +1,6 @@
+{
+  "excluded": true,
+  "reason": "Broker state not populated before measurement; availability check timed out",
+  "measuredRows": 0,
+  "atUtc": "2026-10-28T02:17:27.5499840Z"
+}

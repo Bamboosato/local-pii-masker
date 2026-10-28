@@ -125,6 +125,8 @@ function sourcePriority(source: DetectionSource): number {
       return 2;
     case "manual":
       return 1;
+    case "prompt-api":
+      return 0;
   }
 }
 

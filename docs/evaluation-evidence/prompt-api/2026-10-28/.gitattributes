@@ -1,0 +1,6 @@
+# Preserve the SHA-256 of original JSON evidence on every platform.
+*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.jsonl -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.md text eol=lf
+*.ps1 text eol=lf
+.gitattributes text eol=lf

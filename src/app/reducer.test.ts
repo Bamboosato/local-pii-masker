@@ -720,7 +720,7 @@ describe("appReducer", () => {
       value: "山田",
     });
 
-    expect(appReducer(state, { type: "clearSession" })).toEqual(initialAppState);
+    expect(appReducer(state, { type: "clearSession" })).toEqual({ ...initialAppState, additionalContextVersion: state.additionalContextVersion + 1 });
   });
 
   it("正規化適用時は新しい原文を正本にして検出前状態を維持する", () => {
