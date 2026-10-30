@@ -621,6 +621,15 @@ button:disabled {
   flex-basis: var(--workspace-footer-height);
   height: var(--workspace-footer-height);
   min-height: var(--workspace-footer-height);
+  gap: 12px;
+}
+
+.workspace-footer .original-clear-button {
+  flex-shrink: 0;
+  min-height: var(--compact-control-height);
+  margin-left: auto;
+  padding: 0 12px;
+  font-size: 14px;
 }
 
 .result-summary {

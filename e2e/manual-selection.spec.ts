@@ -1,5 +1,56 @@
 import { expect, test } from "@playwright/test";
 
+test("文字数行の右端から原文だけを消去できる", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "原文" });
+  const clear = page.getByRole("button", { name: "原文を消去" });
+  const footer = page.locator(".workspace-footer");
+  await expect(clear).toBeDisabled();
+  await editor.fill("原文消去の合成検証です。\n2行目を含みます。");
+
+  for (const width of [1280, 1024]) {
+    await page.setViewportSize({ width, height: 800 });
+    const layout = await footer.evaluate((element) => {
+      const button = element.querySelector("button");
+      if (!button) throw new Error("The clear button must exist.");
+      const bar = element.getBoundingClientRect();
+      const control = button.getBoundingClientRect();
+      const count = element.querySelector(".mono")?.getBoundingClientRect();
+      return {
+        height: bar.height,
+        buttonHeight: control.height,
+        rightInset: bar.right - control.right,
+        inside: control.top >= bar.top && control.bottom <= bar.bottom,
+        overlapsCount: !count || count.right > control.left,
+      };
+    });
+    expect(layout.height).toBe(44);
+    expect(layout.buttonHeight).toBe(32);
+    expect(layout.rightInset).toBe(24);
+    expect(layout.inside).toBe(true);
+    expect(layout.overlapsCount).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath(`clear-button-${width}.png`) });
+  }
+
+  await editor.focus();
+  await editor.press("Tab");
+  await expect(clear).toBeFocused();
+  await clear.press("Enter");
+  await expect(editor.locator(".cm-placeholder")).toBeVisible();
+  await expect(editor).toBeFocused();
+  await expect(clear).toBeDisabled();
+  await expect(footer).toContainText("文字数: 0 / 30,000");
+  await expect(page.getByRole("button", { name: "選択範囲を追加" })).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath("original-cleared.png") });
+
+  await editor.fill(" \n ");
+  await expect(clear).toBeEnabled();
+  await clear.click();
+  await expect(clear).toBeDisabled();
+  await page.getByRole("tab", { name: "マスク結果" }).click();
+  await expect(clear).toHaveCount(0);
+});
+
 test("原文選択の緑と追加完了の青がマウス・キーボード操作に追従する", async ({ page }, testInfo) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "原文" });

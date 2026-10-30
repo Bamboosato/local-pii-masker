@@ -1213,10 +1213,26 @@ export default function App() {
             }
           >
             {state.activeTextView === "original" ? (
-              <span className="mono">
-                文字数: {state.originalText.length.toLocaleString("ja-JP")} /{" "}
-                {MAX_CHAR_COUNT.toLocaleString("ja-JP")}
-              </span>
+              <>
+                <span className="mono">
+                  文字数: {state.originalText.length.toLocaleString("ja-JP")} /{" "}
+                  {MAX_CHAR_COUNT.toLocaleString("ja-JP")}
+                </span>
+                <button
+                  className="button button-ghost original-clear-button"
+                  disabled={state.originalText.length === 0}
+                  onClick={() => {
+                    handleOriginalTextChange("");
+                    setSelectedText("");
+                    originalEditorRef.current?.clearSelection();
+                  }}
+                  title="原文だけを消去します。マスク対象と復元入力は保持します"
+                  type="button"
+                >
+                  <Eraser aria-hidden="true" size={16} />
+                  原文を消去
+                </button>
+              </>
             ) : (
               <div className="result-summary">
                 <p>
