@@ -551,7 +551,9 @@ export default function App() {
       },
     });
     setManualDialogOpen(false);
-    lastSelectionControlRef.current?.focus();
+    // The add button becomes disabled; return keyboard focus to the editor.
+    originalEditorRef.current?.clearSelection();
+    setSelectedText("");
   }
 
   function openRelationDialog() {
@@ -1126,7 +1128,7 @@ export default function App() {
                       : getDetectionButtonLabel(detectionPhase, state.entries)}
                   </button>
                   <button
-                    className="button button-secondary"
+                    className={`button button-secondary${selectedText.trim().length > 0 ? " has-text-selection" : ""}`}
                     disabled={selectedText.trim().length === 0}
                     onClick={openManualDialog}
                     ref={lastSelectionControlRef}

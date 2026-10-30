@@ -11,6 +11,7 @@
   --blue: #0051d5;
   --blue-strong: #003ea8;
   --blue-soft: #dbeafe;
+  --text-selection-background: #dcfce7;
   --navy: #0f172a;
   --panel: #f8fafc;
   --surface: #ffffff;
@@ -536,7 +537,7 @@ button:disabled {
 
 .original-text-editor .cm-selectionBackground,
 .original-text-editor .cm-content ::selection {
-  background: rgba(0, 81, 213, 0.24) !important;
+  background: var(--text-selection-background) !important;
 }
 
 .original-highlight {
@@ -1071,6 +1072,12 @@ button:disabled {
   border-color: #b4c5ff;
   background: #e0ebff;
   color: #003ea8;
+}
+
+.button-secondary.has-text-selection {
+  border-color: #86b89a;
+  background: var(--text-selection-background);
+  color: #166534;
 }
 
 .button-ghost {

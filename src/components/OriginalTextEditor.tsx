@@ -22,6 +22,7 @@ type OriginalTextEditorProps = {
 };
 
 export type OriginalTextEditorHandle = {
+  clearSelection: () => void;
   scrollToRange: (range: { start: number; end: number }) => void;
 };
 
@@ -67,6 +68,14 @@ export const OriginalTextEditor = forwardRef<
   useImperativeHandle(
     ref,
     () => ({
+      clearSelection: () => {
+        const view = viewRef.current;
+
+        if (view) {
+          view.dispatch({ selection: { anchor: view.state.selection.main.head } });
+          view.focus();
+        }
+      },
       scrollToRange: (range) => {
         const view = viewRef.current;
 

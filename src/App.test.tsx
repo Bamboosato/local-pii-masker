@@ -289,6 +289,55 @@ describe("App", () => {
     expect(screen.queryByRole("dialog", { name: "テキスト正規化" })).not.toBeInTheDocument();
   });
 
+  it("選択中は追加ボタンを強調し、キャンセルでは保持、追加完了では選択を解除する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const editor = screen.getByLabelText("原文");
+    const add = screen.getByRole("button", { name: "選択範囲を追加" });
+    setEditorText(editor, "検証太郎と検証太郎");
+    expect(add).toBeDisabled();
+    expect(add).not.toHaveClass("has-text-selection");
+
+    selectEditorRange(editor, 0, 4);
+    expect(add).toBeEnabled();
+    expect(add).toHaveClass("has-text-selection");
+    await user.click(add);
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(add).toHaveFocus();
+    expect(add).toHaveClass("has-text-selection");
+    await user.click(add);
+    await user.click(screen.getByRole("button", { name: "追加してマスク" }));
+    expect(add).toBeDisabled();
+    expect(add).not.toHaveClass("has-text-selection");
+    expect(editor).toHaveFocus();
+    expect(EditorView.findFromDOM(editor)?.state.selection.main.empty).toBe(true);
+    expect(editor.querySelectorAll(".original-highlight.is-approved")).toHaveLength(2);
+
+    // Selecting an existing target must activate the same UI without duplicating it.
+    selectEditorRange(editor, 0, 4);
+    expect(add).toHaveClass("has-text-selection");
+    await user.click(add);
+    await user.click(screen.getByRole("button", { name: "追加してマスク" }));
+    expect(screen.getAllByRole("article", { name: "検証太郎、有効" })).toHaveLength(1);
+    expect(add).toBeDisabled();
+  });
+
+  it("空白のみでは追加できず、複数行の選択と選択解除でボタン状態が追従する", () => {
+    render(<App />);
+    const editor = screen.getByLabelText("原文");
+    const add = screen.getByRole("button", { name: "選択範囲を追加" });
+    setEditorText(editor, " \n検証\n太郎");
+    selectEditorRange(editor, 0, 2);
+    expect(add).toBeDisabled();
+    expect(add).not.toHaveClass("has-text-selection");
+    selectEditorRange(editor, 2, 7);
+    expect(add).toBeEnabled();
+    expect(add).toHaveClass("has-text-selection");
+    selectEditorRange(editor, 7, 7);
+    expect(add).toBeDisabled();
+    expect(add).not.toHaveClass("has-text-selection");
+  });
+
   it("原文入力、手動追加、マスク結果タブ切替を通しで操作できる", async () => {
     const user = userEvent.setup();
     render(<App />);
