@@ -289,6 +289,72 @@ describe("App", () => {
     expect(screen.queryByRole("dialog", { name: "テキスト正規化" })).not.toBeInTheDocument();
   });
 
+  it("原文だけを消去し、対象・復元入力・正規化ロックを保持する", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const editor = screen.getByLabelText("原文");
+    const clear = screen.getByRole("button", { name: "原文を消去" });
+    expect(clear.closest(".workspace-footer")).toHaveTextContent("文字数: 0 / 30,000");
+    expect(clear).toBeDisabled();
+    setEditorText(editor, " \n ");
+    expect(clear).toBeEnabled();
+    await user.click(clear);
+    expect(getEditorText(editor)).toBe("");
+    expect(editor).toHaveFocus();
+
+    setEditorText(editor, "検証太郎です");
+    selectEditorRange(editor, 0, 4);
+    await user.click(screen.getByRole("button", { name: "選択範囲を追加" }));
+    await user.click(screen.getByRole("button", { name: "追加してマスク" }));
+    await user.click(screen.getByRole("button", { name: "マスクを復元" }));
+    const response = screen.getByRole("textbox", { name: "マスクを含む文章" });
+    fireEvent.change(response, { target: { value: "[人名_1]です" } });
+    selectEditorRange(editor, 0, 4);
+    await user.click(clear);
+
+    expect(getEditorText(editor)).toBe("");
+    expect(editor).toHaveFocus();
+    expect(clear).toBeDisabled();
+    expect(screen.getByRole("button", { name: "選択範囲を追加" })).toBeDisabled();
+    expect(screen.getByRole("article", { name: "検証太郎、有効" })).toBeInTheDocument();
+    expect(screen.getByLabelText("現在の原文に存在しない: 0か所")).toBeInTheDocument();
+    expect(response).toHaveValue("[人名_1]です");
+    expect(screen.getByRole("textbox", { name: "マスクを復元した文章" })).toHaveValue("検証太郎です");
+    await user.click(screen.getByRole("button", { name: "メニュー" }));
+    expect(screen.getByRole("menuitem", { name: "テキストを正規化" })).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("tab", { name: "マスク結果" }));
+    expect(screen.queryByRole("button", { name: "原文を消去" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "マスク結果" })).toHaveTextContent("マスク結果はここに表示されます。");
+    await user.click(screen.getByRole("tab", { name: "原文" }));
+    setEditorText(screen.getByLabelText("原文"), "検証太郎です");
+    expect(screen.getByLabelText("原文").querySelectorAll(".original-highlight.is-approved")).toHaveLength(1);
+  });
+
+  it("原文消去で検出を中止し、遅延して返った候補も反映しない", async () => {
+    const user = userEvent.setup();
+    let signal: AbortSignal | undefined;
+    let resolveNer: ((value: DetectionCandidate[]) => void) | undefined;
+    runNerDetectionMock.mockImplementation((_text, options) => {
+      signal = options?.signal;
+      return new Promise((resolve) => { resolveNer = resolve; });
+    });
+    render(<App />);
+    setEditorText(screen.getByLabelText("原文"), "検証太郎です");
+    await user.click(screen.getByRole("button", { name: "自動検出" }));
+    await screen.findByRole("button", { name: "中止" });
+    await user.click(screen.getByRole("button", { name: "原文を消去" }));
+    expect(signal?.aborted).toBe(true);
+    expect(signal?.reason).toBe("source-changed");
+    expect(resolveNer).toBeTypeOf("function");
+    await act(async () => {
+      resolveNer?.([{ category: "PERSON", originalText: "検証太郎", source: "ner", confidence: 0.99 }]);
+    });
+    expect(getEditorText(screen.getByLabelText("原文"))).toBe("");
+    expect(screen.getByRole("button", { name: "有効（0）" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "自動検出" })).toBeDisabled();
+  });
+
   it("選択中は追加ボタンを強調し、キャンセルでは保持、追加完了では選択を解除する", async () => {
     const user = userEvent.setup();
     render(<App />);
