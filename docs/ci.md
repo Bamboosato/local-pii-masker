@@ -59,3 +59,13 @@ GitHubのブランチ保護で`Dependency audit`と`Verify`をGitHub Actions由�
 Windows上の本番プレビューで合成文の実モデルNERを確認し、AI候補5件とマスク6件が表示された。観測した23要求はアプリ配信元・Hugging Faceの公開資材配信元へのGETのみで、合成マーカー混入0件、pageerror 0件だった。モデル応答のブラウザーキャッシュ追加警告1件があり、オフライン実NERの受入成功とはしない。この短文確認を精度・性能の再評価と混同しない。
 
 CI導入前のE2Eでは、正規化ダイアログの旧寸法検査1件が失敗した。保存対応時のコミット`716077e`で共通寸法へ変更済みだったため、UIを変えずに旧設計文書と期待値を同期した。ヘッダー・フッターの余白、タイトル、操作ボタンの寸法を引き続き明示的に検査する。
+
+### 2026-11-16: minimatch監査の部分修正（未解消）
+
+2026-11-09の週次監査は、本番依存0件・全依存Moderate 10影響パッケージで失敗した。根本原因は開発用lint依存に含まれるminimatchの[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)（細工したglobの前処理による資源消費）1件であり、10件の独立した脆弱性や本番アプリの情報流出を示すものではない。
+
+通常の許容バージョン範囲内で、lockfileのESLintを10.6.0から10.15.0、`@eslint/config-array`を0.23.5から0.23.6へ更新し、両経路のminimatchを修正済み11.0.8へ移した。必要なESLint配下の推移依存以外は更新しない。本番依存、アプリコード、監査ポリシー、CI設定は変更しない。
+
+部分修正後も、`typescript-eslint`経路のminimatch 10.2.5が残り、全依存監査はModerate 7影響パッケージで失敗する。本番依存は0件。調査時の最新版`@typescript-eslint/typescript-estree` 8.72.2もminimatch `^10.2.2`を要求するため、通常更新だけでは解消できない。監査の除外、`audit fix --force`による旧版への変更、要求範囲外のmajor版を強制するoverrideは行っていない。上流修正版、または別途検証・レビューした互換性修正が必要であり、この部分修正だけでマージ可能とは扱わない。
+
+ローカルではNode.js 24.22.1、npm 11.19.0でlockfileを更新し、`npm ci --ignore-scripts`、lint、typecheck、47ファイル452テスト、buildを確認した。全テストにはsecurity 19件を含む。buildには既存の500kB超チャンク警告がある。監査のnpm scriptは検証環境のUnixソケット制約でtsx CLIが起動できなかったため、同じスクリプトを`node --import tsx`で実行して上記失敗を確認した。アプリ・ブラウザー実行依存を変更しないため、ローカルE2E、実NER、Windows/Edgeでの再試験は行わない。PRのCI結果は別途確認する。
